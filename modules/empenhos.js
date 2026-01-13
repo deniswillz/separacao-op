@@ -257,6 +257,8 @@ const Empenhos = {
                     qtdPorOP: {}
                 };
             }
+            // Debug: log the sum operation
+            console.log(`📊 Item ${item.codigo} - OP ${item.op}: +${item.quantidade} (antes: ${agrupado[key].quantidade}, depois: ${agrupado[key].quantidade + item.quantidade})`);
             agrupado[key].quantidade += item.quantidade;
             if (item.op) {
                 agrupado[key].ordens.add(item.op);
@@ -267,6 +269,9 @@ const Empenhos = {
                 agrupado[key].qtdPorOP[item.op] += item.quantidade;
             }
         });
+
+        // Debug: log final values
+        console.log('📊 Quantidades finais agrupadas:', Object.values(agrupado).map(i => ({ codigo: i.codigo, qtd: i.quantidade, ordens: Array.from(i.ordens) })));
 
         // Convert to array - items are grouped for Separação
         const separacaoData = Object.values(agrupado).map((item, index) => ({
