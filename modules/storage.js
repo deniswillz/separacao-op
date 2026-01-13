@@ -89,12 +89,8 @@ const Storage = {
                         if (typeof v === 'number' && v > 1000000) continue;
                     }
                     const snakeKey = k.replace(/([A-Z])/g, '_$1').toLowerCase();
-                    // Convert dates in date-related fields
-                    if (snakeKey.includes('data') || snakeKey.includes('criacao') || snakeKey.includes('finalizacao')) {
-                        prepared[snakeKey] = convertBrazilianDateToISO(v);
-                    } else {
-                        prepared[snakeKey] = v;
-                    }
+                    // Always try to convert Brazilian dates to ISO format
+                    prepared[snakeKey] = convertBrazilianDateToISO(v);
                 }
                 return prepared;
             });
@@ -115,6 +111,11 @@ const Storage = {
             // Insert data in batches of 500
             const BATCH_SIZE = 500;
             let inserted = 0;
+
+            // Debug: show first item to verify date format
+            if (preparedData.length > 0) {
+                console.log(`📋 ${table} - Primeiro item preparado:`, JSON.stringify(preparedData[0], null, 2));
+            }
 
             for (let i = 0; i < preparedData.length; i += BATCH_SIZE) {
                 const batch = preparedData.slice(i, i + BATCH_SIZE);

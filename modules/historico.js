@@ -42,7 +42,7 @@ const Historico = {
             responsavelSeparacao: conferencia.responsavelSeparacao,
             responsavelConferencia: conferencia.responsavelConferencia,
             dataConferencia: conferencia.dataConferencia,
-            dataFinalizacao: conferencia.dataFinalizacao || new Date().toLocaleString('pt-BR'),
+            dataFinalizacao: conferencia.dataFinalizacao || new Date().toISOString(),
             itens: conferencia.itens,
             totalItens: conferencia.itens.length,
             itensOK: conferencia.itens.filter(i => i.ok).length

@@ -295,7 +295,7 @@ const Empenhos = {
             ordens: ordens,
             itens: separacaoData,
             status: 'pendente',
-            dataCriacao: new Date().toLocaleString('pt-BR'),
+            dataCriacao: new Date().toISOString(),
             documento: '',
             responsavel: ''
         });

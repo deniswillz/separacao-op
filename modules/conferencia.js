@@ -123,7 +123,7 @@ const Conferencia = {
             documento: listaSeparacao.documento,
             responsavelSeparacao: listaSeparacao.responsavel,
             responsavelConferencia: '',
-            dataConferencia: new Date().toLocaleString('pt-BR'),
+            dataConferencia: new Date().toISOString(),
             status: 'pendente',
             ordensConferidas: [],
             itens: itensExpandidos
@@ -391,7 +391,7 @@ const Conferencia = {
         if (lista) {
             lista.status = 'finalizado';
             lista.responsavelConferencia = responsavel;
-            lista.dataFinalizacao = new Date().toLocaleString('pt-BR');
+            lista.dataFinalizacao = new Date().toISOString();
             this.save();
         }
 
