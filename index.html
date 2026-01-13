@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Separação de Ordens de Produção | Agrosystem</title>
+    <meta name="description" content="Sistema de separação de ordens de produção">
+
+    <!-- Google Fonts - Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- SheetJS for Excel reading -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Main Styles -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 5L35 35H5L20 5Z" fill="currentColor" />
+                        <path d="M20 15L28 31H12L20 15Z" fill="#008B5B" />
+                    </svg>
+                </div>
+                <div class="logo-text">
+                    <span class="logo-brand">agrosystem</span>
+                    <span class="logo-subtitle">SEPARAÇÃO DE OP</span>
+                </div>
+            </div>
+            <div class="header-info">
+                <span class="current-date" id="currentDate"></span>
+                <span class="current-time" id="currentTime"></span>
+                <div class="user-info" id="userInfo"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Login Overlay -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-logo">
+                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M20 5L35 35H5L20 5Z" fill="#008B5B" />
+                        <path d="M20 15L28 31H12L20 15Z" fill="#00A86B" />
+                    </svg>
+                </div>
+                <h1>agrosystem</h1>
+                <p>Separação de OP</p>
+            </div>
+            <form class="login-form" id="loginForm" onsubmit="return false;">
+                <div class="form-group">
+                    <label>Usuário</label>
+                    <input type="text" id="loginUsername" placeholder="Digite seu usuário">
+                </div>
+                <div class="form-group">
+                    <label>Senha</label>
+                    <input type="password" id="loginPassword" placeholder="Digite sua senha">
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg btn-block" id="btnLogin">
+                    Entrar
+                </button>
+            </form>
+            <div class="login-footer">
+                <small>© 2026 Agrosystem - Todos os direitos reservados</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="app-container" id="appContainer">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <ul class="nav-menu">
+                <li class="nav-item active" data-tab="dashboard">
+                    <span class="nav-icon">🏠</span>
+                    <span class="nav-text">Dashboard</span>
+                </li>
+                <li class="nav-item" data-tab="cadastro">
+                    <span class="nav-icon">📋</span>
+                    <span class="nav-text">Cadastro</span>
+                </li>
+                <li class="nav-item" data-tab="enderecos">
+                    <span class="nav-icon">📍</span>
+                    <span class="nav-text">Endereços</span>
+                </li>
+                <li class="nav-item" data-tab="empenhos">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-text">Empenhos</span>
+                </li>
+                <li class="nav-item" data-tab="blacklist">
+                    <span class="nav-icon">❌</span>
+                    <span class="nav-text">BlackList</span>
+                </li>
+                <li class="nav-item" data-tab="separacao">
+                    <span class="nav-icon">✅</span>
+                    <span class="nav-text">Separação</span>
+                </li>
+                <li class="nav-item" data-tab="conferencia">
+                    <span class="nav-icon">🔍</span>
+                    <span class="nav-text">Conferência</span>
+                </li>
+                <li class="nav-item" data-tab="historico">
+                    <span class="nav-icon">📚</span>
+                    <span class="nav-text">Histórico</span>
+                </li>
+                <li class="nav-item" data-tab="configuracoes" style="display: none;">
+                    <span class="nav-icon">⚙️</span>
+                    <span class="nav-text">Configurações</span>
+                </li>
+            </ul>
+
+
+            <div class="sidebar-footer">
+                <button class="btn-export" id="btnExportData">
+                    <span>💾</span> Exportar Dados
+                </button>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Tab: Dashboard -->
+            <section class="tab-content active" id="tab-dashboard">
+                <div class="content-header">
+                    <h1>Dashboard</h1>
+                    <p>Visão geral do sistema</p>
+                </div>
+
+                <!-- Time Filter -->
+                <div class="filter-bar">
+                    <label>Período:</label>
+                    <select id="dashboardPeriodo">
+                        <option value="7">Últimos 7 dias</option>
+                        <option value="15">Últimos 15 dias</option>
+                        <option value="30">Últimos 30 dias</option>
+                        <option value="90">Últimos 90 dias</option>
+                    </select>
+                </div>
+
+                <div class="dashboard-grid">
+                    <div class="dashboard-card warning">
+                        <div class="dashboard-card-icon">⚠️</div>
+                        <div class="dashboard-card-content">
+                            <span class="dashboard-card-value" id="dashPendentes">0</span>
+                            <span class="dashboard-card-label">Pendentes</span>
+                        </div>
+                    </div>
+                    <div class="dashboard-card success">
+                        <div class="dashboard-card-icon">✅</div>
+                        <div class="dashboard-card-content">
+                            <span class="dashboard-card-value" id="dashFinalizadas">0</span>
+                            <span class="dashboard-card-label">Finalizadas (período)</span>
+                        </div>
+                    </div>
+                    <div class="dashboard-card info">
+                        <div class="dashboard-card-icon">📦</div>
+                        <div class="dashboard-card-content">
+                            <span class="dashboard-card-value" id="dashEmSeparacao">0</span>
+                            <span class="dashboard-card-label">Em Separação</span>
+                        </div>
+                    </div>
+                    <div class="dashboard-card primary">
+                        <div class="dashboard-card-icon">🔍</div>
+                        <div class="dashboard-card-content">
+                            <span class="dashboard-card-value" id="dashEmConferencia">0</span>
+                            <span class="dashboard-card-label">Em Conferência</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Armazéns Distribution -->
+                <div class="dashboard-section">
+                    <h3>🏭 Distribuição por Armazém</h3>
+                    <div id="listaArmazens" class="armazem-grid">
+                        <p class="empty-text">Nenhum dado disponível</p>
+                    </div>
+                </div>
+
+                <div class="dashboard-section">
+                    <h3>⚠️ Pendências</h3>
+                    <div id="listaPendencias" class="dashboard-list">
+                        <p class="empty-text">Nenhuma pendência</p>
+                    </div>
+                </div>
+
+                <div class="dashboard-section">
+                    <h3>✅ Finalizadas no Período</h3>
+                    <div id="listaFinalizadas" class="dashboard-list">
+                        <p class="empty-text">Nenhuma ordem finalizada</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: Cadastro -->
+            <section class="tab-content" id="tab-cadastro">
+                <div class="content-header">
+                    <h1>Cadastro de Produtos</h1>
+                    <p>Lista de todos os produtos em estoque</p>
+                </div>
+
+                <div class="toolbar">
+                    <div class="search-box">
+                        <input type="text" id="searchCadastro" placeholder="Buscar produto...">
+                        <span class="search-icon">🔍</span>
+                    </div>
+                    <span class="item-counter" id="countCadastro">0 itens</span>
+                    <div class="toolbar-actions">
+                        <button class="btn btn-outline" id="btnModeloCadastro">
+                            <span>📄</span> Baixar Modelo Excel
+                        </button>
+                        <label class="btn btn-primary">
+                            <span>📥</span> Importar Excel
+                            <input type="file" id="importCadastro" accept=".xlsx,.xls" hidden>
+                        </label>
+                        <button class="btn btn-danger" id="btnLimparCadastro">
+                            <span>🗑️</span> Limpar Tudo
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="tableCadastro">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descrição</th>
+                                <th>Unidade</th>
+                                <th>Armazém</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                    <div class="empty-state" id="emptyCadastro">
+                        <span class="empty-icon">📋</span>
+                        <p>Nenhum produto cadastrado</p>
+                        <small>Importe um arquivo Excel para começar</small>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: Endereços -->
+            <section class="tab-content" id="tab-enderecos">
+                <div class="content-header">
+                    <h1>Endereços de Estoque</h1>
+                    <p>Localização dos produtos no armazém</p>
+                </div>
+
+                <div class="toolbar">
+                    <div class="search-box">
+                        <input type="text" id="searchEnderecos" placeholder="Buscar endereço ou produto...">
+                        <span class="search-icon">🔍</span>
+                    </div>
+                    <span class="item-counter" id="countEnderecos">0 itens</span>
+                    <div class="toolbar-actions">
+                        <button class="btn btn-outline" id="btnModeloEnderecos">
+                            <span>📄</span> Baixar Modelo Excel
+                        </button>
+                        <label class="btn btn-primary">
+                            <span>📥</span> Importar Excel
+                            <input type="file" id="importEnderecos" accept=".xlsx,.xls" hidden>
+                        </label>
+                        <button class="btn btn-danger" id="btnLimparEnderecos">
+                            <span>🗑️</span> Limpar Tudo
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="tableEnderecos">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descrição</th>
+                                <th>Endereço</th>
+                                <th>Armazém</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                    <div class="empty-state" id="emptyEnderecos">
+                        <span class="empty-icon">📍</span>
+                        <p>Nenhum endereço cadastrado</p>
+                        <small>Importe um arquivo Excel para começar</small>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: Empenhos -->
+            <section class="tab-content" id="tab-empenhos">
+                <div class="content-header">
+                    <h1>Empenhos - Ordens de Produção</h1>
+                    <p>Importe e selecione as OPs para gerar lista de separação</p>
+                </div>
+
+                <!-- Seleção de OPs -->
+                <div class="selection-panel">
+                    <div class="selection-header">
+                        <label>SELECIONE AS ORDENS DE PRODUÇÃO</label>
+                        <div class="toolbar-actions">
+                            <button class="btn btn-outline" id="btnModeloEmpenhos">
+                                <span>📄</span> Baixar Modelo Excel
+                            </button>
+                            <label class="btn btn-primary">
+                                <span>📥</span> Importar Ordens (Excel)
+                                <input type="file" id="importEmpenhos" accept=".xlsx,.xls" hidden>
+                            </label>
+                            <button class="btn btn-success" id="btnGerarSeparacao">
+                                <span>✅</span> Gerar Lista de Separação
+                            </button>
+                            <button class="btn btn-danger" id="btnLimparEmpenhos">
+                                <span>🗑️</span> Limpar Tudo
+                            </button>
+                        </div>
+                    </div>
+                    <div class="op-selector" id="opSelector">
+                        <span class="empty-text">Importe ordens para selecionar</span>
+                    </div>
+                </div>
+
+                <!-- Armazém destino -->
+                <div class="info-panel compact">
+                    <div class="info-field">
+                        <label>Armazém (Destino)</label>
+                        <select id="armazemDestino">
+                            <option value="">Selecione...</option>
+                            <option value="CHICOTE">CHICOTE</option>
+                            <option value="MECANICA">MECÂNICA</option>
+                            <option value="ELETRONICA">ELETRÔNICA</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Lista de OPs Pendentes (selecionadas) -->
+                <div class="orders-section">
+                    <h3>📋 ORDEM DE PRODUÇÃO</h3>
+                    <div class="table-container">
+                        <table class="data-table" id="tableOPsPendentes">
+                            <thead>
+                                <tr>
+                                    <th>Ordem de Produção</th>
+                                    <th>Data</th>
+                                    <th>Qtd Itens</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                        <div class="empty-state show" id="emptyOPsPendentes">
+                            <span class="empty-icon">📦</span>
+                            <p>Nenhuma ordem selecionada</p>
+                            <small>Clique em uma OP acima para adicioná-la como pendente</small>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: BlackList -->
+            <section class="tab-content" id="tab-blacklist">
+                <div class="content-header">
+                    <h1>BlackList</h1>
+                    <p>Itens que não necessitam separação (aparecem em vermelho)</p>
+                </div>
+
+                <div class="toolbar">
+                    <div class="add-blacklist-form">
+                        <input type="text" id="blacklistCode" placeholder="Código do produto">
+                        <input type="text" id="blacklistDesc" placeholder="Descrição (opcional)">
+                        <button class="btn btn-danger" id="btnAddBlacklist">
+                            <span>➕</span> Adicionar
+                        </button>
+                    </div>
+                    <div class="toolbar-actions">
+                        <button class="btn btn-outline" id="btnModeloBlacklist">
+                            <span>📄</span> Baixar Modelo
+                        </button>
+                        <label class="btn btn-primary">
+                            <span>📥</span> Importar Excel
+                            <input type="file" id="importBlacklist" accept=".xlsx,.xls" hidden>
+                        </label>
+                        <button class="btn btn-danger" id="btnLimparBlacklist">
+                            <span>🗑️</span> Limpar Tudo
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="tableBlacklist">
+                        <thead>
+                            <tr>
+                                <th>Código</th>
+                                <th>Descrição</th>
+                                <th>Data Inclusão</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                    <div class="empty-state" id="emptyBlacklist">
+                        <span class="empty-icon">❌</span>
+                        <p>Nenhum item na BlackList</p>
+                        <small>Adicione itens que não precisam ser separados</small>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: Separação -->
+            <section class="tab-content" id="tab-separacao">
+                <!-- View: Lista de Listas -->
+                <div id="separacaoListView">
+                    <div class="content-header">
+                        <h1>Separação</h1>
+                        <p>Selecione uma lista para iniciar a separação</p>
+                    </div>
+
+                    <div class="cards-container" id="separacaoListas">
+                    </div>
+                    <div class="empty-state show" id="emptySeparacaoListas">
+                        <span class="empty-icon">✅</span>
+                        <p>Nenhuma lista de separação</p>
+                        <small>Gere uma lista em "Empenhos" para começar</small>
+                    </div>
+                </div>
+
+                <!-- View: Detalhes da Lista -->
+                <div id="separacaoDetailView" style="display: none;">
+                    <div class="content-header">
+                        <button class="btn btn-outline" id="btnVoltarSeparacao">
+                            <span>←</span> Voltar
+                        </button>
+                        <h1 id="separacaoListaTitulo">Lista de Separação</h1>
+                        <p id="separacaoListaInfo"></p>
+                    </div>
+
+                    <div class="info-panel">
+                        <div class="info-row">
+                            <div class="info-field">
+                                <label>Documento (Transferência)</label>
+                                <input type="text" id="docTransferencia" placeholder="Nº do documento">
+                            </div>
+                            <div class="info-field">
+                                <label>Responsável (Separação)</label>
+                                <input type="text" id="responsavelSeparacao" placeholder="Nome do responsável">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stats-bar">
+                        <div class="stat-item">
+                            <span class="stat-value" id="totalSeparar">0</span>
+                            <span class="stat-label">Total de Itens</span>
+                        </div>
+                        <div class="stat-item success">
+                            <span class="stat-value" id="totalSeparados">0</span>
+                            <span class="stat-label">Separados</span>
+                        </div>
+                        <div class="stat-item info">
+                            <span class="stat-value" id="totalTransferidos">0</span>
+                            <span class="stat-label">Transferidos</span>
+                        </div>
+                        <div class="stat-item warning">
+                            <span class="stat-value" id="totalNaoSeparados">0</span>
+                            <span class="stat-label">Não Separados</span>
+                        </div>
+                    </div>
+
+                    <div class="toolbar">
+                        <div class="search-box">
+                            <input type="text" id="searchSeparacao" placeholder="Buscar item...">
+                            <span class="search-icon">🔍</span>
+                        </div>
+                        <div class="toolbar-actions">
+                            <button class="btn btn-success" id="btnEnviarConferencia">
+                                <span>📤</span> Enviar para Conferência
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table separacao-table" id="tableSeparacao">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Descrição</th>
+                                    <th class="center">Qtd Solicitada</th>
+                                    <th class="center">Qtd Separada</th>
+                                    <th class="center">Separado</th>
+                                    <th class="center">Transferido</th>
+                                    <th class="center">Não Sep.</th>
+                                    <th>Observação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                        <div class="empty-state" id="emptySeparacao">
+                            <span class="empty-icon">✅</span>
+                            <p>Nenhum item para separar</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: Conferência -->
+            <section class="tab-content" id="tab-conferencia">
+                <!-- View: Lista de Conferências -->
+                <div id="conferenciaListView">
+                    <div class="content-header">
+                        <h1>Conferência</h1>
+                        <p>Selecione uma lista para conferir</p>
+                    </div>
+
+                    <div class="cards-container" id="conferenciaListas">
+                    </div>
+                    <div class="empty-state show" id="emptyConferenciaListas">
+                        <span class="empty-icon">🔍</span>
+                        <p>Nenhuma conferência pendente</p>
+                        <small>Envie uma separação para conferência</small>
+                    </div>
+                </div>
+
+                <!-- View: Detalhes da Conferência -->
+                <div id="conferenciaDetailView" style="display: none;">
+                    <div class="content-header">
+                        <button class="btn btn-outline" id="btnVoltarConferencia">
+                            <span>←</span> Voltar
+                        </button>
+                        <h1 id="conferenciaListaTitulo">Conferência</h1>
+                        <p id="conferenciaListaInfo"></p>
+                    </div>
+
+                    <!-- Filtro por OP -->
+                    <div class="info-panel">
+                        <div class="info-row">
+                            <div class="info-field">
+                                <label>Filtrar por Ordem de Produção</label>
+                                <select id="filtroOPConferencia">
+                                    <option value="">Todas as OPs</option>
+                                </select>
+                            </div>
+                            <div class="info-field">
+                                <label>Responsável (Conferência)</label>
+                                <input type="text" id="responsavelConferencia" placeholder="Nome de quem conferiu">
+                            </div>
+                            <div class="info-field readonly">
+                                <label>Data da Conferência</label>
+                                <input type="text" id="dataConferencia" readonly>
+                                <span class="field-note">⚠️ Data automática</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ordens e progresso -->
+                    <div class="orders-panel">
+                        <h3>📋 Ordens de Produção - Status</h3>
+                        <div class="orders-list" id="ordensConferencia">
+                            <span class="empty-orders">Nenhuma ordem</span>
+                        </div>
+                    </div>
+
+                    <div class="stats-bar">
+                        <div class="stat-item">
+                            <span class="stat-value" id="totalConferir">0</span>
+                            <span class="stat-label">Total de Itens</span>
+                        </div>
+                        <div class="stat-item success">
+                            <span class="stat-value" id="totalConferidos">0</span>
+                            <span class="stat-label">Conferidos OK</span>
+                        </div>
+                        <div class="stat-item warning">
+                            <span class="stat-value" id="totalPendentes">0</span>
+                            <span class="stat-label">Pendentes</span>
+                        </div>
+                        <div class="stat-item danger">
+                            <span class="stat-value" id="totalFaltando">0</span>
+                            <span class="stat-label">Com Falta</span>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table conferencia-table" id="tableConferencia">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Descrição</th>
+                                    <th class="center">Qtd Solicitada</th>
+                                    <th class="center">Qtd Separada</th>
+                                    <th class="center">OK</th>
+                                    <th class="center">FALTA</th>
+                                    <th>Observação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                        <div class="empty-state" id="emptyConferencia">
+                            <span class="empty-icon">🔍</span>
+                            <p>Nenhum item para conferir</p>
+                        </div>
+                    </div>
+
+                    <div class="action-bar">
+                        <button class="btn btn-warning btn-lg" id="btnSalvarPendente">
+                            <span>⏸️</span> Salvar com Pendências
+                        </button>
+                        <button class="btn btn-success btn-lg" id="btnFinalizarConferencia">
+                            <span>✔️</span> Finalizar Conferência
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Tab: Histórico -->
+            <section class="tab-content" id="tab-historico">
+                <div class="content-header">
+                    <h1>Histórico</h1>
+                    <p>Ordens de produção finalizadas</p>
+                </div>
+
+                <div class="toolbar">
+                    <div class="search-box">
+                        <input type="text" id="searchHistorico" placeholder="Buscar ordem...">
+                        <span class="search-icon">🔍</span>
+                    </div>
+                    <div class="toolbar-actions">
+                        <button class="btn btn-outline" id="btnExportarHistorico">
+                            <span>📤</span> Exportar Histórico
+                        </button>
+                    </div>
+                </div>
+
+                <div class="cards-container" id="historicoListas">
+                </div>
+                <div class="empty-state show" id="emptyHistorico">
+                    <span class="empty-icon">📚</span>
+                    <p>Nenhuma ordem finalizada</p>
+                    <small>As ordens finalizadas aparecerão aqui</small>
+                </div>
+            </section>
+
+            <!-- Tab: Configurações -->
+            <section class="tab-content" id="tab-configuracoes">
+                <div class="content-header">
+                    <h1>Configurações</h1>
+                    <p>Gerenciamento de usuários do sistema</p>
+                </div>
+
+                <div class="toolbar">
+                    <div class="toolbar-actions">
+                        <button class="btn btn-success" id="btnAddUser">
+                            <span>➕</span> Novo Usuário
+                        </button>
+                        <button class="btn btn-outline" id="btnExportData">
+                            <span>📤</span> Exportar Dados
+                        </button>
+                        <button class="btn btn-danger" id="btnResetData">
+                            <span>🗑️</span> Resetar Dados
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="tableUsers">
+                        <thead>
+                            <tr>
+                                <th>Usuário</th>
+                                <th>Nome</th>
+                                <th>Tipo</th>
+                                <th>Permissões</th>
+                                <th>Criado em</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Modal -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Título</h2>
+                <button class="modal-close" id="modalClose">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+            </div>
+            <div class="modal-footer" id="modalFooter">
+            </div>
+        </div>
+    </div>
+
+    <!-- Urgency Modal -->
+    <div class="urgency-modal" id="urgencyModal">
+        <div class="urgency-modal-content">
+            <div class="urgency-header">
+                <span class="urgency-icon">🚨</span>
+                <h2>ALERTA DE URGÊNCIA</h2>
+            </div>
+            <div class="urgency-body" id="urgencyBody">
+                <!-- Dynamic content -->
+            </div>
+            <div class="urgency-footer">
+                <button class="btn btn-danger" onclick="App.closeUrgencyModal()">
+                    Entendi - Fechar Alerta
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Sound (generated programmatically) -->
+    <audio id="alertSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAAC..."
+            type="audio/wav">
+    </audio>
+
+    <!-- Scripts -->
+    <script src="modules/storage.js"></script>
+    <script src="modules/supabase.js"></script>
+    <script src="modules/excel.js"></script>
+    <script src="modules/auth.js"></script>
+    <script src="modules/dashboard.js"></script>
+    <script src="modules/cadastro.js"></script>
+    <script src="modules/enderecos.js"></script>
+    <script src="modules/empenhos.js"></script>
+    <script src="modules/blacklist.js"></script>
+    <script src="modules/separacao.js"></script>
+    <script src="modules/conferencia.js"></script>
+    <script src="modules/historico.js"></script>
+    <script src="modules/configuracoes.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
