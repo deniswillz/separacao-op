@@ -360,7 +360,7 @@ const Auth = {
             return { success: false, message: 'Apenas administradores podem editar usuários' };
         }
 
-        const userIndex = this.users.findIndex(u => u.id === userId);
+        const userIndex = this.users.findIndex(u => String(u.id) === String(userId));
         if (userIndex === -1) {
             return { success: false, message: 'Usuário não encontrado' };
         }
@@ -388,7 +388,7 @@ const Auth = {
             return { success: false, message: 'Apenas administradores podem excluir usuários' };
         }
 
-        const user = this.users.find(u => u.id === userId);
+        const user = this.users.find(u => String(u.id) === String(userId));
         if (!user) {
             return { success: false, message: 'Usuário não encontrado' };
         }
@@ -397,7 +397,7 @@ const Auth = {
             return { success: false, message: 'Não é possível excluir o admin' };
         }
 
-        this.users = this.users.filter(u => u.id !== userId);
+        this.users = this.users.filter(u => String(u.id) !== String(userId));
         this.saveUsers();
 
         return { success: true, message: 'Usuário excluído' };

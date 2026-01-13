@@ -182,8 +182,8 @@ const Configuracoes = {
                     <td>${user.dataCriacao}</td>
                     <td>
                         ${user.username !== 'admin' ? `
-                            <button class="btn-action edit" onclick="Configuracoes.editUser(${user.id})" title="Editar">✏️</button>
-                            <button class="btn-action delete" onclick="Configuracoes.deleteUser(${user.id})" title="Excluir">🗑️</button>
+                            <button class="btn-action edit" onclick="Configuracoes.editUser('${user.id}')" title="Editar">✏️</button>
+                            <button class="btn-action delete" onclick="Configuracoes.deleteUser('${user.id}')" title="Excluir">🗑️</button>
                         ` : '<span class="text-muted">Protegido</span>'}
                     </td>
                 </tr>
@@ -307,7 +307,7 @@ const Configuracoes = {
 
     editUser(userId) {
         const users = Auth.getUsers();
-        const user = users.find(u => u.id === userId);
+        const user = users.find(u => String(u.id) === String(userId));
         if (!user) return;
 
         const isAdmin = user.role === 'admin';
@@ -346,7 +346,7 @@ const Configuracoes = {
 
         const footer = `
             <button class="btn btn-outline" onclick="App.closeModal()">Cancelar</button>
-            <button class="btn btn-success" onclick="Configuracoes.saveUser(${userId})">Salvar</button>
+            <button class="btn btn-success" onclick="Configuracoes.saveUser('${userId}')">Salvar</button>
         `;
 
         App.showModal('Editar Usuário', body, footer);
