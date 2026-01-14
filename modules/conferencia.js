@@ -66,7 +66,36 @@ const Conferencia = {
             });
         }
 
+        // Register realtime callback
+        SupabaseClient.onRealtimeUpdate('conferencia', (payload) => {
+            console.log('🔄 Conferencia: recebida atualização remota');
+            this.reload();
+        });
+
         this.renderListas();
+    },
+
+    /**
+     * Reload data from cloud and refresh UI
+     */
+    async reload() {
+        const cloudData = await Storage.loadFromCloud(Storage.KEYS.CONFERENCIA);
+        if (cloudData) {
+            this.listas = cloudData;
+            this.renderListas();
+            // If viewing a specific list, refresh it too
+            if (this.listaAtual) {
+                const updatedLista = this.listas.find(l => String(l.id) === String(this.listaAtual.id));
+                if (updatedLista) {
+                    this.listaAtual = updatedLista;
+                    this.renderItens();
+                    this.updateStats();
+                    this.renderOrdens();
+                }
+            }
+            // Also update Dashboard
+            Dashboard.render();
+        }
     },
 
     receberLista(listaSeparacao) {

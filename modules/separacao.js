@@ -59,7 +59,33 @@ const Separacao = {
             }
         });
 
+        // Register realtime callback
+        SupabaseClient.onRealtimeUpdate('separacao', (payload) => {
+            console.log('🔄 Separacao: recebida atualização remota');
+            this.reload();
+        });
+
         this.renderListas();
+    },
+
+    /**
+     * Reload data from cloud and refresh UI
+     */
+    async reload() {
+        const cloudData = await Storage.loadFromCloud(Storage.KEYS.SEPARACAO);
+        if (cloudData) {
+            this.listas = cloudData;
+            this.renderListas();
+            // If viewing a specific list, refresh it too
+            if (this.listaAtual) {
+                const updatedLista = this.listas.find(l => String(l.id) === String(this.listaAtual.id));
+                if (updatedLista) {
+                    this.listaAtual = updatedLista;
+                    this.renderItens();
+                    this.updateStats();
+                }
+            }
+        }
     },
 
     criarLista(lista) {

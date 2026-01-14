@@ -29,7 +29,26 @@ const Historico = {
             this.exportarTudo();
         });
 
+        // Register realtime callback
+        SupabaseClient.onRealtimeUpdate('historico', (payload) => {
+            console.log('🔄 Historico: recebida atualização remota');
+            this.reload();
+        });
+
         this.render();
+    },
+
+    /**
+     * Reload data from cloud and refresh UI
+     */
+    async reload() {
+        const cloudData = await Storage.loadFromCloud(Storage.KEYS.HISTORICO);
+        if (cloudData) {
+            this.registros = cloudData;
+            this.render();
+            // Also update Dashboard
+            Dashboard.render();
+        }
     },
 
     adicionarRegistro(conferencia) {

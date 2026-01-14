@@ -11,6 +11,11 @@ let supabaseClient = null;
 
 const SupabaseClient = {
     isOnline: false,
+    realtimeCallbacks: {},
+    realtimeSubscriptions: [],
+
+    // Tables to monitor for realtime changes
+    REALTIME_TABLES: ['separacao', 'conferencia', 'historico'],
 
     async init() {
         try {
@@ -30,6 +35,75 @@ const SupabaseClient = {
             this.isOnline = false;
             return false;
         }
+    },
+
+    /**
+     * Initialize realtime subscriptions for all monitored tables
+     */
+    initRealtimeSubscriptions() {
+        if (!this.isOnline || !supabaseClient) {
+            console.warn('⚠️ Realtime não disponível - offline');
+            return;
+        }
+
+        console.log('🔴 Iniciando subscriptions Realtime...');
+
+        this.REALTIME_TABLES.forEach(table => {
+            const subscription = supabaseClient
+                .channel(`realtime_${table}`)
+                .on('postgres_changes',
+                    { event: '*', schema: 'public', table: table },
+                    (payload) => {
+                        console.log(`📡 Mudança em ${table}:`, payload.eventType);
+                        this.handleRealtimeChange(table, payload);
+                    }
+                )
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        console.log(`✅ Realtime ativo para: ${table}`);
+                    }
+                });
+
+            this.realtimeSubscriptions.push(subscription);
+        });
+    },
+
+    /**
+     * Register a callback for when a table changes
+     */
+    onRealtimeUpdate(table, callback) {
+        if (!this.realtimeCallbacks[table]) {
+            this.realtimeCallbacks[table] = [];
+        }
+        this.realtimeCallbacks[table].push(callback);
+    },
+
+    /**
+     * Handle realtime change event
+     */
+    handleRealtimeChange(table, payload) {
+        const callbacks = this.realtimeCallbacks[table] || [];
+        callbacks.forEach(callback => {
+            try {
+                callback(payload);
+            } catch (e) {
+                console.error(`❌ Erro no callback de ${table}:`, e);
+            }
+        });
+    },
+
+    /**
+     * Cleanup all realtime subscriptions
+     */
+    cleanupRealtimeSubscriptions() {
+        console.log('🔌 Desconectando Realtime...');
+        this.realtimeSubscriptions.forEach(sub => {
+            if (sub && supabaseClient) {
+                supabaseClient.removeChannel(sub);
+            }
+        });
+        this.realtimeSubscriptions = [];
+        this.realtimeCallbacks = {};
     },
 
     // Generic CRUD operations
@@ -115,7 +189,7 @@ const SupabaseClient = {
         }
     },
 
-    // Subscribe to real-time changes
+    // Subscribe to real-time changes (legacy, use initRealtimeSubscriptions instead)
     subscribe(table, callback) {
         if (!this.isOnline || !supabaseClient) return null;
 

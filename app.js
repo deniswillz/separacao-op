@@ -96,6 +96,11 @@ const App = {
         Historico.init();
         Configuracoes.init();
 
+        // Start Realtime subscriptions (after modules registered their callbacks)
+        if (SupabaseClient?.isOnline) {
+            SupabaseClient.initRealtimeSubscriptions();
+        }
+
         // Render dashboard with fresh data
         Dashboard.render();
 
