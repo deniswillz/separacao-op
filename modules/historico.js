@@ -166,6 +166,9 @@ const Historico = {
             );
         }
 
+        // Sort A-Z by name
+        filtered = filtered.sort((a, b) => a.nome.localeCompare(b.nome));
+
         if (filtered.length === 0) {
             this.cardsContainer.innerHTML = '';
             this.emptyState.classList.add('show');
@@ -174,7 +177,12 @@ const Historico = {
 
         this.emptyState.classList.remove('show');
 
-        this.cardsContainer.innerHTML = filtered.map(registro => `
+        this.cardsContainer.innerHTML = filtered.map(registro => {
+            // Calculate totals dynamically
+            const totalItens = registro.itens ? registro.itens.length : 0;
+            const itensOK = registro.itens ? registro.itens.filter(i => i.ok).length : 0;
+
+            return `
             <div class="list-card completed" onclick="Historico.verDetalhes(${registro.id})">
                 <div class="list-card-header">
                     <span class="list-card-title">${registro.nome}</span>
@@ -185,14 +193,24 @@ const Historico = {
                 </div>
                 <div class="list-card-info">
                     <span><strong>Armazém:</strong> ${registro.armazem}</span>
-                    <span><strong>Conferido por:</strong> ${registro.responsavelConferencia || 'N/A'}</span>
-                    <span><strong>Resultado:</strong> ${registro.itensOK}/${registro.totalItens} OK</span>
+                    <span><strong>Conferido por:</strong> ${registro.responsavel_conferencia || registro.responsavelConferencia || 'N/A'}</span>
+                    <span><strong>Resultado:</strong> ${itensOK}/${totalItens} OK</span>
                 </div>
                 <div class="list-card-footer">
-                    <span class="list-card-date">${registro.dataFinalizacao}</span>
-                    <span class="list-card-count">${registro.totalItens} itens</span>
+                    <span class="list-card-date">${this.formatDate(registro.data_finalizacao || registro.dataFinalizacao)}</span>
+                    <span class="list-card-count">${totalItens} itens</span>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
+    },
+
+    formatDate(dateStr) {
+        if (!dateStr) return 'Data desconhecida';
+        try {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('pt-BR');
+        } catch (e) {
+            return dateStr;
+        }
     }
 };

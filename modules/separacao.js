@@ -245,7 +245,10 @@ const Separacao = {
     },
 
     renderListas() {
-        const listasDisponiveis = this.listas.filter(l => l.status === 'pendente');
+        let listasDisponiveis = this.listas.filter(l => l.status === 'pendente');
+
+        // Sort A-Z by name
+        listasDisponiveis = listasDisponiveis.sort((a, b) => a.nome.localeCompare(b.nome));
 
         if (listasDisponiveis.length === 0) {
             this.cardsContainer.innerHTML = '';

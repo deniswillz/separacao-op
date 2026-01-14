@@ -363,6 +363,13 @@ const Conferencia = {
             return;
         }
 
+        // Check if ALL items have been verified (OK or FALTA)
+        const itensPendentes = this.listaAtual.itens.filter(i => !i.ok && !i.falta);
+        if (itensPendentes.length > 0) {
+            App.showToast(`Ainda existem ${itensPendentes.length} itens não verificados. Marque todos como OK ou FALTA.`, 'warning');
+            return;
+        }
+
         // Check for items with FALTA
         const itensFalta = this.listaAtual.itens.filter(i => i.falta);
         if (itensFalta.length > 0) {
@@ -420,7 +427,10 @@ const Conferencia = {
     },
 
     renderListas() {
-        const listasPendentes = this.listas.filter(l => l.status === 'pendente');
+        let listasPendentes = this.listas.filter(l => l.status === 'pendente');
+
+        // Sort A-Z by name
+        listasPendentes = listasPendentes.sort((a, b) => a.nome.localeCompare(b.nome));
 
         if (listasPendentes.length === 0) {
             this.cardsContainer.innerHTML = '';

@@ -96,10 +96,10 @@ const Storage = {
             const preparedData = data.map(item => {
                 const prepared = {};
                 for (const [k, v] of Object.entries(item)) {
-                    // Skip id for usuarios and for timestamp-based IDs 
-                    if (k === 'id') {
-                        if (table === 'usuarios') continue;
-                        if (typeof v === 'number' && v > 1000000) continue;
+                    // Skip id ONLY for usuarios (Supabase generates UUID)
+                    // Other tables use JavaScript-generated IDs that must be kept
+                    if (k === 'id' && table === 'usuarios') {
+                        continue;
                     }
 
                     // Skip fields that don't exist in Supabase tables
