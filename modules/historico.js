@@ -58,7 +58,7 @@ const Historico = {
     },
 
     verDetalhes(id) {
-        const registro = this.registros.find(r => r.id === id);
+        const registro = this.registros.find(r => String(r.id) === String(id));
         if (!registro) return;
 
         const itensHTML = registro.itens.map(item => `
@@ -105,7 +105,7 @@ const Historico = {
     },
 
     exportarRegistro(id) {
-        const registro = this.registros.find(r => r.id === id);
+        const registro = this.registros.find(r => String(r.id) === String(id));
         if (!registro) return;
 
         const exportData = registro.itens.map(item => ({
@@ -147,7 +147,7 @@ const Historico = {
             return;
         }
 
-        this.registros = this.registros.filter(r => r.id !== id);
+        this.registros = this.registros.filter(r => String(r.id) !== String(id));
         this.save();
         this.render();
         App.showToast('Registro excluído!', 'success');
@@ -183,12 +183,12 @@ const Historico = {
             const itensOK = registro.itens ? registro.itens.filter(i => i.ok).length : 0;
 
             return `
-            <div class="list-card completed" onclick="Historico.verDetalhes(${registro.id})">
+            <div class="list-card completed" onclick="Historico.verDetalhes('${registro.id}')">
                 <div class="list-card-header">
                     <span class="list-card-title">${registro.nome}</span>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                         <span class="list-card-badge completed">Finalizado</span>
-                        ${Auth.isAdmin() ? `<button class="btn-delete-item" onclick="event.stopPropagation(); Historico.deletarRegistro(${registro.id})" title="Excluir registro">✕</button>` : ''}
+                        ${Auth.isAdmin() ? `<button class="btn-delete-item" onclick="event.stopPropagation(); Historico.deletarRegistro('${registro.id}')" title="Excluir registro">✕</button>` : ''}
                     </div>
                 </div>
                 <div class="list-card-info">

@@ -149,7 +149,7 @@ const Conferencia = {
     },
 
     abrirLista(id) {
-        const lista = this.listas.find(l => l.id === id);
+        const lista = this.listas.find(l => String(l.id) === String(id));
         if (!lista) return;
 
         this.listaAtual = lista;
@@ -205,7 +205,7 @@ const Conferencia = {
             return;
         }
 
-        this.listas = this.listas.filter(l => l.id !== id);
+        this.listas = this.listas.filter(l => String(l.id) !== String(id));
         this.save();
         this.renderListas();
         Dashboard.render();
@@ -449,12 +449,12 @@ const Conferencia = {
             const hasFalta = faltando > 0;
 
             return `
-                <div class="list-card ${hasFalta ? 'urgent' : 'pending'}" onclick="Conferencia.abrirLista(${lista.id})">
+                <div class="list-card ${hasFalta ? 'urgent' : 'pending'}" onclick="Conferencia.abrirLista('${lista.id}')">
                     <div class="list-card-header">
                         <span class="list-card-title">${lista.nome}</span>
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <span class="list-card-badge ${hasFalta ? 'danger' : 'pending'}">${hasFalta ? '🚨 URGENTE' : 'Pendente'}</span>
-                            ${Auth.isAdmin() ? `<button class="btn-delete-item" onclick="event.stopPropagation(); Conferencia.excluirLista(${lista.id})" title="Excluir lista">✕</button>` : ''}
+                            ${Auth.isAdmin() ? `<button class="btn-delete-item" onclick="event.stopPropagation(); Conferencia.excluirLista('${lista.id}')" title="Excluir lista">✕</button>` : ''}
                         </div>
                     </div>
                     <div class="list-card-info">

@@ -92,7 +92,7 @@ const Separacao = {
     },
 
     abrirLista(id) {
-        const lista = this.listas.find(l => l.id === id);
+        const lista = this.listas.find(l => String(l.id) === String(id));
         if (!lista) return;
 
         this.listaAtual = lista;
@@ -234,7 +234,7 @@ const Separacao = {
             return;
         }
 
-        this.listas = this.listas.filter(l => l.id !== id);
+        this.listas = this.listas.filter(l => String(l.id) !== String(id));
         this.save();
         this.renderListas();
         App.showToast('Lista excluída!', 'success');
@@ -259,12 +259,12 @@ const Separacao = {
         this.emptyState.classList.remove('show');
 
         this.cardsContainer.innerHTML = listasDisponiveis.map(lista => `
-            <div class="list-card pending" onclick="Separacao.abrirLista(${lista.id})">
+            <div class="list-card pending" onclick="Separacao.abrirLista('${lista.id}')">
                 <div class="list-card-header">
                     <span class="list-card-title">${lista.nome}</span>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                         <span class="list-card-badge pending">Pendente</span>
-                        ${Auth.isAdmin() ? `<button class="btn-delete-item" onclick="event.stopPropagation(); Separacao.excluirLista(${lista.id})" title="Excluir lista">✕</button>` : ''}
+                        ${Auth.isAdmin() ? `<button class="btn-delete-item" onclick="event.stopPropagation(); Separacao.excluirLista('${lista.id}')" title="Excluir lista">✕</button>` : ''}
                     </div>
                 </div>
                 <div class="list-card-info">
