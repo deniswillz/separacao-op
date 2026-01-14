@@ -32,6 +32,20 @@ const Configuracoes = {
                 this.resetAllData();
             });
         }
+
+        const btnBackup = document.getElementById('btnBackup');
+        if (btnBackup) {
+            btnBackup.addEventListener('click', () => {
+                this.createBackup();
+            });
+        }
+
+        const btnRestoreBackup = document.getElementById('btnRestoreBackup');
+        if (btnRestoreBackup) {
+            btnRestoreBackup.addEventListener('click', () => {
+                this.showRestoreBackupModal();
+            });
+        }
     },
 
     resetAllData() {
@@ -391,6 +405,104 @@ const Configuracoes = {
             this.renderUsers();
         } else {
             App.showToast(result.message, 'error');
+        }
+    },
+
+    // ==================== BACKUP FUNCTIONS ====================
+
+    async createBackup() {
+        App.showToast('Criando backup...', 'info');
+
+        const result = await Storage.createManualBackup();
+
+        if (result.success) {
+            App.showToast(result.message, 'success');
+        } else {
+            App.showToast(result.message, 'error');
+        }
+    },
+
+    async showRestoreBackupModal() {
+        App.showToast('Carregando backups...', 'info');
+
+        const backups = await Storage.getBackups();
+
+        if (backups.length === 0) {
+            App.showToast('Nenhum backup encontrado', 'warning');
+            return;
+        }
+
+        const body = `
+            <div style="text-align: center; padding: 1rem;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📦</div>
+                <h3>Restaurar Backup</h3>
+                <p style="margin-bottom: 1rem;">Selecione um backup para restaurar:</p>
+                
+                <div style="max-height: 300px; overflow-y: auto; text-align: left;">
+                    ${backups.map(b => `
+                        <div class="backup-item" style="
+                            padding: 1rem;
+                            margin-bottom: 0.5rem;
+                            background: #f8f9fa;
+                            border: 1px solid #ddd;
+                            border-radius: 8px;
+                            cursor: pointer;
+                        " onclick="Configuracoes.restoreBackup('${b.id}')">
+                            <div style="font-weight: bold;">📅 ${this.formatBackupDate(b.data_backup)}</div>
+                            <div style="font-size: 0.875rem; color: #666;">
+                                👤 ${b.usuario || 'Sistema'} | 
+                                📝 ${b.tipo || 'manual'}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                
+                <p style="color: #dc3545; font-size: 0.875rem; margin-top: 1rem;">
+                    ⚠️ Restaurar irá sobrescrever os dados atuais!
+                </p>
+            </div>
+        `;
+
+        const footer = `
+            <button class="btn btn-outline" onclick="App.closeModal()">Cancelar</button>
+        `;
+
+        App.showModal('Restaurar Backup', body, footer);
+    },
+
+    async restoreBackup(backupId) {
+        if (!confirm('Tem certeza que deseja restaurar este backup? Os dados atuais serão substituídos.')) {
+            return;
+        }
+
+        App.closeModal();
+        App.showToast('Restaurando backup...', 'info');
+
+        const result = await Storage.restoreBackup(backupId);
+
+        if (result.success) {
+            App.showToast(result.message, 'success');
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            App.showToast(result.message, 'error');
+        }
+    },
+
+    formatBackupDate(dateStr) {
+        if (!dateStr) return 'Data desconhecida';
+        try {
+            const date = new Date(dateStr);
+            return date.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (e) {
+            return dateStr;
         }
     }
 };

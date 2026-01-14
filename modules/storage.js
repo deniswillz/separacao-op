@@ -29,13 +29,25 @@ const Storage = {
         'separacao_users': 'usuarios'
     },
 
+    // Debounce timers for each key
+    syncTimers: {},
+    SYNC_DEBOUNCE_MS: 2000, // Wait 2 seconds before syncing
+
     /**
-     * Save data - saves to localStorage AND Supabase
+     * Save data - saves to localStorage AND Supabase (with debounce)
      */
     save(key, data) {
         try {
             localStorage.setItem(key, JSON.stringify(data));
-            this.syncToSupabase(key, data);
+
+            // Debounce sync to avoid multiple rapid calls
+            if (this.syncTimers[key]) {
+                clearTimeout(this.syncTimers[key]);
+            }
+            this.syncTimers[key] = setTimeout(() => {
+                this.syncToSupabase(key, data);
+            }, this.SYNC_DEBOUNCE_MS);
+
             return true;
         } catch (e) {
             console.error('❌ Erro ao salvar:', e);
@@ -328,5 +340,175 @@ const Storage = {
         }
 
         console.log('✅ Dados enviados para a nuvem!');
+    },
+
+    // ==================== BACKUP SYSTEM ====================
+
+    BACKUP_TIME_HOUR: 17,
+    BACKUP_TIME_MINUTE: 45,
+    LAST_BACKUP_KEY: 'separacao_last_backup_date',
+
+    /**
+     * Check if backup should run (at 17:45 if not done today)
+     */
+    checkAutoBackup() {
+        const now = new Date();
+        const currentHour = now.getHours();
+        const currentMinute = now.getMinutes();
+
+        // Only run at or after 17:45
+        if (currentHour < this.BACKUP_TIME_HOUR ||
+            (currentHour === this.BACKUP_TIME_HOUR && currentMinute < this.BACKUP_TIME_MINUTE)) {
+            return;
+        }
+
+        // Check if already backed up today
+        const today = now.toISOString().split('T')[0];
+        const lastBackup = localStorage.getItem(this.LAST_BACKUP_KEY);
+
+        if (lastBackup === today) {
+            console.log('📦 Backup já realizado hoje');
+            return;
+        }
+
+        // Perform backup
+        console.log('📦 Iniciando backup automático das 17:45...');
+        this.createBackup().then(() => {
+            localStorage.setItem(this.LAST_BACKUP_KEY, today);
+        });
+    },
+
+    /**
+     * Create a backup of all data
+     */
+    async createBackup() {
+        if (!SupabaseClient?.isOnline) {
+            console.warn('⚠️ Offline - backup não disponível');
+            return { success: false, message: 'Sistema offline' };
+        }
+
+        try {
+            // Collect all data
+            const backupData = {
+                separacao: this.load(this.KEYS.SEPARACAO) || [],
+                conferencia: this.load(this.KEYS.CONFERENCIA) || [],
+                historico: this.load(this.KEYS.HISTORICO) || [],
+                cadastro: this.load(this.KEYS.CADASTRO) || [],
+                enderecos: this.load(this.KEYS.ENDERECOS) || [],
+                blacklist: this.load(this.KEYS.BLACKLIST) || []
+            };
+
+            const backup = {
+                data_backup: new Date().toISOString(),
+                dados: JSON.stringify(backupData),
+                usuario: Auth?.currentUser?.nome || 'Sistema',
+                tipo: 'automatico'
+            };
+
+            // Save to Supabase backups table
+            const result = await supabaseClient.from('backups').insert([backup]);
+
+            if (result.error) {
+                console.error('❌ Erro ao criar backup:', result.error);
+                return { success: false, message: result.error.message };
+            }
+
+            console.log('✅ Backup criado com sucesso!');
+            return { success: true, message: 'Backup criado com sucesso!' };
+
+        } catch (error) {
+            console.error('❌ Erro no backup:', error);
+            return { success: false, message: error.message };
+        }
+    },
+
+    /**
+     * Get list of available backups
+     */
+    async getBackups() {
+        if (!SupabaseClient?.isOnline) {
+            return [];
+        }
+
+        try {
+            const { data, error } = await supabaseClient
+                .from('backups')
+                .select('*')
+                .order('data_backup', { ascending: false })
+                .limit(10);
+
+            if (error) {
+                console.error('❌ Erro ao listar backups:', error);
+                return [];
+            }
+
+            return data || [];
+        } catch (error) {
+            console.error('❌ Erro:', error);
+            return [];
+        }
+    },
+
+    /**
+     * Restore from a backup
+     */
+    async restoreBackup(backupId) {
+        if (!SupabaseClient?.isOnline) {
+            return { success: false, message: 'Sistema offline' };
+        }
+
+        try {
+            // Get backup data
+            const { data, error } = await supabaseClient
+                .from('backups')
+                .select('*')
+                .eq('id', backupId)
+                .single();
+
+            if (error || !data) {
+                return { success: false, message: 'Backup não encontrado' };
+            }
+
+            const backupData = JSON.parse(data.dados);
+
+            // Restore each type of data
+            if (backupData.separacao) {
+                this.save(this.KEYS.SEPARACAO, backupData.separacao);
+            }
+            if (backupData.conferencia) {
+                this.save(this.KEYS.CONFERENCIA, backupData.conferencia);
+            }
+            if (backupData.historico) {
+                this.save(this.KEYS.HISTORICO, backupData.historico);
+            }
+            if (backupData.cadastro) {
+                this.save(this.KEYS.CADASTRO, backupData.cadastro);
+            }
+            if (backupData.enderecos) {
+                this.save(this.KEYS.ENDERECOS, backupData.enderecos);
+            }
+            if (backupData.blacklist) {
+                this.save(this.KEYS.BLACKLIST, backupData.blacklist);
+            }
+
+            console.log('✅ Backup restaurado com sucesso!');
+            return { success: true, message: 'Backup restaurado! Recarregue a página.' };
+
+        } catch (error) {
+            console.error('❌ Erro ao restaurar:', error);
+            return { success: false, message: error.message };
+        }
+    },
+
+    /**
+     * Create manual backup
+     */
+    async createManualBackup() {
+        const result = await this.createBackup();
+        if (result.success) {
+            const today = new Date().toISOString().split('T')[0];
+            localStorage.setItem(this.LAST_BACKUP_KEY, today);
+        }
+        return result;
     }
 };

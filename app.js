@@ -98,6 +98,14 @@ const App = {
 
         // Render dashboard with fresh data
         Dashboard.render();
+
+        // Check for automatic backup (17:45)
+        Storage.checkAutoBackup();
+
+        // Check backup every 5 minutes
+        setInterval(() => {
+            Storage.checkAutoBackup();
+        }, 5 * 60 * 1000);
     },
 
     handleLogin() {
@@ -173,6 +181,37 @@ const App = {
 
         this.currentTab = tabName;
 
+        // Modules that need real-time data sync
+        const syncModules = ['dashboard', 'separacao', 'conferencia', 'historico'];
+
+        // Reload from cloud before rendering for critical modules
+        if (syncModules.includes(tabName) && SupabaseClient?.isOnline) {
+            this.reloadModuleData(tabName);
+        } else {
+            this.renderTab(tabName);
+        }
+    },
+
+    async reloadModuleData(tabName) {
+        try {
+            // Reload specific data based on tab
+            if (tabName === 'dashboard' || tabName === 'separacao') {
+                await Storage.loadFromCloud(Storage.KEYS.SEPARACAO);
+            }
+            if (tabName === 'dashboard' || tabName === 'conferencia') {
+                await Storage.loadFromCloud(Storage.KEYS.CONFERENCIA);
+            }
+            if (tabName === 'historico') {
+                await Storage.loadFromCloud(Storage.KEYS.HISTORICO);
+            }
+        } catch (e) {
+            console.warn('⚠️ Erro ao atualizar dados:', e);
+        }
+
+        this.renderTab(tabName);
+    },
+
+    renderTab(tabName) {
         // Trigger render on tab switch
         switch (tabName) {
             case 'dashboard':
