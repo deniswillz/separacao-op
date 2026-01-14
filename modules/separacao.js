@@ -73,7 +73,9 @@ const Separacao = {
      */
     async reload() {
         const cloudData = await Storage.loadFromCloud(Storage.KEYS.SEPARACAO);
-        if (cloudData) {
+        // Só atualiza se recebeu dados válidos (array, não null)
+        // null indica que a cloud estava vazia ou sincronizando
+        if (Array.isArray(cloudData)) {
             this.listas = cloudData;
             this.renderListas();
             // If viewing a specific list, refresh it too

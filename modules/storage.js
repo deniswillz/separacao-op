@@ -126,7 +126,10 @@ const Storage = {
                     }
 
                     // Skip fields that don't exist in Supabase tables
-                    const skipFields = ['total_itens', 'itens_ok', 'itens_o_k', 'totalItens', 'itensOk', 'itensOK'];
+                    const skipFields = [
+                        'total_itens', 'itens_ok', 'itens_o_k', 'totalItens', 'itensOk', 'itensOK',
+                        'itensTransferenciaVerificados', 'itens_transferencia_verificados'
+                    ];
                     if (skipFields.includes(k)) continue;
 
                     const snakeKey = k.replace(/([A-Z])/g, '_$1').toLowerCase();
@@ -216,6 +219,12 @@ const Storage = {
         const table = this.TABLE_MAP[key];
         if (!table || !SupabaseClient?.isOnline) return null;
 
+        // Se está sincronizando, não recarregar (evita ler dados vazios durante delete+insert)
+        if (SupabaseClient?.isSyncing?.[table]) {
+            console.log(`⏸️ ${table} está sincronizando, mantendo dados locais`);
+            return null;
+        }
+
         console.log(`📥 Carregando ${table} da nuvem...`);
 
         try {
@@ -260,10 +269,11 @@ const Storage = {
                 console.log(`✅ ${table}: ${convertedData.length} registros carregados`);
                 return convertedData;
             } else {
-                // Cloud is empty - clear local storage too (cloud is source of truth)
-                console.log(`📭 ${table} está vazio na nuvem`);
-                localStorage.setItem(key, JSON.stringify([]));
-                return [];
+                // Cloud is empty - DO NOT clear local data automatically
+                // This could be a transient state during sync operations (delete+insert)
+                // Preserve local data to prevent data loss
+                console.log(`📭 ${table} está vazio na nuvem - mantendo dados locais`);
+                return null;
             }
         } catch (error) {
             console.error(`❌ Erro ao carregar ${table}:`, error);
