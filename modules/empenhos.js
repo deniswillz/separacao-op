@@ -289,7 +289,7 @@ const Empenhos = {
 
         // Send to Separação module
         Separacao.criarLista({
-            id: Date.now(),
+            id: Storage.generateUUID(),
             nome: listName,
             armazem: armazem,
             ordens: ordens,

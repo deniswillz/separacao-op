@@ -34,7 +34,7 @@ const Historico = {
 
     adicionarRegistro(conferencia) {
         const registro = {
-            id: Date.now(),
+            id: Storage.generateUUID(),
             nome: conferencia.nome,
             armazem: conferencia.armazem,
             ordens: conferencia.ordens,

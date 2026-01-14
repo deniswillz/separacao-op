@@ -29,6 +29,20 @@ const Storage = {
         'separacao_users': 'usuarios'
     },
 
+    // Generate UUID v4 - works in all browsers
+    generateUUID() {
+        // Use crypto.randomUUID if available (modern browsers)
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
+        // Fallback for older browsers
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    },
+
     // Debounce timers for each key
     syncTimers: {},
     SYNC_DEBOUNCE_MS: 2000, // Wait 2 seconds before syncing
@@ -117,13 +131,15 @@ const Storage = {
                 return prepared;
             });
 
-            // Delete existing data first (handle UUID vs numeric ID)
+            // Delete existing data first
+            // Use neq with empty UUID for tables that support UUID, gte for numeric tables
             try {
-                if (table === 'usuarios') {
-                    // usuarios uses UUID - delete using not equal to empty UUID
+                const uuidTables = ['usuarios', 'separacao', 'conferencia', 'historico'];
+                if (uuidTables.includes(table)) {
+                    // Tables that use UUID - delete all records
                     await supabaseClient.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
                 } else {
-                    // Other tables use numeric ID
+                    // Tables that still use numeric ID
                     await supabaseClient.from(table).delete().gte('id', 1);
                 }
             } catch (e) {

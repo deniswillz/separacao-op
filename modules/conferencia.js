@@ -115,7 +115,7 @@ const Conferencia = {
         });
 
         const conferencia = {
-            id: Date.now(),
+            id: Storage.generateUUID(),
             separacaoId: listaSeparacao.id,
             nome: listaSeparacao.nome,
             armazem: listaSeparacao.armazem,
