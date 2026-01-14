@@ -13,9 +13,14 @@ const SupabaseClient = {
     isOnline: false,
     realtimeCallbacks: {},
     realtimeSubscriptions: [],
+    realtimeDebounceTimers: {},    // Debounce timers for realtime events
+    isSyncing: {},                  // Flag to ignore own sync events
 
     // Tables to monitor for realtime changes
     REALTIME_TABLES: ['separacao', 'conferencia', 'historico'],
+
+    // Debounce delay for realtime events (wait for sync to finish)
+    REALTIME_DEBOUNCE_MS: 3000,
 
     async init() {
         try {
@@ -79,17 +84,40 @@ const SupabaseClient = {
     },
 
     /**
-     * Handle realtime change event
+     * Handle realtime change event with debounce
+     * Waits for sync operations to complete before triggering reload
      */
     handleRealtimeChange(table, payload) {
-        const callbacks = this.realtimeCallbacks[table] || [];
-        callbacks.forEach(callback => {
-            try {
-                callback(payload);
-            } catch (e) {
-                console.error(`❌ Erro no callback de ${table}:`, e);
-            }
-        });
+        // Ignore events if we're currently syncing this table
+        if (this.isSyncing[table]) {
+            console.log(`⏸️ Ignorando evento realtime de ${table} (sync em andamento)`);
+            return;
+        }
+
+        // Clear existing debounce timer for this table
+        if (this.realtimeDebounceTimers[table]) {
+            clearTimeout(this.realtimeDebounceTimers[table]);
+        }
+
+        // Set debounce timer - wait for all sync events to finish
+        this.realtimeDebounceTimers[table] = setTimeout(() => {
+            console.log(`🔄 Processando atualização remota de ${table}`);
+            const callbacks = this.realtimeCallbacks[table] || [];
+            callbacks.forEach(callback => {
+                try {
+                    callback(payload);
+                } catch (e) {
+                    console.error(`❌ Erro no callback de ${table}:`, e);
+                }
+            });
+        }, this.REALTIME_DEBOUNCE_MS);
+    },
+
+    /**
+     * Mark table as syncing (to ignore own realtime events)
+     */
+    setSyncing(table, value) {
+        this.isSyncing[table] = value;
     },
 
     /**

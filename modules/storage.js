@@ -81,6 +81,11 @@ const Storage = {
 
         console.log(`📤 Sincronizando ${table}... (${data.length} registros)`);
 
+        // Mark as syncing to ignore own realtime events
+        if (SupabaseClient?.setSyncing) {
+            SupabaseClient.setSyncing(table, true);
+        }
+
         // If data is empty, delete all from cloud
         if (data.length === 0) {
             try {
@@ -89,6 +94,10 @@ const Storage = {
                 console.log(`✅ ${table} limpo na nuvem`);
             } catch (e) {
                 console.warn(`⚠️ Não foi possível limpar ${table} na nuvem`);
+            }
+            // Done syncing
+            if (SupabaseClient?.setSyncing) {
+                SupabaseClient.setSyncing(table, false);
             }
             return;
         }
@@ -179,6 +188,11 @@ const Storage = {
 
         } catch (error) {
             console.error(`❌ Erro ao sincronizar ${table}:`, error);
+        } finally {
+            // Done syncing - always reset flag
+            if (SupabaseClient?.setSyncing) {
+                SupabaseClient.setSyncing(table, false);
+            }
         }
     },
 
