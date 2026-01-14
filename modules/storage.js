@@ -96,11 +96,21 @@ const Storage = {
             const preparedData = data.map(item => {
                 const prepared = {};
                 for (const [k, v] of Object.entries(item)) {
+                    // Skip id for usuarios and for timestamp-based IDs 
                     if (k === 'id') {
                         if (table === 'usuarios') continue;
                         if (typeof v === 'number' && v > 1000000) continue;
                     }
+
+                    // Skip fields that don't exist in Supabase tables
+                    const skipFields = ['total_itens', 'itens_ok', 'itens_o_k', 'totalItens', 'itensOk', 'itensOK'];
+                    if (skipFields.includes(k)) continue;
+
                     const snakeKey = k.replace(/([A-Z])/g, '_$1').toLowerCase();
+
+                    // Skip snake_case versions too
+                    if (skipFields.includes(snakeKey)) continue;
+
                     // Always try to convert Brazilian dates to ISO format
                     prepared[snakeKey] = convertBrazilianDateToISO(v);
                 }
