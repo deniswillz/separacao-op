@@ -323,6 +323,9 @@ const Separacao = {
             );
         }
 
+        // Sort A-Z by código
+        filtered = filtered.sort((a, b) => a.codigo.localeCompare(b.codigo));
+
         if (filtered.length === 0) {
             this.tableBody.innerHTML = '';
             document.getElementById('emptySeparacao').classList.add('show');

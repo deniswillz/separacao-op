@@ -50,6 +50,13 @@ const Conferencia = {
             });
         }
 
+        const btnListaTransferencia = document.getElementById('btnListaTransferencia');
+        if (btnListaTransferencia) {
+            btnListaTransferencia.addEventListener('click', () => {
+                this.mostrarListaTransferencia();
+            });
+        }
+
         const responsavelInput = document.getElementById('responsavelConferencia');
         if (responsavelInput) {
             responsavelInput.addEventListener('change', () => {
@@ -206,6 +213,7 @@ const Conferencia = {
 
         this.renderItens();
         this.updateStats();
+        this.updateButtonStates();
     },
 
     populateOPFilter() {
@@ -308,6 +316,7 @@ const Conferencia = {
             this.save();
             this.updateStats();
             this.renderItens();
+            this.updateButtonStates();
 
             // Check if all items from current OP are OK
             if (field === 'ok' && value && this.filtroOP) {
@@ -514,6 +523,9 @@ const Conferencia = {
             itens = itens.filter(i => i.ordens.includes(this.filtroOP));
         }
 
+        // Sort A-Z by código
+        itens = itens.sort((a, b) => a.codigo.localeCompare(b.codigo));
+
         if (itens.length === 0) {
             this.tableBody.innerHTML = '';
             document.getElementById('emptyConferencia').classList.add('show');
@@ -562,5 +574,180 @@ const Conferencia = {
                 </td>
             </tr>
         `}).join('');
+    },
+
+    /**
+     * Show transfer list modal for verification
+     */
+    mostrarListaTransferencia() {
+        if (!this.listaAtual) return;
+
+        // Get original separação list to show transferred items
+        const separacao = Separacao.listas.find(l => String(l.id) === String(this.listaAtual.separacaoId));
+
+        if (!separacao) {
+            App.showToast('Lista de separação original não encontrada', 'warning');
+            return;
+        }
+
+        // Get items that were transferred (not naoSeparado and were transferred)
+        const itensTransferidos = separacao.itens.filter(i => i.transferido && !i.naoSeparado);
+
+        // Initialize verificacao array if not exists
+        if (!this.listaAtual.itensTransferenciaVerificados) {
+            this.listaAtual.itensTransferenciaVerificados = [];
+        }
+
+        // Sort A-Z by código
+        itensTransferidos.sort((a, b) => a.codigo.localeCompare(b.codigo));
+
+        const itensHTML = itensTransferidos.map(item => {
+            const isVerificado = this.listaAtual.itensTransferenciaVerificados.includes(item.id);
+            return `
+                <tr>
+                    <td>
+                        <input type="checkbox" 
+                               ${isVerificado ? 'checked' : ''} 
+                               onchange="Conferencia.toggleTransferenciaItem(${item.id}, this.checked)">
+                    </td>
+                    <td>${item.codigo}</td>
+                    <td>${item.descricao}</td>
+                    <td class="center">${item.quantidade.toLocaleString('pt-BR')}</td>
+                </tr>
+            `;
+        }).join('');
+
+        const verificados = this.listaAtual.itensTransferenciaVerificados.length;
+        const total = itensTransferidos.length;
+        const todosVerificados = verificados === total && total > 0;
+
+        const body = `
+            <div style="margin-bottom: 1rem;">
+                <p><strong>Documento de Transferência:</strong> ${separacao.documento || 'N/A'}</p>
+                <p><strong>Responsável Separação:</strong> ${separacao.responsavel || 'N/A'}</p>
+                <p><strong>Verificados:</strong> <span id="countTransferencia">${verificados}</span>/${total} 
+                   ${todosVerificados ? '✅' : '⏳'}</p>
+            </div>
+            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">OK</th>
+                            <th>Código</th>
+                            <th>Descrição</th>
+                            <th class="center">Qtd</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itensHTML}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        const footer = `
+            <button class="btn btn-outline" onclick="App.closeModal()">Fechar</button>
+            <button class="btn btn-success" onclick="Conferencia.marcarTodosTransferencia(true)">✅ Marcar Todos</button>
+        `;
+
+        App.showModal('📋 Lista de Transferência', body, footer);
+    },
+
+    /**
+     * Toggle individual transfer item verification
+     */
+    toggleTransferenciaItem(itemId, checked) {
+        if (!this.listaAtual) return;
+
+        if (!this.listaAtual.itensTransferenciaVerificados) {
+            this.listaAtual.itensTransferenciaVerificados = [];
+        }
+
+        if (checked) {
+            if (!this.listaAtual.itensTransferenciaVerificados.includes(itemId)) {
+                this.listaAtual.itensTransferenciaVerificados.push(itemId);
+            }
+        } else {
+            this.listaAtual.itensTransferenciaVerificados =
+                this.listaAtual.itensTransferenciaVerificados.filter(id => id !== itemId);
+        }
+
+        // Update the list in main array
+        const lista = this.listas.find(l => l.id === this.listaAtual.id);
+        if (lista) {
+            lista.itensTransferenciaVerificados = this.listaAtual.itensTransferenciaVerificados;
+        }
+
+        this.save();
+        this.updateButtonStates();
+
+        // Update counter in modal
+        const counter = document.getElementById('countTransferencia');
+        if (counter) {
+            const separacao = Separacao.listas.find(l => String(l.id) === String(this.listaAtual.separacaoId));
+            const total = separacao ? separacao.itens.filter(i => i.transferido && !i.naoSeparado).length : 0;
+            counter.textContent = this.listaAtual.itensTransferenciaVerificados.length;
+        }
+    },
+
+    /**
+     * Mark all transfer items as verified
+     */
+    marcarTodosTransferencia(marcar) {
+        if (!this.listaAtual) return;
+
+        const separacao = Separacao.listas.find(l => String(l.id) === String(this.listaAtual.separacaoId));
+        if (!separacao) return;
+
+        const itensTransferidos = separacao.itens.filter(i => i.transferido && !i.naoSeparado);
+
+        if (marcar) {
+            this.listaAtual.itensTransferenciaVerificados = itensTransferidos.map(i => i.id);
+        } else {
+            this.listaAtual.itensTransferenciaVerificados = [];
+        }
+
+        const lista = this.listas.find(l => l.id === this.listaAtual.id);
+        if (lista) {
+            lista.itensTransferenciaVerificados = this.listaAtual.itensTransferenciaVerificados;
+        }
+
+        this.save();
+        this.updateButtonStates();
+        App.closeModal();
+        App.showToast('Todos os itens da transferência foram verificados!', 'success');
+    },
+
+    /**
+     * Update button states based on verification status
+     */
+    updateButtonStates() {
+        const btnFinalizar = document.getElementById('btnFinalizarConferencia');
+        const iconTransferencia = document.getElementById('iconTransferencia');
+
+        if (!btnFinalizar || !this.listaAtual) return;
+
+        // Check if all items are verified (OK or FALTA)
+        const todosItensVerificados = this.listaAtual.itens.every(i => i.ok || i.falta);
+
+        // Check if transfer list is verified
+        const separacao = Separacao.listas.find(l => String(l.id) === String(this.listaAtual.separacaoId));
+        let transferenciaOk = false;
+
+        if (separacao) {
+            const itensTransferidos = separacao.itens.filter(i => i.transferido && !i.naoSeparado);
+            const verificados = this.listaAtual.itensTransferenciaVerificados || [];
+            transferenciaOk = itensTransferidos.length > 0 &&
+                itensTransferidos.every(i => verificados.includes(i.id));
+        }
+
+        // Enable/disable finalize button
+        const podeFinalize = todosItensVerificados && transferenciaOk;
+        btnFinalizar.disabled = !podeFinalize;
+
+        // Update transfer icon
+        if (iconTransferencia) {
+            iconTransferencia.textContent = transferenciaOk ? '✅' : '📋';
+        }
     }
 };
