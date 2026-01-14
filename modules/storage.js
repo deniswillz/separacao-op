@@ -71,6 +71,7 @@ const Storage = {
 
     /**
      * Sync data to Supabase
+     * Uses UPSERT strategy to avoid race conditions where data appears empty during sync
      */
     async syncToSupabase(key, data) {
         const table = this.TABLE_MAP[key];
@@ -90,7 +91,12 @@ const Storage = {
         if (data.length === 0) {
             try {
                 console.log(`🗑️ Limpando ${table} na nuvem...`);
-                await supabaseClient.from(table).delete().gte('id', 1);
+                const uuidTables = ['usuarios', 'separacao', 'conferencia', 'historico'];
+                if (uuidTables.includes(table)) {
+                    await supabaseClient.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                } else {
+                    await supabaseClient.from(table).delete().gte('id', 1);
+                }
                 console.log(`✅ ${table} limpo na nuvem`);
             } catch (e) {
                 console.warn(`⚠️ Não foi possível limpar ${table} na nuvem`);
@@ -115,7 +121,7 @@ const Storage = {
                 return value;
             };
 
-            // Prepare data
+            // Prepare data with IDs for upsert
             const preparedData = data.map(item => {
                 const prepared = {};
                 for (const [k, v] of Object.entries(item)) {
@@ -143,24 +149,12 @@ const Storage = {
                 return prepared;
             });
 
-            // Delete existing data first
-            // Use neq with empty UUID for tables that support UUID, gte for numeric tables
-            try {
-                const uuidTables = ['usuarios', 'separacao', 'conferencia', 'historico'];
-                if (uuidTables.includes(table)) {
-                    // Tables that use UUID - delete all records
-                    await supabaseClient.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
-                } else {
-                    // Tables that still use numeric ID
-                    await supabaseClient.from(table).delete().gte('id', 1);
-                }
-            } catch (e) {
-                // Ignore delete errors
-            }
+            // Get IDs from prepared data to identify records to delete
+            const localIds = preparedData.map(item => item.id).filter(id => id !== undefined);
 
-            // Insert data in batches of 500
+            // STEP 1: UPSERT all local records (insert or update)
             const BATCH_SIZE = 500;
-            let inserted = 0;
+            let upserted = 0;
 
             // Debug: show first item to verify date format
             if (preparedData.length > 0) {
@@ -169,25 +163,65 @@ const Storage = {
 
             for (let i = 0; i < preparedData.length; i += BATCH_SIZE) {
                 const batch = preparedData.slice(i, i + BATCH_SIZE);
-                const result = await supabaseClient.from(table).insert(batch);
+
+                // Use upsert with 'id' as conflict key for most tables
+                // For usuarios, use 'username' as conflict key
+                const conflictKey = table === 'usuarios' ? 'username' : 'id';
+                const result = await supabaseClient.from(table).upsert(batch, {
+                    onConflict: conflictKey,
+                    ignoreDuplicates: false
+                });
 
                 if (result.error) {
-                    if (result.error.code === '23505' || result.error.code === '409') {
-                        // Use appropriate conflict key based on table
-                        const conflictKey = table === 'usuarios' ? 'username' : 'codigo';
-                        const upsertResult = await supabaseClient.from(table).upsert(batch, { onConflict: conflictKey });
-                        if (upsertResult.error) {
-                            console.warn(`⚠️ Upsert falhou para ${table}:`, upsertResult.error);
+                    console.error(`❌ Erro upsert batch ${table}:`, result.error);
+                    // Try individual inserts as fallback
+                    for (const record of batch) {
+                        try {
+                            await supabaseClient.from(table).upsert([record], {
+                                onConflict: conflictKey,
+                                ignoreDuplicates: false
+                            });
+                            upserted++;
+                        } catch (e) {
+                            console.warn(`⚠️ Falha ao sincronizar registro:`, e);
                         }
-                    } else {
-                        console.error(`❌ Erro batch:`, result.error);
-                        continue;
                     }
+                } else {
+                    upserted += batch.length;
                 }
-                inserted += batch.length;
             }
 
-            console.log(`✅ ${table}: ${inserted}/${data.length} registros sincronizados`);
+            // STEP 2: Delete records that exist in cloud but not locally
+            // This ensures removed records are deleted without leaving the table empty
+            if (localIds.length > 0 && table !== 'usuarios') {
+                try {
+                    // Convert IDs to strings for comparison
+                    const localIdStrings = localIds.map(id => String(id));
+
+                    // Get all cloud IDs
+                    const { data: cloudRecords, error: fetchError } = await supabaseClient
+                        .from(table)
+                        .select('id');
+
+                    if (!fetchError && cloudRecords) {
+                        const cloudIds = cloudRecords.map(r => String(r.id));
+                        const idsToDelete = cloudIds.filter(id => !localIdStrings.includes(id));
+
+                        if (idsToDelete.length > 0) {
+                            console.log(`🗑️ Removendo ${idsToDelete.length} registros obsoletos de ${table}`);
+                            // Delete in batches
+                            for (let i = 0; i < idsToDelete.length; i += BATCH_SIZE) {
+                                const deleteBatch = idsToDelete.slice(i, i + BATCH_SIZE);
+                                await supabaseClient.from(table).delete().in('id', deleteBatch);
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`⚠️ Erro ao limpar registros obsoletos de ${table}:`, e);
+                }
+            }
+
+            console.log(`✅ ${table}: ${upserted}/${data.length} registros sincronizados`);
 
         } catch (error) {
             console.error(`❌ Erro ao sincronizar ${table}:`, error);
