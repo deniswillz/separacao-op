@@ -260,18 +260,9 @@ const Storage = {
                 console.log(`✅ ${table}: ${convertedData.length} registros carregados`);
                 return convertedData;
             } else {
-                // Cloud is empty - check if we have local data to preserve
-                const localData = localStorage.getItem(key);
-                if (localData) {
-                    const parsed = JSON.parse(localData);
-                    if (parsed && parsed.length > 0) {
-                        console.log(`⚠️ ${table} vazio na nuvem, preservando ${parsed.length} registros locais`);
-                        // Try to sync local data to cloud
-                        this.syncToSupabase(key, parsed);
-                        return parsed;
-                    }
-                }
+                // Cloud is empty - clear local storage too (cloud is source of truth)
                 console.log(`📭 ${table} está vazio na nuvem`);
+                localStorage.setItem(key, JSON.stringify([]));
                 return [];
             }
         } catch (error) {
