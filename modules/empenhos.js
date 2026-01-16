@@ -252,18 +252,19 @@ const Empenhos = {
 
         if (opsDuplicadas.length > 0) {
             // Identificar onde cada OP duplicada está com ícones
+            // PRIORIDADE: Histórico > Conferência > Separação (verificar estágios mais avançados primeiro)
             const listaDetalhes = opsDuplicadas.map(op => {
                 let modulo = '';
                 let icone = '';
-                if (opsEmSeparacao.includes(op)) {
-                    modulo = 'Separação';
-                    icone = '✅';
+                if (opsEmHistorico.includes(op)) {
+                    modulo = 'Histórico';
+                    icone = '📚';
                 } else if (opsEmConferencia.includes(op)) {
                     modulo = 'Conferência';
                     icone = '🔍';
-                } else if (opsEmHistorico.includes(op)) {
-                    modulo = 'Histórico';
-                    icone = '📚';
+                } else if (opsEmSeparacao.includes(op)) {
+                    modulo = 'Separação';
+                    icone = '✅';
                 }
                 return `<li><strong>${op}</strong> - ${icone} ${modulo}</li>`;
             }).join('');
