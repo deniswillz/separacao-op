@@ -251,15 +251,40 @@ const Empenhos = {
         );
 
         if (opsDuplicadas.length > 0) {
-            // Identificar onde cada OP duplicada está
-            const detalhes = opsDuplicadas.map(op => {
-                if (opsEmSeparacao.includes(op)) return `${op} (Separação)`;
-                if (opsEmConferencia.includes(op)) return `${op} (Conferência)`;
-                if (opsEmHistorico.includes(op)) return `${op} (Histórico)`;
-                return op;
-            });
+            // Identificar onde cada OP duplicada está com ícones
+            const listaDetalhes = opsDuplicadas.map(op => {
+                let modulo = '';
+                let icone = '';
+                if (opsEmSeparacao.includes(op)) {
+                    modulo = 'Separação';
+                    icone = '✅';
+                } else if (opsEmConferencia.includes(op)) {
+                    modulo = 'Conferência';
+                    icone = '🔍';
+                } else if (opsEmHistorico.includes(op)) {
+                    modulo = 'Histórico';
+                    icone = '📚';
+                }
+                return `<li><strong>${op}</strong> - ${icone} ${modulo}</li>`;
+            }).join('');
 
-            App.showToast(`As seguintes OPs já foram processadas: ${detalhes.join(', ')}. Remova-as da seleção.`, 'error');
+            const body = `
+                <div style="text-align: center; padding: 1rem;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+                    <h3 style="color: #dc3545; margin-bottom: 1rem;">OPs Já Processadas!</h3>
+                    <p style="margin-bottom: 1rem;">As seguintes Ordens de Produção já estão em processo:</p>
+                    <ul style="text-align: left; margin: 1rem 2rem; list-style: none; padding: 0;">
+                        ${listaDetalhes}
+                    </ul>
+                    <p style="color: #dc3545; font-weight: bold;">Remova estas OPs da seleção para continuar.</p>
+                </div>
+            `;
+
+            const footer = `
+                <button class="btn btn-primary" onclick="App.closeModal()">Entendi</button>
+            `;
+
+            App.showModal('OPs Duplicadas', body, footer);
             return;
         }
 

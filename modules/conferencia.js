@@ -413,7 +413,32 @@ const Conferencia = {
         // BLOQUEIO: Se houver itens com FALTA, não pode finalizar - apenas salvar com pendências
         const itensFalta = this.listaAtual.itens.filter(i => i.falta);
         if (itensFalta.length > 0) {
-            App.showToast(`Existem ${itensFalta.length} itens com FALTA. Não é possível finalizar. Use "Salvar com Pendências".`, 'error');
+            // Listar os itens em falta
+            const listaFalta = itensFalta.slice(0, 10).map(i =>
+                `<li><strong>${i.codigo}</strong> - ${i.descricao || 'Sem descrição'}</li>`
+            ).join('');
+
+            const maisItens = itensFalta.length > 10 ? `<p>... e mais ${itensFalta.length - 10} itens</p>` : '';
+
+            const body = `
+                <div style="text-align: center; padding: 1rem;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">🚫</div>
+                    <h3 style="color: #dc3545; margin-bottom: 1rem;">Não é Possível Finalizar!</h3>
+                    <p style="margin-bottom: 1rem;">Existem <strong>${itensFalta.length}</strong> itens marcados como <span style="color: #dc3545; font-weight: bold;">FALTA</span>:</p>
+                    <ul style="text-align: left; margin: 1rem 2rem; list-style: none; padding: 0; font-size: 0.9rem;">
+                        ${listaFalta}
+                    </ul>
+                    ${maisItens}
+                    <p style="color: #0d6efd; font-weight: bold; margin-top: 1rem;">Use o botão "Salvar com Pendências" para salvar esta lista.</p>
+                </div>
+            `;
+
+            const footer = `
+                <button class="btn btn-outline" onclick="App.closeModal()">Fechar</button>
+                <button class="btn btn-warning" onclick="App.closeModal(); Conferencia.salvarComPendencias();">Salvar com Pendências</button>
+            `;
+
+            App.showModal('Itens com FALTA', body, footer);
             return;
         }
 
