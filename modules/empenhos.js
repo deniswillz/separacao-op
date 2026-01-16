@@ -242,7 +242,7 @@ const Empenhos = {
         // VERIFICAR DUPLICIDADE: Checar se alguma OP já existe em Separação, Conferência ou Histórico
         const opsEmSeparacao = (Separacao.listas || []).flatMap(l => l.ordens || []);
         const opsEmConferencia = (Conferencia.listas || []).flatMap(l => l.ordens || []);
-        const opsEmHistorico = (Historico.data || []).flatMap(l => l.ordens || []);
+        const opsEmHistorico = (Historico.registros || []).flatMap(l => l.ordens || []);
 
         const opsDuplicadas = ordens.filter(op =>
             opsEmSeparacao.includes(op) ||
