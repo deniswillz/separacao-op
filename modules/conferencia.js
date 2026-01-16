@@ -410,12 +410,11 @@ const Conferencia = {
             return;
         }
 
-        // Check for items with FALTA
+        // BLOQUEIO: Se houver itens com FALTA, não pode finalizar - apenas salvar com pendências
         const itensFalta = this.listaAtual.itens.filter(i => i.falta);
         if (itensFalta.length > 0) {
-            if (!confirm(`Existem ${itensFalta.length} itens com FALTA. Deseja finalizar mesmo assim?`)) {
-                return;
-            }
+            App.showToast(`Existem ${itensFalta.length} itens com FALTA. Não é possível finalizar. Use "Salvar com Pendências".`, 'error');
+            return;
         }
 
         // Check if all OPs are conferidas
