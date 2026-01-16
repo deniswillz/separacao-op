@@ -236,6 +236,33 @@ const Empenhos = {
             return;
         }
 
+        // Get unique OPs sorted
+        const ordens = [...this.selectedOPs].sort();
+
+        // VERIFICAR DUPLICIDADE: Checar se alguma OP já existe em Separação, Conferência ou Histórico
+        const opsEmSeparacao = Separacao.listas.flatMap(l => l.ordens || []);
+        const opsEmConferencia = Conferencia.listas.flatMap(l => l.ordens || []);
+        const opsEmHistorico = Historico.data.flatMap(l => l.ordens || []);
+
+        const opsDuplicadas = ordens.filter(op =>
+            opsEmSeparacao.includes(op) ||
+            opsEmConferencia.includes(op) ||
+            opsEmHistorico.includes(op)
+        );
+
+        if (opsDuplicadas.length > 0) {
+            // Identificar onde cada OP duplicada está
+            const detalhes = opsDuplicadas.map(op => {
+                if (opsEmSeparacao.includes(op)) return `${op} (Separação)`;
+                if (opsEmConferencia.includes(op)) return `${op} (Conferência)`;
+                if (opsEmHistorico.includes(op)) return `${op} (Histórico)`;
+                return op;
+            });
+
+            App.showToast(`As seguintes OPs já foram processadas: ${detalhes.join(', ')}. Remova-as da seleção.`, 'error');
+            return;
+        }
+
         // Get items from selected OPs
         const selectedData = this.data.filter(item => this.selectedOPs.has(item.op));
 
@@ -243,9 +270,6 @@ const Empenhos = {
             App.showToast('Nenhum item nas OPs selecionadas', 'warning');
             return;
         }
-
-        // Get unique OPs sorted
-        const ordens = [...this.selectedOPs].sort();
 
         // Group items by product code for SEPARAÇÃO (sum quantities)
         // But keep details of quantity per OP for CONFERÊNCIA
