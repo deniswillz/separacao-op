@@ -246,6 +246,14 @@ const Separacao = {
             lista.status = 'em_conferencia';
             lista.documento = documento;
             lista.responsavel = responsavel;
+
+            // Ajustar qtdSeparada: se for 0, iguala à quantidade solicitada
+            lista.itens.forEach(item => {
+                if ((item.qtdSeparada === 0 || item.qtdSeparada === undefined) && item.separado) {
+                    item.qtdSeparada = item.quantidade;
+                }
+            });
+
             this.save();
         }
 
@@ -374,7 +382,7 @@ const Separacao = {
                         <input type="number" 
                                value="${item.qtdSeparada || 0}" 
                                min="0"
-                               style="width: 80px;"
+                               style="width: 80px;${(item.qtdSeparada || 0) > item.quantidade ? ' color: red; border-color: red; font-weight: bold;' : ''}"
                                ${isDisabled}
                                onchange="Separacao.updateItem(${item.id}, 'qtdSeparada', this.value)">
                     </td>

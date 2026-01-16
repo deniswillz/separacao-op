@@ -11,7 +11,6 @@ const Auth = {
     // Available modules for permissions
     MODULES: [
         { id: 'dashboard', name: 'Dashboard', icon: '🏠' },
-        { id: 'cadastro', name: 'Cadastro', icon: '📋' },
         { id: 'enderecos', name: 'Endereços', icon: '📍' },
         { id: 'empenhos', name: 'Empenhos', icon: '📦' },
         { id: 'blacklist', name: 'BlackList', icon: '❌' },

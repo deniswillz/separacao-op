@@ -87,7 +87,6 @@ const App = {
 
         // NOW initialize modules (they will load fresh data from localStorage)
         Dashboard.init();
-        Cadastro.init();
         Enderecos.init();
         Empenhos.init();
         Blacklist.init();

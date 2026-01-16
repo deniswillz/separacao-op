@@ -87,10 +87,6 @@
                     <span class="nav-icon">🏠</span>
                     <span class="nav-text">Dashboard</span>
                 </li>
-                <li class="nav-item" data-tab="cadastro">
-                    <span class="nav-icon">📋</span>
-                    <span class="nav-text">Cadastro</span>
-                </li>
                 <li class="nav-item" data-tab="enderecos">
                     <span class="nav-icon">📍</span>
                     <span class="nav-text">Endereços</span>
@@ -199,55 +195,6 @@
                     <h3>✅ Finalizadas no Período</h3>
                     <div id="listaFinalizadas" class="dashboard-list">
                         <p class="empty-text">Nenhuma ordem finalizada</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Tab: Cadastro -->
-            <section class="tab-content" id="tab-cadastro">
-                <div class="content-header">
-                    <h1>Cadastro de Produtos</h1>
-                    <p>Lista de todos os produtos em estoque</p>
-                </div>
-
-                <div class="toolbar">
-                    <div class="search-box">
-                        <input type="text" id="searchCadastro" placeholder="Buscar produto...">
-                        <span class="search-icon">🔍</span>
-                    </div>
-                    <span class="item-counter" id="countCadastro">0 itens</span>
-                    <div class="toolbar-actions">
-                        <button class="btn btn-outline" id="btnModeloCadastro">
-                            <span>📄</span> Baixar Modelo Excel
-                        </button>
-                        <label class="btn btn-primary">
-                            <span>📥</span> Importar Excel
-                            <input type="file" id="importCadastro" accept=".xlsx,.xls" hidden>
-                        </label>
-                        <button class="btn btn-danger" id="btnLimparCadastro">
-                            <span>🗑️</span> Limpar Tudo
-                        </button>
-                    </div>
-                </div>
-
-                <div class="table-container">
-                    <table class="data-table" id="tableCadastro">
-                        <thead>
-                            <tr>
-                                <th>Código</th>
-                                <th>Descrição</th>
-                                <th>Unidade</th>
-                                <th>Armazém</th>
-                                <th>Ações</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        </tbody>
-                    </table>
-                    <div class="empty-state" id="emptyCadastro">
-                        <span class="empty-icon">📋</span>
-                        <p>Nenhum produto cadastrado</p>
-                        <small>Importe um arquivo Excel para começar</small>
                     </div>
                 </div>
             </section>

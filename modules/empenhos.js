@@ -79,29 +79,36 @@ const Empenhos = {
         if (!file) return;
 
         try {
-            const rawData = await ExcelHelper.readFileWithHeaders(file);
+            // Use readFile to get raw array data (access by index)
+            const rawData = await ExcelHelper.readFile(file);
 
-            const newData = rawData.map((row, index) => {
-                // MAPEAMENTO DE COLUNAS (Nomes reais do Excel):
-                // Coluna A: 'Ordem Producao'
-                // Coluna U: 'Codigo'
-                // Coluna V: 'Descricao_1' (tem _1 porque há outra coluna Descricao)
-                // Coluna W: 'Quantidade_1' (tem _1 porque há outra coluna Quantidade)
-                // Coluna X: 'UM'
+            // Skip header row (index 0)
+            const dataRows = rawData.slice(1);
 
-                const op = row['Ordem Producao'] || '';
-                const codigo = row['Codigo'] || '';
+            const newData = dataRows.map((row, index) => {
+                // MAPEAMENTO RÍGIDO POR ÍNDICE DE COLUNA:
+                // Coluna A (índice 0): Ordem de Produção
+                // Coluna U (índice 20): Código
+                // Coluna V (índice 21): Descrição
+                // Coluna W (índice 22): Quantidade
+                // Coluna X (índice 23): Unidade de Medida
+
+                const op = row[0] || '';  // Coluna A
+                const codigo = row[20] || '';  // Coluna U
+                const descricao = row[21] || '';  // Coluna V
+                const quantidade = row[22] || 0;  // Coluna W
+                const unidade = row[23] || 'UN';  // Coluna X
 
                 return {
                     id: this.data.length + Date.now() + index,
                     op: String(op).trim(),
-                    data: row.Data || row.Emissao || new Date().toLocaleDateString('pt-BR'),
+                    data: new Date().toLocaleDateString('pt-BR'),
                     codigo: String(codigo).toUpperCase().trim(),
-                    descricao: row['Descricao_1'] || row['Descricao'] || '',
-                    quantidade: parseFloat(row['Quantidade_1'] || 0) || 0,
-                    unidade: row['UM'] || 'UN'
+                    descricao: String(descricao).trim(),
+                    quantidade: parseFloat(quantidade) || 0,
+                    unidade: String(unidade).toUpperCase().trim() || 'UN'
                 };
-            });
+            }).filter(item => item.codigo && item.op); // Remove linhas vazias
 
             this.data = [...this.data, ...newData];
 
