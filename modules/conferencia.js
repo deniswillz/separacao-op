@@ -633,21 +633,21 @@ const Conferencia = {
 
     /**
  * Show transfer list modal for verification
- * Now uses qtdSeparada from separadoPorOP (Lupa) instead of original quantity
+ * Uses data from conferência itself (which already has the separated quantities)
  */
     mostrarListaTransferencia() {
         if (!this.listaAtual) return;
 
-        // Get original separação list to show transferred items
+        // Try to get original separação list for additional info
         const separacao = Separacao.listas.find(l => String(l.id) === String(this.listaAtual.separacaoId));
 
-        if (!separacao) {
-            App.showToast('Lista de separação original não encontrada', 'warning');
+        // Use conferência items directly (they already have quantidade and qtdSeparada)
+        const itensConferencia = this.listaAtual.itens || [];
+
+        if (itensConferencia.length === 0) {
+            App.showToast('Nenhum item na lista de conferência', 'warning');
             return;
         }
-
-        // Get items that were transferred (not naoSeparado and were transferred)
-        const itensTransferidos = separacao.itens.filter(i => i.transferido && !i.naoSeparado);
 
         // Initialize verificacao array if not exists
         if (!this.listaAtual.itensTransferenciaVerificados) {
@@ -655,19 +655,21 @@ const Conferencia = {
         }
 
         // Sort A-Z by código
-        itensTransferidos.sort((a, b) => a.codigo.localeCompare(b.codigo));
+        const itensSorted = [...itensConferencia].sort((a, b) => a.codigo.localeCompare(b.codigo));
 
-        const itensHTML = itensTransferidos.map(item => {
+        const itensHTML = itensSorted.map(item => {
             const isVerificado = this.listaAtual.itensTransferenciaVerificados.includes(item.id);
 
-            // Use qtdSeparada (from Lupa) instead of original quantidade
+            // quantidade = Qtd Solicitada (original), qtdSeparada = Qtd Separada (from Lupa)
+            const qtdSolicitada = item.quantidade || 0;
             const qtdSeparada = item.qtdSeparada || 0;
-            const qtdOriginal = item.quantidade || 0;
 
             // Show warning if different from original
-            const diferenca = qtdOriginal - qtdSeparada;
+            const diferenca = qtdSolicitada - qtdSeparada;
             const statusClass = diferenca > 0 ? 'style="color: #dc3545; font-weight: bold;"' : '';
             const statusInfo = diferenca > 0 ? `<small style="color: #dc3545;">(Faltam ${diferenca.toLocaleString('pt-BR')})</small>` : '';
+
+            const opInfo = item.ordens && item.ordens.length > 0 ? `<small style="color: #666;">OP: ${item.ordens.join(', ')}</small>` : '';
 
             return `
             <tr>
@@ -676,9 +678,12 @@ const Conferencia = {
                            ${isVerificado ? 'checked' : ''} 
                            onchange="Conferencia.toggleTransferenciaItem(${item.id}, this.checked)">
                 </td>
-                <td>${item.codigo}</td>
-                <td>${item.descricao}</td>
-                <td class="center">${qtdOriginal.toLocaleString('pt-BR')}</td>
+                <td>
+                    ${item.codigo}
+                    ${opInfo}
+                </td>
+                <td>${item.descricao || '-'}</td>
+                <td class="center">${qtdSolicitada.toLocaleString('pt-BR')}</td>
                 <td class="center" ${statusClass}>
                     ${qtdSeparada.toLocaleString('pt-BR')}
                     ${statusInfo}
@@ -688,13 +693,17 @@ const Conferencia = {
         }).join('');
 
         const verificados = this.listaAtual.itensTransferenciaVerificados.length;
-        const total = itensTransferidos.length;
+        const total = itensSorted.length;
         const todosVerificados = verificados === total && total > 0;
+
+        // Use data from conferência or separação
+        const documento = this.listaAtual.documento || separacao?.documento || 'N/A';
+        const responsavel = this.listaAtual.responsavelSeparacao || separacao?.responsavel || 'N/A';
 
         const body = `
         <div style="margin-bottom: 1rem;">
-            <p><strong>Documento de Transferência:</strong> ${separacao.documento || 'N/A'}</p>
-            <p><strong>Responsável Separação:</strong> ${separacao.responsavel || 'N/A'}</p>
+            <p><strong>Documento de Transferência:</strong> ${documento}</p>
+            <p><strong>Responsável Separação:</strong> ${responsavel}</p>
             <p><strong>Verificados:</strong> <span id="countTransferencia">${verificados}</span>/${total} 
                ${todosVerificados ? '✅' : '⏳'}</p>
         </div>
@@ -705,7 +714,7 @@ const Conferencia = {
                         <th style="width: 50px;">OK</th>
                         <th>Código</th>
                         <th>Descrição</th>
-                        <th class="center">Qtd Original</th>
+                        <th class="center">Qtd Solicitada</th>
                         <th class="center">Qtd Separada</th>
                     </tr>
                 </thead>
