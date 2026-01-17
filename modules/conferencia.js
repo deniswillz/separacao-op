@@ -132,7 +132,10 @@ const Conferencia = {
 
             if (allOPs.length > 0) {
                 allOPs.forEach(op => {
-                    // Get quantity from separadoPorOP (Lupa), fallback to qtdPorOP
+                    // Get ORIGINAL quantity from order (qtdPorOP)
+                    const qtdSolicitada = qtdPorOP[op] || 0;
+
+                    // Get SEPARATED quantity from Lupa (separadoPorOP)
                     const sepInfo = separadoPorOP[op];
                     let qtdSeparada = 0;
 
@@ -143,19 +146,18 @@ const Conferencia = {
                         // Has separadoPorOP but not marked OK - use what was entered
                         qtdSeparada = sepInfo.qtdSeparada || 0;
                     } else {
-                        // Fallback: old data without separadoPorOP
-                        qtdSeparada = qtdPorOP[op] || 0;
+                        // Fallback: old data without separadoPorOP - use original
+                        qtdSeparada = qtdSolicitada;
                     }
 
-                    // Only add if there's quantity to check
-                    if (qtdSeparada > 0) {
+                    // Only add if there's quantity to check (either original or separated)
+                    if (qtdSolicitada > 0 || qtdSeparada > 0) {
                         itensExpandidos.push({
                             id: itemId++,
                             codigo: item.codigo,
                             descricao: item.descricao,
-                            quantidade: qtdSeparada, // Use separated quantity, NOT original
-                            qtdSeparada: qtdSeparada,
-                            qtdOriginal: qtdPorOP[op] || 0, // Keep original for reference
+                            quantidade: qtdSolicitada, // ORIGINAL from order
+                            qtdSeparada: qtdSeparada, // From Lupa
                             ordens: [op],
                             ok: false,
                             falta: false,
