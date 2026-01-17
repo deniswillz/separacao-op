@@ -116,25 +116,52 @@ const Conferencia = {
         );
 
         // Expand grouped items into individual items per OP for Conferência
-        // This allows checking each OP separately with correct quantities
+        // Now using separadoPorOP (from Lupa) instead of original qtdPorOP
         const itensExpandidos = [];
         let itemId = 1;
 
         itensValidos.forEach(item => {
-            // If item has qtdPorOP, create separate items for each OP
-            if (item.qtdPorOP && Object.keys(item.qtdPorOP).length > 0) {
-                Object.entries(item.qtdPorOP).forEach(([op, qtd]) => {
-                    itensExpandidos.push({
-                        id: itemId++,
-                        codigo: item.codigo,
-                        descricao: item.descricao,
-                        quantidade: qtd, // Quantity for this specific OP
-                        qtdSeparada: item.qtdSeparada || 0, // Use total separated
-                        ordens: [op], // Single OP for this item
-                        ok: false,
-                        falta: false,
-                        observacao: ''
-                    });
+            // Use separadoPorOP if available (new flow), fallback to qtdPorOP (old flow)
+            const separadoPorOP = item.separadoPorOP || {};
+            const qtdPorOP = item.qtdPorOP || {};
+
+            // Get all OPs from both sources
+            const opsFromSeparado = Object.keys(separadoPorOP);
+            const opsFromOriginal = Object.keys(qtdPorOP);
+            const allOPs = [...new Set([...opsFromSeparado, ...opsFromOriginal])];
+
+            if (allOPs.length > 0) {
+                allOPs.forEach(op => {
+                    // Get quantity from separadoPorOP (Lupa), fallback to qtdPorOP
+                    const sepInfo = separadoPorOP[op];
+                    let qtdSeparada = 0;
+
+                    if (sepInfo && sepInfo.ok) {
+                        // If this OP was marked OK in Lupa, use the separated quantity
+                        qtdSeparada = sepInfo.qtdSeparada || 0;
+                    } else if (sepInfo) {
+                        // Has separadoPorOP but not marked OK - use what was entered
+                        qtdSeparada = sepInfo.qtdSeparada || 0;
+                    } else {
+                        // Fallback: old data without separadoPorOP
+                        qtdSeparada = qtdPorOP[op] || 0;
+                    }
+
+                    // Only add if there's quantity to check
+                    if (qtdSeparada > 0) {
+                        itensExpandidos.push({
+                            id: itemId++,
+                            codigo: item.codigo,
+                            descricao: item.descricao,
+                            quantidade: qtdSeparada, // Use separated quantity, NOT original
+                            qtdSeparada: qtdSeparada,
+                            qtdOriginal: qtdPorOP[op] || 0, // Keep original for reference
+                            ordens: [op],
+                            ok: false,
+                            falta: false,
+                            observacao: ''
+                        });
+                    }
                 });
             } else {
                 // Fallback: item doesn't have qtdPorOP (old data)
@@ -142,7 +169,7 @@ const Conferencia = {
                     id: itemId++,
                     codigo: item.codigo,
                     descricao: item.descricao,
-                    quantidade: item.quantidade,
+                    quantidade: item.qtdSeparada || item.quantidade,
                     qtdSeparada: item.qtdSeparada || 0,
                     ordens: item.ordens || [],
                     ok: false,
@@ -603,8 +630,9 @@ const Conferencia = {
     },
 
     /**
-     * Show transfer list modal for verification
-     */
+ * Show transfer list modal for verification
+ * Now uses qtdSeparada from separadoPorOP (Lupa) instead of original quantity
+ */
     mostrarListaTransferencia() {
         if (!this.listaAtual) return;
 
@@ -629,18 +657,32 @@ const Conferencia = {
 
         const itensHTML = itensTransferidos.map(item => {
             const isVerificado = this.listaAtual.itensTransferenciaVerificados.includes(item.id);
+
+            // Use qtdSeparada (from Lupa) instead of original quantidade
+            const qtdSeparada = item.qtdSeparada || 0;
+            const qtdOriginal = item.quantidade || 0;
+
+            // Show warning if different from original
+            const diferenca = qtdOriginal - qtdSeparada;
+            const statusClass = diferenca > 0 ? 'style="color: #dc3545; font-weight: bold;"' : '';
+            const statusInfo = diferenca > 0 ? `<small style="color: #dc3545;">(Faltam ${diferenca.toLocaleString('pt-BR')})</small>` : '';
+
             return `
-                <tr>
-                    <td>
-                        <input type="checkbox" 
-                               ${isVerificado ? 'checked' : ''} 
-                               onchange="Conferencia.toggleTransferenciaItem(${item.id}, this.checked)">
-                    </td>
-                    <td>${item.codigo}</td>
-                    <td>${item.descricao}</td>
-                    <td class="center">${item.quantidade.toLocaleString('pt-BR')}</td>
-                </tr>
-            `;
+            <tr>
+                <td>
+                    <input type="checkbox" 
+                           ${isVerificado ? 'checked' : ''} 
+                           onchange="Conferencia.toggleTransferenciaItem(${item.id}, this.checked)">
+                </td>
+                <td>${item.codigo}</td>
+                <td>${item.descricao}</td>
+                <td class="center">${qtdOriginal.toLocaleString('pt-BR')}</td>
+                <td class="center" ${statusClass}>
+                    ${qtdSeparada.toLocaleString('pt-BR')}
+                    ${statusInfo}
+                </td>
+            </tr>
+        `;
         }).join('');
 
         const verificados = this.listaAtual.itensTransferenciaVerificados.length;
@@ -648,33 +690,37 @@ const Conferencia = {
         const todosVerificados = verificados === total && total > 0;
 
         const body = `
-            <div style="margin-bottom: 1rem;">
-                <p><strong>Documento de Transferência:</strong> ${separacao.documento || 'N/A'}</p>
-                <p><strong>Responsável Separação:</strong> ${separacao.responsavel || 'N/A'}</p>
-                <p><strong>Verificados:</strong> <span id="countTransferencia">${verificados}</span>/${total} 
-                   ${todosVerificados ? '✅' : '⏳'}</p>
-            </div>
-            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 50px;">OK</th>
-                            <th>Código</th>
-                            <th>Descrição</th>
-                            <th class="center">Qtd</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itensHTML}
-                    </tbody>
-                </table>
-            </div>
-        `;
+        <div style="margin-bottom: 1rem;">
+            <p><strong>Documento de Transferência:</strong> ${separacao.documento || 'N/A'}</p>
+            <p><strong>Responsável Separação:</strong> ${separacao.responsavel || 'N/A'}</p>
+            <p><strong>Verificados:</strong> <span id="countTransferencia">${verificados}</span>/${total} 
+               ${todosVerificados ? '✅' : '⏳'}</p>
+        </div>
+        <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">OK</th>
+                        <th>Código</th>
+                        <th>Descrição</th>
+                        <th class="center">Qtd Original</th>
+                        <th class="center">Qtd Separada</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itensHTML}
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top: 1rem; padding: 0.5rem; background: #fff3cd; border-radius: 4px;">
+            <small>⚠️ A <strong>Qtd Separada</strong> é vinculada ao valor definido na Lupa durante a separação. Itens em vermelho indicam quantidade menor que a solicitada.</small>
+        </div>
+    `;
 
         const footer = `
-            <button class="btn btn-outline" onclick="App.closeModal()">Fechar</button>
-            <button class="btn btn-success" onclick="Conferencia.marcarTodosTransferencia(true)">✅ Marcar Todos</button>
-        `;
+        <button class="btn btn-outline" onclick="App.closeModal()">Fechar</button>
+        <button class="btn btn-success" onclick="Conferencia.marcarTodosTransferencia(true)">✅ Marcar Todos</button>
+    `;
 
         App.showModal('📋 Lista de Transferência', body, footer);
     },

@@ -363,13 +363,18 @@ const Separacao = {
             const opInfoJson = item.qtdPorOP ? JSON.stringify(item.qtdPorOP).replace(/"/g, '&quot;') : '{}';
             const opsDisplay = item.ordens && item.ordens.length > 0 ? item.ordens.join(', ') : '-';
 
+            // Check if all OPs are marked OK (green lupa)
+            const isFullySeparated = this.isItemFullySeparated(item);
+            const lupaColor = isFullySeparated ? 'color: #28a745;' : '';
+            const lupaTitle = isFullySeparated ? 'Item totalmente separado ✓' : 'Ver OPs deste item';
+
             return `
                 <tr class="${rowClass}">
                     <td>
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span>${item.codigo}</span>
-                            <button class="btn-lupa" onclick="Separacao.showOPInfo('${item.codigo}', '${opInfoJson}')" title="Ver OPs deste item">
-                                🔍
+                            <button class="btn-lupa" style="${lupaColor}" onclick="Separacao.showOPInfo('${item.codigo}', '${opInfoJson}')" title="${lupaTitle}">
+                                ${isFullySeparated ? '✅' : '🔍'}
                             </button>
                         </div>
                     </td>
@@ -423,14 +428,48 @@ const Separacao = {
             return;
         }
 
-        let total = 0;
+        // Get current item to access separadoPorOP
+        const item = this.listaAtual?.itens.find(i => i.codigo === codigo);
+        if (!item) return;
+
+        // Initialize separadoPorOP if not exists
+        if (!item.separadoPorOP) {
+            item.separadoPorOP = {};
+            ops.forEach(op => {
+                item.separadoPorOP[op] = { qtdSeparada: 0, ok: false };
+            });
+        }
+
+        let totalSolicitado = 0;
+        let totalSeparado = 0;
+
         const rows = ops.map(op => {
-            const qtd = qtdPorOP[op];
-            total += qtd;
+            const qtdSolicitada = qtdPorOP[op];
+            totalSolicitado += qtdSolicitada;
+
+            const sepInfo = item.separadoPorOP[op] || { qtdSeparada: 0, ok: false };
+            totalSeparado += sepInfo.qtdSeparada || 0;
+
             return `
-                <tr>
+                <tr data-op="${op}">
                     <td><strong>OP ${op}</strong></td>
-                    <td class="center">${qtd.toLocaleString('pt-BR')}</td>
+                    <td class="center">${qtdSolicitada.toLocaleString('pt-BR')}</td>
+                    <td class="center">
+                        <input type="number" 
+                               id="sep_${op}" 
+                               value="${sepInfo.qtdSeparada || 0}" 
+                               min="0" 
+                               max="${qtdSolicitada}"
+                               step="0.01"
+                               style="width: 80px;"
+                               onchange="Separacao.updateSeparadoPorOP('${codigo}', '${op}', 'qtdSeparada', parseFloat(this.value) || 0)">
+                    </td>
+                    <td class="center">
+                        <input type="checkbox" 
+                               id="ok_${op}"
+                               ${sepInfo.ok ? 'checked' : ''} 
+                               onchange="Separacao.updateSeparadoPorOP('${codigo}', '${op}', 'ok', this.checked)">
+                    </td>
                 </tr>
             `;
         }).join('');
@@ -438,28 +477,126 @@ const Separacao = {
         const body = `
             <div class="op-info-popup">
                 <p><strong>Código:</strong> ${codigo}</p>
-                <table class="op-info-table">
+                <p><strong>Descrição:</strong> ${item.descricao || '-'}</p>
+                <table class="op-info-table" style="width: 100%; margin-top: 1rem;">
                     <thead>
                         <tr>
                             <th>Ordem de Produção</th>
-                            <th>Quantidade</th>
+                            <th style="text-align: center;">Qtd Solicitada</th>
+                            <th style="text-align: center;">Qtd Separada</th>
+                            <th style="text-align: center;">OK</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${rows}
                     </tbody>
                     <tfoot>
-                        <tr>
-                            <td><strong>TOTAL</strong></td>
-                            <td class="center"><strong>${total.toLocaleString('pt-BR')}</strong></td>
+                        <tr style="background: #f5f5f5; font-weight: bold;">
+                            <td>TOTAL</td>
+                            <td class="center">${totalSolicitado.toLocaleString('pt-BR')}</td>
+                            <td class="center" id="totalSeparado">${totalSeparado.toLocaleString('pt-BR')}</td>
+                            <td class="center">-</td>
                         </tr>
                     </tfoot>
                 </table>
+                <div style="margin-top: 1rem; padding: 0.5rem; background: #e8f5e9; border-radius: 4px;">
+                    <small>💡 Ao marcar <strong>OK</strong>, se a quantidade separada for 0, ela será preenchida automaticamente com a quantidade solicitada.</small>
+                </div>
             </div>
         `;
 
         App.showModal(`🔍 Detalhes do Item`, body, `
-            <button class="btn-secondary" onclick="App.closeModal()">Fechar</button>
+            <button class="btn btn-outline" onclick="App.closeModal()">Fechar</button>
+            <button class="btn btn-success" onclick="Separacao.salvarSeparadoPorOP('${codigo}'); App.closeModal();">✔️ Salvar e Fechar</button>
         `);
+    },
+
+    updateSeparadoPorOP(codigo, op, field, value) {
+        const item = this.listaAtual?.itens.find(i => i.codigo === codigo);
+        if (!item) return;
+
+        if (!item.separadoPorOP) {
+            item.separadoPorOP = {};
+        }
+
+        if (!item.separadoPorOP[op]) {
+            item.separadoPorOP[op] = { qtdSeparada: 0, ok: false };
+        }
+
+        // If checking OK and qtdSeparada is 0, auto-fill with solicitada
+        if (field === 'ok' && value === true) {
+            const qtdSolicitada = item.qtdPorOP?.[op] || 0;
+            if ((item.separadoPorOP[op].qtdSeparada || 0) === 0) {
+                item.separadoPorOP[op].qtdSeparada = qtdSolicitada;
+                const input = document.getElementById(`sep_${op}`);
+                if (input) input.value = qtdSolicitada;
+            }
+        }
+
+        item.separadoPorOP[op][field] = value;
+
+        // Update total in modal
+        this.updateLupaTotal(item);
+    },
+
+    updateLupaTotal(item) {
+        if (!item.separadoPorOP) return;
+
+        let total = 0;
+        Object.values(item.separadoPorOP).forEach(sep => {
+            total += sep.qtdSeparada || 0;
+        });
+
+        const totalEl = document.getElementById('totalSeparado');
+        if (totalEl) {
+            totalEl.textContent = total.toLocaleString('pt-BR');
+        }
+    },
+
+    salvarSeparadoPorOP(codigo) {
+        const item = this.listaAtual?.itens.find(i => i.codigo === codigo);
+        if (!item || !item.separadoPorOP) return;
+
+        // Calculate total qtdSeparada from all OPs
+        let totalSeparado = 0;
+        Object.values(item.separadoPorOP).forEach(sep => {
+            totalSeparado += sep.qtdSeparada || 0;
+        });
+
+        // Update item's qtdSeparada with total
+        item.qtdSeparada = totalSeparado;
+
+        // Check if all OPs are OK
+        const allOK = Object.values(item.separadoPorOP).every(sep => sep.ok);
+        if (allOK && !item.separado) {
+            item.separado = true;
+        }
+
+        // Find and update lista
+        const lista = this.listas.find(l => l.id === this.listaAtual.id);
+        if (lista) {
+            const listaItem = lista.itens.find(i => i.codigo === codigo);
+            if (listaItem) {
+                listaItem.separadoPorOP = item.separadoPorOP;
+                listaItem.qtdSeparada = totalSeparado;
+                listaItem.separado = item.separado;
+            }
+        }
+
+        this.save();
+        this.renderItens();
+        this.updateStats();
+
+        App.showToast('Quantidades salvas!', 'success');
+    },
+
+    isItemFullySeparated(item) {
+        if (!item.separadoPorOP || !item.qtdPorOP) return false;
+
+        const ops = Object.keys(item.qtdPorOP);
+        return ops.every(op => {
+            const sepInfo = item.separadoPorOP[op];
+            return sepInfo && sepInfo.ok;
+        });
     }
 };
