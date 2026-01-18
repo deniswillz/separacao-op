@@ -1,7 +1,8 @@
 /**
  * Storage Module
- * Uses Supabase as PRIMARY storage, localStorage as CACHE
- * All data is synchronized across users
+ * Uses Supabase as PRIMARY and ONLY storage
+ * In-memory cache for performance
+ * NO localStorage for app data
  */
 
 const Storage = {
@@ -29,6 +30,9 @@ const Storage = {
         'separacao_users': 'usuarios'
     },
 
+    // In-memory cache (replaces localStorage)
+    _cache: {},
+
     // Generate UUID v4 - works in all browsers
     generateUUID() {
         // Use crypto.randomUUID if available (modern browsers)
@@ -45,14 +49,15 @@ const Storage = {
 
     // Debounce timers for each key
     syncTimers: {},
-    SYNC_DEBOUNCE_MS: 2000, // Wait 2 seconds before syncing
+    SYNC_DEBOUNCE_MS: 1500, // Wait 1.5 seconds before syncing
 
     /**
-     * Save data - saves to localStorage AND Supabase (with debounce)
+     * Save data - saves to in-memory cache AND Supabase (with debounce)
      */
     save(key, data) {
         try {
-            localStorage.setItem(key, JSON.stringify(data));
+            // Save to in-memory cache
+            this._cache[key] = JSON.parse(JSON.stringify(data));
 
             // Debounce sync to avoid multiple rapid calls
             if (this.syncTimers[key]) {
@@ -77,7 +82,10 @@ const Storage = {
         const table = this.TABLE_MAP[key];
 
         if (!table) return;
-        if (!SupabaseClient?.isOnline) return;
+        if (!SupabaseClient?.isOnline) {
+            console.warn('⚠️ Offline - dados salvos apenas em memória');
+            return;
+        }
         if (!Array.isArray(data)) return;
 
         console.log(`📤 Sincronizando ${table}... (${data.length} registros)`);
@@ -156,11 +164,6 @@ const Storage = {
             const BATCH_SIZE = 500;
             let upserted = 0;
 
-            // Debug: show first item to verify date format
-            if (preparedData.length > 0) {
-                console.log(`📋 ${table} - Primeiro item preparado:`, JSON.stringify(preparedData[0], null, 2));
-            }
-
             for (let i = 0; i < preparedData.length; i += BATCH_SIZE) {
                 const batch = preparedData.slice(i, i + BATCH_SIZE);
 
@@ -234,16 +237,15 @@ const Storage = {
     },
 
     /**
-     * Load data from localStorage
+     * Load data from in-memory cache (primary) or Supabase (fallback)
      */
     load(key) {
-        try {
-            const data = localStorage.getItem(key);
-            return data ? JSON.parse(data) : null;
-        } catch (e) {
-            console.error('❌ Erro ao carregar:', e);
-            return null;
+        // Return from cache if available
+        if (this._cache[key] !== undefined) {
+            return this._cache[key];
         }
+        // Cache miss - return null, data needs to be loaded from cloud
+        return null;
     },
 
     /**
@@ -255,8 +257,8 @@ const Storage = {
 
         // Se está sincronizando, não recarregar (evita ler dados vazios durante delete+insert)
         if (SupabaseClient?.isSyncing?.[table]) {
-            console.log(`⏸️ ${table} está sincronizando, mantendo dados locais`);
-            return null;
+            console.log(`⏸️ ${table} está sincronizando, mantendo dados em cache`);
+            return this._cache[key] || null;
         }
 
         console.log(`📥 Carregando ${table} da nuvem...`);
@@ -299,21 +301,23 @@ const Storage = {
                     return converted;
                 });
 
-                localStorage.setItem(key, JSON.stringify(convertedData));
+                // Save to in-memory cache
+                this._cache[key] = convertedData;
                 console.log(`✅ ${table}: ${convertedData.length} registros carregados`);
                 return convertedData;
             } else {
-                // Cloud is empty - DO NOT clear local data automatically
-                // This could be a transient state during sync operations (delete+insert)
-                // Preserve local data to prevent data loss
-                console.log(`📭 ${table} está vazio na nuvem - mantendo dados locais`);
-                return null;
+                // Cloud is empty - preserve cache data if exists
+                console.log(`📭 ${table} está vazio na nuvem`);
+                if (this._cache[key]) {
+                    return this._cache[key];
+                }
+                return [];
             }
         } catch (error) {
             console.error(`❌ Erro ao carregar ${table}:`, error);
         }
 
-        return null;
+        return this._cache[key] || null;
     },
 
     /**
@@ -321,7 +325,9 @@ const Storage = {
      */
     remove(key) {
         try {
-            localStorage.removeItem(key);
+            // Remove from cache
+            delete this._cache[key];
+
             const table = this.TABLE_MAP[key];
             if (table && SupabaseClient?.isOnline) {
                 supabaseClient.from(table).delete().gte('id', 0);
@@ -337,9 +343,8 @@ const Storage = {
      * Clear all app data
      */
     clearAll() {
-        Object.values(this.KEYS).forEach(key => {
-            localStorage.removeItem(key);
-        });
+        // Clear in-memory cache
+        this._cache = {};
     },
 
     /**
@@ -348,8 +353,8 @@ const Storage = {
     exportAll() {
         const data = {};
         Object.entries(this.KEYS).forEach(([name, key]) => {
-            const localData = localStorage.getItem(key);
-            data[name] = localData ? JSON.parse(localData) : null;
+            // Get data from cache
+            data[name] = this._cache[key] || null;
         });
         return data;
     },
@@ -370,7 +375,7 @@ const Storage = {
      */
     async loadAllFromCloud() {
         if (!SupabaseClient?.isOnline) {
-            console.warn('⚠️ Offline - usando dados locais');
+            console.warn('⚠️ Offline - usando dados em cache');
             return;
         }
 
@@ -380,18 +385,15 @@ const Storage = {
             const table = this.TABLE_MAP[key];
             if (!table) continue;
 
-            const cloudData = await this.loadFromCloud(key);
-
-            if (cloudData !== null) {
-                localStorage.setItem(key, JSON.stringify(cloudData));
-            }
+            // loadFromCloud updates cache automatically
+            await this.loadFromCloud(key);
         }
 
         console.log('✅ Dados sincronizados com a nuvem!');
     },
 
     /**
-     * Upload all local data to cloud
+     * Upload all cached data to cloud
      */
     async uploadToCloud() {
         if (!SupabaseClient?.isOnline) {
@@ -399,18 +401,15 @@ const Storage = {
             return;
         }
 
-        console.log('📤 Enviando dados locais para a nuvem...');
+        console.log('📤 Enviando dados em cache para a nuvem...');
 
         for (const [name, key] of Object.entries(this.KEYS)) {
             const table = this.TABLE_MAP[key];
             if (!table) continue;
 
-            const localData = localStorage.getItem(key);
-            if (localData) {
-                const parsed = JSON.parse(localData);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    await this.syncToSupabase(key, parsed);
-                }
+            const cachedData = this._cache[key];
+            if (cachedData && Array.isArray(cachedData) && cachedData.length > 0) {
+                await this.syncToSupabase(key, cachedData);
             }
         }
 
@@ -437,9 +436,9 @@ const Storage = {
             return;
         }
 
-        // Check if already backed up today
+        // Check if already backed up today (use sessionStorage for backup date)
         const today = now.toISOString().split('T')[0];
-        const lastBackup = localStorage.getItem(this.LAST_BACKUP_KEY);
+        const lastBackup = sessionStorage.getItem(this.LAST_BACKUP_KEY);
 
         if (lastBackup === today) {
             console.log('📦 Backup já realizado hoje');
@@ -449,7 +448,7 @@ const Storage = {
         // Perform backup
         console.log('📦 Iniciando backup automático das 17:45...');
         this.createBackup().then(() => {
-            localStorage.setItem(this.LAST_BACKUP_KEY, today);
+            sessionStorage.setItem(this.LAST_BACKUP_KEY, today);
         });
     },
 
@@ -582,7 +581,7 @@ const Storage = {
         const result = await this.createBackup();
         if (result.success) {
             const today = new Date().toISOString().split('T')[0];
-            localStorage.setItem(this.LAST_BACKUP_KEY, today);
+            sessionStorage.setItem(this.LAST_BACKUP_KEY, today);
         }
         return result;
     }
