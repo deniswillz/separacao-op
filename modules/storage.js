@@ -250,6 +250,7 @@ const Storage = {
 
     /**
      * Load data from Supabase using pagination
+     * Supports loading thousands of records (7000+)
      */
     async loadFromCloud(key) {
         const table = this.TABLE_MAP[key];
@@ -264,17 +265,21 @@ const Storage = {
         console.log(`📥 Carregando ${table} da nuvem...`);
 
         try {
-            // Use pagination to load ALL records
-            const PAGE_SIZE = 1000;
+            // Use pagination to load ALL records - increased for large datasets (7000+)
+            const PAGE_SIZE = 5000;
             let allData = [];
             let page = 0;
             let hasMore = true;
 
             while (hasMore) {
-                const { data: pageData, error } = await supabaseClient
+                const from = page * PAGE_SIZE;
+                const to = from + PAGE_SIZE - 1;
+
+                const { data: pageData, error, count } = await supabaseClient
                     .from(table)
-                    .select('*')
-                    .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+                    .select('*', { count: 'exact' })
+                    .range(from, to)
+                    .limit(PAGE_SIZE);
 
                 if (error) {
                     console.error(`❌ Erro ao carregar ${table}:`, error);
@@ -283,8 +288,13 @@ const Storage = {
 
                 if (pageData && pageData.length > 0) {
                     allData = allData.concat(pageData);
+                    console.log(`📊 ${table}: página ${page + 1} - ${allData.length} registros carregados...`);
                     page++;
-                    if (pageData.length < PAGE_SIZE) hasMore = false;
+
+                    // Stop if we got less than PAGE_SIZE (last page)
+                    if (pageData.length < PAGE_SIZE) {
+                        hasMore = false;
+                    }
                 } else {
                     hasMore = false;
                 }

@@ -724,40 +724,85 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    margin-bottom: 1rem;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
     flex-wrap: wrap;
+    padding: 1rem 1.25rem;
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
 }
 
 .search-box {
     position: relative;
     flex: 1;
-    max-width: 400px;
+    max-width: 450px;
 }
 
 .search-box input {
     width: 100%;
-    padding: 0.65rem 1rem 0.65rem 2.5rem;
-    border: 1px solid var(--gray-300);
-    border-radius: var(--radius);
+    padding: 0.85rem 1rem 0.85rem 2.75rem;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
     font-size: 0.95rem;
-    background: var(--white);
+    background: var(--gray-50);
     transition: var(--transition);
+}
+
+.search-box input::placeholder {
+    color: var(--gray-400);
 }
 
 .search-box input:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(0, 139, 91, 0.1);
+    box-shadow: 0 0 0 3px rgba(0, 107, 71, 0.1);
+    background: var(--white);
 }
 
 .search-icon {
     position: absolute;
-    left: 0.8rem;
+    left: 1rem;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 1rem;
-    opacity: 0.5;
+    font-size: 1.1rem;
+    opacity: 0.4;
+}
+
+/* Item counter styles */
+.item-counter {
+    font-size: 0.85rem;
+    color: var(--gray-500);
+    padding: 0.5rem 1rem;
+    background: var(--gray-100);
+    border-radius: var(--radius);
+    font-weight: 500;
+}
+
+/* Filter dropdown styling */
+.filter-dropdown {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.filter-dropdown label {
+    font-size: 0.8rem;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+}
+
+.filter-dropdown select {
+    padding: 0.6rem 2rem 0.6rem 1rem;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    background: var(--white);
+    font-size: 0.9rem;
+    color: var(--gray-700);
+    cursor: pointer;
+    font-weight: 500;
 }
 
 .toolbar-actions {
@@ -1024,14 +1069,14 @@ body {
 }
 
 /* ============================================
-   TABLES
+   TABLES - NANO PRO Style
    ============================================ */
 .table-container {
     background: var(--white);
-    border: 1px solid var(--gray-200);
-    border-radius: var(--radius-lg);
+    border: none;
+    border-radius: var(--radius-xl);
     overflow: hidden;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
 .data-table {
@@ -1040,18 +1085,18 @@ body {
 }
 
 .data-table thead {
-    background: var(--gray-50);
-    border-bottom: 2px solid var(--gray-200);
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-100);
 }
 
 .data-table th {
-    padding: 0.9rem 1rem;
+    padding: 1rem 1.25rem;
     text-align: left;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    color: var(--gray-600);
+    color: var(--gray-400);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.75px;
 }
 
 .data-table th.center,
@@ -1065,12 +1110,16 @@ body {
 }
 
 .data-table tbody tr {
-    border-bottom: 1px solid var(--gray-100);
+    border-bottom: 1px solid var(--gray-50);
     transition: var(--transition);
 }
 
+.data-table tbody tr:last-child {
+    border-bottom: none;
+}
+
 .data-table tbody tr:hover {
-    background: var(--gray-50);
+    background: rgba(0, 107, 71, 0.02);
 }
 
 .data-table tbody tr.blacklist-item {
@@ -1083,25 +1132,158 @@ body {
 }
 
 .data-table td {
-    padding: 0.8rem 1rem;
+    padding: 1rem 1.25rem;
     font-size: 0.9rem;
     color: var(--gray-700);
+    vertical-align: middle;
+}
+
+/* Product/Code cell styling */
+.data-table .cell-product {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.data-table .cell-product-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--gray-100);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+}
+
+.data-table .cell-product-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.data-table .cell-product-name {
+    font-weight: 600;
+    color: var(--gray-800);
+}
+
+.data-table .cell-product-code {
+    font-size: 0.8rem;
+    color: var(--gray-400);
+}
+
+/* Badge styling for location */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.6rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-primary {
+    background: rgba(0, 107, 71, 0.1);
+    color: var(--primary);
+}
+
+.badge-success {
+    background: var(--success-light);
+    color: #059669;
+}
+
+.badge-warning {
+    background: var(--warning-light);
+    color: #D97706;
+}
+
+.badge-danger {
+    background: var(--danger-light);
+    color: #DC2626;
+}
+
+/* Location cell */
+.cell-location {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.cell-location-address {
+    font-size: 0.85rem;
+    color: var(--gray-500);
+}
+
+/* Date cell with icon */
+.cell-date {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.85rem;
+    color: var(--gray-600);
+}
+
+.cell-date-icon {
+    color: var(--primary);
+    font-size: 0.75rem;
+}
+
+/* Number/quantity cell */
+.cell-number {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--gray-800);
+}
+
+/* Circular action button */
+.btn-action-circle {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: var(--white);
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 1rem;
+}
+
+.btn-action-circle:hover {
+    background: var(--primary-dark);
+    transform: scale(1.05);
+}
+
+.btn-action-circle.outline {
+    background: var(--white);
+    color: var(--primary);
+    border: 2px solid var(--primary);
+}
+
+.btn-action-circle.outline:hover {
+    background: var(--primary);
+    color: var(--white);
 }
 
 .data-table td input[type="text"],
 .data-table td input[type="number"] {
     width: 100%;
-    padding: 0.4rem 0.6rem;
-    border: 1px solid var(--gray-300);
-    border-radius: var(--radius-sm);
-    font-size: 0.85rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    font-size: 0.9rem;
     font-family: var(--font-family);
+    background: var(--gray-50);
 }
 
 .data-table td input[type="text"]:focus,
 .data-table td input[type="number"]:focus {
     outline: none;
     border-color: var(--primary);
+    background: var(--white);
 }
 
 /* Custom Checkboxes */
