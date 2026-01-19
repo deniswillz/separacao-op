@@ -81,6 +81,26 @@ const Enderecos = {
 
         try {
             const rawData = await ExcelHelper.readFileWithHeaders(file);
+            console.log(`📊 Excel: ${rawData.length} linhas lidas do arquivo`);
+
+            // Ask user if they want to replace all data or add to existing
+            const existingCount = this.data.length;
+            let shouldReplace = false;
+
+            if (existingCount > 0) {
+                shouldReplace = confirm(
+                    `Você tem ${existingCount} endereços cadastrados.\n\n` +
+                    `Deseja SUBSTITUIR todos por ${rawData.length} itens do Excel?\n\n` +
+                    `• OK = Substituir tudo\n` +
+                    `• Cancelar = Adicionar apenas novos itens`
+                );
+            }
+
+            if (shouldReplace) {
+                // Clear existing data
+                this.data = [];
+                console.log(`🗑️ Dados anteriores limpos. Importando ${rawData.length} novos registros...`);
+            }
 
             const existingCodes = new Set(this.data.map(item => item.codigo.toUpperCase()));
             let duplicatesSkipped = 0;
@@ -117,7 +137,7 @@ const Enderecos = {
                 newItems++;
             });
 
-            console.log(`📊 Excel: ${rawData.length} linhas lidas do arquivo`);
+            console.log(`📊 Importação: ${newItems} novos, ${duplicatesSkipped} duplicados ignorados`);
 
             this.save();
             this.render();
