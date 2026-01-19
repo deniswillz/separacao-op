@@ -83,9 +83,16 @@ const Enderecos = {
             const rawData = await ExcelHelper.readFileWithHeaders(file);
             console.log(`📊 Excel: ${rawData.length} linhas lidas do arquivo`);
 
+            // Debug: show column headers from first row
+            if (rawData.length > 0) {
+                const headers = Object.keys(rawData[0]);
+                console.log(`📋 Colunas encontradas no Excel:`, headers);
+                console.log(`📋 Primeira linha:`, rawData[0]);
+            }
+
             // Ask user if they want to replace all data or add to existing
             const existingCount = this.data.length;
-            let shouldReplace = false;
+            let shouldReplace = true; // Default to replace for fresh import
 
             if (existingCount > 0) {
                 shouldReplace = confirm(
@@ -96,7 +103,7 @@ const Enderecos = {
                 );
             }
 
-            if (shouldReplace) {
+            if (shouldReplace || existingCount === 0) {
                 // Clear existing data
                 this.data = [];
                 console.log(`🗑️ Dados anteriores limpos. Importando ${rawData.length} novos registros...`);
@@ -105,11 +112,38 @@ const Enderecos = {
             const existingCodes = new Set(this.data.map(item => item.codigo.toUpperCase()));
             let duplicatesSkipped = 0;
             let newItems = 0;
+            let emptyRows = 0;
+
+            // Helper function to find a value using multiple possible column names
+            const getValue = (row, ...keys) => {
+                for (const key of keys) {
+                    if (row[key] !== undefined && row[key] !== null && row[key] !== '') {
+                        return String(row[key]).trim();
+                    }
+                }
+                // Also try case-insensitive search
+                const rowKeys = Object.keys(row);
+                for (const searchKey of keys) {
+                    const found = rowKeys.find(k => k.toLowerCase() === searchKey.toLowerCase());
+                    if (found && row[found] !== undefined && row[found] !== null && row[found] !== '') {
+                        return String(row[found]).trim();
+                    }
+                }
+                return '';
+            };
 
             rawData.forEach((row, index) => {
-                const codigo = String(row.Codigo || row.codigo || row.CODIGO || row['Código'] || '').trim().toUpperCase();
+                // Try multiple possible column names for codigo
+                const codigo = getValue(row,
+                    'Codigo', 'codigo', 'CODIGO', 'Código', 'código',
+                    'COD', 'cod', 'Cod', 'SKU', 'sku', 'Sku',
+                    'Produto', 'produto', 'PRODUTO', 'Item', 'item', 'ITEM'
+                ).toUpperCase();
 
-                if (!codigo) return;
+                if (!codigo) {
+                    emptyRows++;
+                    return;
+                }
 
                 if (existingCodes.has(codigo)) {
                     duplicatesSkipped++;
@@ -119,25 +153,38 @@ const Enderecos = {
                 existingCodes.add(codigo);
 
                 // Format armazem - preserve leading zeros if numeric (01, 02, etc)
-                let armazemVal = row.Armazem || row.armazem || row.ARMAZEM || row['Armazém'] || '';
-                armazemVal = String(armazemVal).trim();
+                let armazemVal = getValue(row,
+                    'Armazem', 'armazem', 'ARMAZEM', 'Armazém', 'armazém',
+                    'ARM', 'arm', 'Arm', 'Deposito', 'deposito', 'DEPOSITO'
+                );
                 // If it's a number without leading zero, add it
                 if (/^\d$/.test(armazemVal)) {
                     armazemVal = '0' + armazemVal;
                 }
 
+                const descricao = getValue(row,
+                    'Descricao', 'descricao', 'DESCRICAO', 'Descrição', 'descrição',
+                    'DESC', 'desc', 'Desc', 'Nome', 'nome', 'NOME'
+                );
+
+                const endereco = getValue(row,
+                    'Endereco', 'endereco', 'ENDERECO', 'Endereço', 'endereço',
+                    'END', 'end', 'End', 'Localizacao', 'localizacao', 'LOCALIZACAO',
+                    'Local', 'local', 'LOCAL'
+                );
+
                 this.data.push({
                     id: Date.now() + index,
                     codigo: codigo,
-                    descricao: row.Descricao || row.descricao || row.DESCRICAO || row['Descrição'] || '',
-                    endereco: row.Endereco || row.endereco || row.ENDERECO || row['Endereço'] || '',
+                    descricao: descricao,
+                    endereco: endereco,
                     armazem: armazemVal
                 });
 
                 newItems++;
             });
 
-            console.log(`📊 Importação: ${newItems} novos, ${duplicatesSkipped} duplicados ignorados`);
+            console.log(`📊 Importação: ${newItems} novos, ${duplicatesSkipped} duplicados, ${emptyRows} linhas sem código`);
 
             this.save();
             this.render();
