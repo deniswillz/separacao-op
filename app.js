@@ -275,15 +275,32 @@ const App = {
         }, 4000);
     },
 
-    showModal(title, body, footer = '') {
+    showModal(title, body, footer = '', size = 'default') {
         document.getElementById('modalTitle').textContent = title;
         document.getElementById('modalBody').innerHTML = body;
         document.getElementById('modalFooter').innerHTML = footer;
+
+        const modalContent = document.querySelector('.modal-content');
+        // Reset to default size first
+        modalContent.style.maxWidth = '';
+
+        // Apply size variant
+        if (size === 'large') {
+            modalContent.style.maxWidth = '900px';
+        } else if (size === 'xlarge') {
+            modalContent.style.maxWidth = '1100px';
+        }
+
         document.getElementById('modal').classList.add('show');
     },
 
     closeModal() {
         document.getElementById('modal').classList.remove('show');
+        // Reset modal size
+        const modalContent = document.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.maxWidth = '';
+        }
     },
 
     showUrgencyAlert(urgencias) {

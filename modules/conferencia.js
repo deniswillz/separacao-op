@@ -733,7 +733,7 @@ const Conferencia = {
         <button class="btn btn-success" onclick="Conferencia.marcarTodosTransferencia(true)">✅ Marcar Todos</button>
     `;
 
-        App.showModal('📋 Lista de Transferência', body, footer);
+        App.showModal('📋 Lista de Transferência', body, footer, 'large');
     },
 
     /**
