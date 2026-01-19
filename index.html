@@ -4,8 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NANO PRO | Separação de OP</title>
+    <title>NANO PRO | Separação de Ordem</title>
     <meta name="description" content="Sistema de separação de ordens de produção - NANO PRO">
+    <link rel="icon" type="image/png" href="logo.png">
 
     <!-- Google Fonts - Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -48,22 +49,38 @@
         <div class="login-card">
             <form class="login-form" id="loginForm" onsubmit="return false;">
                 <div class="form-group">
-                    <label><span class="label-icon">👤</span> LOGIN</label>
-                    <input type="text" id="loginUsername" placeholder="Seu login">
+                    <label>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        Login
+                    </label>
+                    <input type="text" id="loginUsername" placeholder="Seu login" required>
                 </div>
                 <div class="form-group">
-                    <label><span class="label-icon">🔒</span> SENHA</label>
-                    <input type="password" id="loginPassword" placeholder="••••••••">
+                    <label>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        Senha
+                    </label>
+                    <input type="password" id="loginPassword" placeholder="••••••••" required>
                 </div>
                 <button type="submit" class="btn btn-primary btn-lg btn-block" id="btnLogin">
-                    ENTRAR
+                    Entrar
                 </button>
-                <a href="#" class="guest-link" onclick="Auth.loginAsGuest(); return false;">MODO CONSULTA
-                    (VISITANTE)</a>
+                <p class="guest-link-wrapper">
+                    <button type="button" class="guest-link" onclick="Auth.loginAsGuest()">Modo Consulta
+                        (Visitante)</button>
+                </p>
             </form>
         </div>
         <div class="login-footer">
-            <small>NANO PRO © 2026 - GESTÃO INDUSTRIAL DE ALTA PERFORMANCE</small>
+            <p>Nano Pro © 2026 - Gestão Industrial de Alta Performance</p>
         </div>
     </div>
 

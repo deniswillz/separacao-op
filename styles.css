@@ -2155,32 +2155,23 @@ tr.has-falta td {
 }
 
 .login-logo-container {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 1rem;
     margin-bottom: 1.5rem;
 }
 
 .login-logo-img {
-    height: 100px;
+    height: 128px;
     width: auto;
     filter: brightness(0) invert(1);
 }
 
-.login-logo-text {
-    font-size: 3rem;
-    font-weight: 700;
-    font-style: italic;
-    color: var(--white);
-    letter-spacing: -1px;
-}
-
 .login-subtitle {
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 0.85rem;
-    font-weight: 500;
-    letter-spacing: 4px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.3em;
     text-transform: uppercase;
     margin: 0;
 }
@@ -2217,8 +2208,9 @@ tr.has-falta td {
     letter-spacing: 1px;
 }
 
-.label-icon {
-    font-size: 0.75rem;
+.login-form label svg {
+    vertical-align: middle;
+    margin-right: 6px;
 }
 
 .login-form input {
@@ -2230,6 +2222,7 @@ tr.has-falta td {
     font-weight: 500;
     transition: var(--transition);
     background: var(--gray-100);
+    outline: none;
 }
 
 .login-form input::placeholder {
@@ -2237,9 +2230,8 @@ tr.has-falta td {
 }
 
 .login-form input:focus {
-    outline: none;
-    box-shadow: 0 0 0 3px rgba(0, 107, 71, 0.2);
-    background: var(--gray-50);
+    box-shadow: 0 0 0 2px var(--primary);
+    background: var(--white);
 }
 
 .login-form .btn-primary {
@@ -2253,30 +2245,42 @@ tr.has-falta td {
     transition: all 0.2s ease;
 }
 
+.login-form .btn-primary:hover {
+    background: var(--primary-dark);
+}
+
 .login-form .btn-primary:active {
     transform: scale(0.98);
+}
+
+.login-form .btn-primary:disabled {
+    opacity: 0.7;
 }
 
 .btn-block {
     width: 100%;
 }
 
-.guest-link {
-    display: block;
+.guest-link-wrapper {
     text-align: center;
-    margin-top: 1.25rem;
+    margin-top: 0.75rem;
+    padding-top: 0.5rem;
+}
+
+.guest-link {
+    background: none;
+    border: none;
+    cursor: pointer;
     color: var(--gray-400);
-    font-size: 0.65rem;
+    font-size: 10px;
     font-weight: 700;
-    letter-spacing: 2px;
+    letter-spacing: 0.15em;
     text-transform: uppercase;
-    text-decoration: none;
     transition: var(--transition);
 }
 
 .guest-link:hover {
-    color: var(--primary-dark);
-    text-decoration: underline;
+    color: var(--primary);
 }
 
 .login-footer {
@@ -2289,10 +2293,13 @@ tr.has-falta td {
     z-index: 1;
 }
 
-.login-footer small {
-    color: rgba(255, 255, 255, 0.5);
-    font-size: 0.7rem;
-    letter-spacing: 1px;
+.login-footer p {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    margin: 0;
 }
 
 /* ============================================
