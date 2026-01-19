@@ -46,10 +46,18 @@ const App = {
         this.setupNavigation();
 
         // Setup export button
-        const btnExport = document.getElementById('btnExportData');
+        const btnExport = document.getElementById('btnExportDataTab');
         if (btnExport) {
             btnExport.addEventListener('click', () => {
                 this.exportAllData();
+            });
+        }
+
+        // Setup import button
+        const importInput = document.getElementById('importJsonData');
+        if (importInput) {
+            importInput.addEventListener('change', (e) => {
+                this.importAllData(e);
             });
         }
 
@@ -440,6 +448,33 @@ const App = {
             console.error(error);
             this.showToast('Erro ao exportar dados', 'error');
         }
+    },
+
+    importAllData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+
+                if (confirm('Deseja realmente importar estes dados? Os dados atuais em cache serão atualizados.')) {
+                    Storage.importAll(data);
+                    this.showToast('Dados importados com sucesso!', 'success');
+
+                    if (confirm('Dados importados. Deseja recarregar a página para aplicar as mudanças?')) {
+                        location.reload();
+                    }
+                }
+            } catch (error) {
+                console.error(error);
+                this.showToast('Erro ao importar arquivo: Formato inválido', 'error');
+            }
+            // Reset input
+            event.target.value = '';
+        };
+        reader.readAsText(file);
     }
 };
 

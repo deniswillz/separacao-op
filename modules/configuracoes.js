@@ -19,7 +19,7 @@ const Configuracoes = {
             });
         }
 
-        const btnExportData = document.getElementById('btnExportData');
+        const btnExportData = document.getElementById('btnExportDataTab');
         if (btnExportData) {
             btnExportData.addEventListener('click', () => {
                 App.exportAllData();
@@ -220,46 +220,54 @@ const Configuracoes = {
 
     showAddUserModal() {
         const body = `
-            <form id="formAddUser">
-                <div class="form-group">
-                    <label>Nome de Usuário</label>
-                    <input type="text" id="newUsername" required placeholder="usuario">
-                </div>
-                <div class="form-group">
-                    <label>Nome Completo</label>
-                    <input type="text" id="newNome" required placeholder="Nome Sobrenome">
-                </div>
-                <div class="form-group">
-                    <label>Senha</label>
-                    <input type="password" id="newPassword" required placeholder="••••••••">
-                </div>
-                <div class="form-group">
-                    <label>Confirmar Senha</label>
-                    <input type="password" id="confirmPassword" required placeholder="••••••••">
-                </div>
-                <div class="form-group">
-                    <label>Tipo de Usuário</label>
-                    <select id="newRole" onchange="Configuracoes.togglePermissions()">
-                        <option value="user">Usuário</option>
-                        <option value="admin">Administrador</option>
-                    </select>
-                </div>
-                <div class="form-group" id="permissionsGroup">
-                    <label>Permissões de Acesso</label>
-                    <div class="permissions-grid">
-                        ${this.generatePermissionsCheckboxes(['dashboard'])}
+            <div class="modern-form">
+                <form id="formAddUser">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label><span class="label-icon">👤</span> Nome de Usuário</label>
+                            <input type="text" id="newUsername" required placeholder="usuario_exemplo">
+                        </div>
+                        <div class="form-group">
+                            <label><span class="label-icon">📝</span> Nome Completo</label>
+                            <input type="text" id="newNome" required placeholder="Nome do Colaborador">
+                        </div>
+                        <div class="form-group">
+                            <label><span class="label-icon">🔒</span> Senha</label>
+                            <input type="password" id="newPassword" required placeholder="••••••••">
+                        </div>
+                        <div class="form-group">
+                            <label><span class="label-icon">🛡️</span> Confirmar Senha</label>
+                            <input type="password" id="confirmPassword" required placeholder="••••••••">
+                        </div>
                     </div>
-                    <small class="text-muted">Selecione os módulos que o usuário poderá acessar</small>
-                </div>
-            </form>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><span class="label-icon">👑</span> Tipo de Usuário</label>
+                            <select id="newRole" onchange="Configuracoes.togglePermissions()" class="modern-select">
+                                <option value="user">Usuário Operador</option>
+                                <option value="admin">Administrador Sistema</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="permissionsGroup">
+                        <label><span class="label-icon">🔑</span> Permissões de Acesso</label>
+                        <div class="permissions-grid-modern">
+                            ${this.generatePermissionsCheckboxes(['dashboard'])}
+                        </div>
+                        <p class="field-hint">Selecione os módulos que este usuário poderá gerenciar</p>
+                    </div>
+                </form>
+            </div>
         `;
 
         const footer = `
-            <button class="btn btn-outline" onclick="App.closeModal()">Cancelar</button>
-            <button class="btn btn-success" onclick="Configuracoes.addUser()">Criar Usuário</button>
+            <button class="btn btn-outline btn-modern" onclick="App.closeModal()">Cancelar</button>
+            <button class="btn btn-success btn-modern" onclick="Configuracoes.addUser()">Criar Conta Usuário</button>
         `;
 
-        App.showModal('Novo Usuário', body, footer);
+        App.showModal('Novo Usuário', body, footer, 'large');
     },
 
     togglePermissions() {
@@ -328,42 +336,50 @@ const Configuracoes = {
         const permissionsDisplay = isAdmin ? 'none' : 'block';
 
         const body = `
-            <form id="formEditUser">
-                <div class="form-group">
-                    <label>Nome de Usuário</label>
-                    <input type="text" value="${user.username}" disabled>
-                </div>
-                <div class="form-group">
-                    <label>Nome Completo</label>
-                    <input type="text" id="editNome" value="${user.nome}" required>
-                </div>
-                <div class="form-group">
-                    <label>Nova Senha (deixe em branco para manter)</label>
-                    <input type="password" id="editPassword" placeholder="••••••••">
-                </div>
-                <div class="form-group">
-                    <label>Tipo de Usuário</label>
-                    <select id="editRole" onchange="Configuracoes.togglePermissions()">
-                        <option value="user" ${user.role === 'user' ? 'selected' : ''}>Usuário</option>
-                        <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Administrador</option>
-                    </select>
-                </div>
-                <div class="form-group" id="permissionsGroup" style="display: ${permissionsDisplay};">
-                    <label>Permissões de Acesso</label>
-                    <div class="permissions-grid">
-                        ${this.generatePermissionsCheckboxes(user.permissions || [])}
+            <div class="modern-form">
+                <form id="formEditUser">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label><span class="label-icon">👤</span> Usuário</label>
+                            <input type="text" value="${user.username}" disabled class="disabled-input">
+                        </div>
+                        <div class="form-group">
+                            <label><span class="label-icon">📝</span> Nome Completo</label>
+                            <input type="text" id="editNome" value="${user.nome}" required>
+                        </div>
                     </div>
-                    <small class="text-muted">Selecione os módulos que o usuário poderá acessar</small>
-                </div>
-            </form>
+                    
+                    <div class="form-group">
+                        <label><span class="label-icon">🔒</span> Alterar Senha</label>
+                        <input type="password" id="editPassword" placeholder="Deixe em branco para não alterar">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><span class="label-icon">👑</span> Tipo de Conta</label>
+                            <select id="editRole" onchange="Configuracoes.togglePermissions()" class="modern-select">
+                                <option value="user" ${user.role === 'user' ? 'selected' : ''}>Usuário Operador</option>
+                                <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Administrador Sistema</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group" id="permissionsGroup" style="display: ${permissionsDisplay};">
+                        <label><span class="label-icon">🔑</span> Gerenciar Permissões</label>
+                        <div class="permissions-grid-modern">
+                            ${this.generatePermissionsCheckboxes(user.permissions || [])}
+                        </div>
+                    </div>
+                </form>
+            </div>
         `;
 
         const footer = `
-            <button class="btn btn-outline" onclick="App.closeModal()">Cancelar</button>
-            <button class="btn btn-success" onclick="Configuracoes.saveUser('${userId}')">Salvar</button>
+            <button class="btn btn-outline btn-modern" onclick="App.closeModal()">Cancelar</button>
+            <button class="btn btn-success btn-modern" onclick="Configuracoes.saveUser('${userId}')">Salvar Alterações</button>
         `;
 
-        App.showModal('Editar Usuário', body, footer);
+        App.showModal('Editar Usuário', body, footer, 'large');
     },
 
     saveUser(userId) {

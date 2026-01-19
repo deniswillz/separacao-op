@@ -131,12 +131,6 @@
                 </li>
             </ul>
 
-
-            <div class="sidebar-footer">
-                <button class="btn-export" id="btnExportData">
-                    <span>💾</span> Exportar Dados
-                </button>
-            </div>
         </nav>
 
         <!-- Main Content Area -->
@@ -632,9 +626,13 @@
                         <button class="btn btn-success" id="btnAddUser">
                             <span>➕</span> Novo Usuário
                         </button>
-                        <button class="btn btn-outline" id="btnExportData">
+                        <button class="btn btn-outline" id="btnExportDataTab">
                             <span>📤</span> Exportar Dados
                         </button>
+                        <label class="btn btn-outline" style="cursor: pointer;">
+                            <span>📥</span> Importar Dados
+                            <input type="file" id="importJsonData" accept=".json" hidden>
+                        </label>
                         <button class="btn btn-primary" id="btnBackup">
                             <span>📦</span> Criar Backup
                         </button>
