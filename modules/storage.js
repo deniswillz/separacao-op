@@ -275,21 +275,28 @@ const Storage = {
         console.log(`📥 Carregando ${table} da nuvem...`);
 
         try {
-            // Use pagination to load ALL records - increased for large datasets (7000+)
-            const PAGE_SIZE = 5000;
+            // Supabase has a default limit of 1000 records per request
+            // Use smaller page size to ensure all pages are fetched
+            const PAGE_SIZE = 1000;
             let allData = [];
             let page = 0;
             let hasMore = true;
+
+            // First, get the total count
+            const { count: totalCount } = await supabaseClient
+                .from(table)
+                .select('*', { count: 'exact', head: true });
+
+            console.log(`📊 ${table}: ${totalCount || '?'} registros no total`);
 
             while (hasMore) {
                 const from = page * PAGE_SIZE;
                 const to = from + PAGE_SIZE - 1;
 
-                const { data: pageData, error, count } = await supabaseClient
+                const { data: pageData, error } = await supabaseClient
                     .from(table)
-                    .select('*', { count: 'exact' })
-                    .range(from, to)
-                    .limit(PAGE_SIZE);
+                    .select('*')
+                    .range(from, to);
 
                 if (error) {
                     console.error(`❌ Erro ao carregar ${table}:`, error);
@@ -298,11 +305,13 @@ const Storage = {
 
                 if (pageData && pageData.length > 0) {
                     allData = allData.concat(pageData);
-                    console.log(`📊 ${table}: página ${page + 1} - ${allData.length} registros carregados...`);
+                    console.log(`📊 ${table}: página ${page + 1} - ${allData.length}/${totalCount || '?'} registros carregados...`);
                     page++;
 
-                    // Stop if we got less than PAGE_SIZE (last page)
-                    if (pageData.length < PAGE_SIZE) {
+                    // Check if we have all records or got less than page size
+                    if (totalCount && allData.length >= totalCount) {
+                        hasMore = false;
+                    } else if (pageData.length < PAGE_SIZE) {
                         hasMore = false;
                     }
                 } else {
