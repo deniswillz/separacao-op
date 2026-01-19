@@ -531,13 +531,13 @@ body {
 }
 
 .logo-img {
-    height: 45px;
+    height: 55px;
     width: auto;
     filter: brightness(0) invert(1);
 }
 
 .login-logo-img {
-    height: 80px;
+    height: 120px;
     width: auto;
     filter: brightness(0) invert(1);
     margin-bottom: 1rem;
