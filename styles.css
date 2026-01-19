@@ -504,7 +504,7 @@ body {
     background: var(--primary);
     color: var(--white);
     padding: 0 1.5rem;
-    height: 80px;
+    height: 120px;
     display: flex;
     align-items: center;
     box-shadow: var(--shadow-md);
@@ -531,16 +531,17 @@ body {
 }
 
 .logo-img {
-    height: 60px;
+    height: 100px;
     width: auto;
     filter: brightness(0) invert(1);
 }
 
 .login-logo-img {
-    height: 140px;
+    height: 180px;
     width: auto;
-    filter: brightness(0) invert(1);
-    margin-bottom: 1rem;
+    /* Filter to convert gray logo to green (#006B47) */
+    filter: brightness(0) saturate(100%) invert(27%) sepia(89%) saturate(1057%) hue-rotate(131deg) brightness(92%) contrast(101%);
+    margin-bottom: 1.5rem;
 }
 
 .logo-text {
@@ -587,67 +588,88 @@ body {
    ============================================ */
 .app-container {
     display: flex;
-    margin-top: 80px;
-    min-height: calc(100vh - 80px);
+    margin-top: 120px;
+    min-height: calc(100vh - 120px);
 }
 
 /* ============================================
-   SIDEBAR
+   SIDEBAR - Modern Pill Style
    ============================================ */
 .sidebar {
-    width: 200px;
+    width: 220px;
     background: var(--white);
-    border-right: 1px solid var(--gray-200);
+    border-right: 1px solid var(--gray-100);
     display: flex;
     flex-direction: column;
     position: fixed;
-    top: 80px;
+    top: 120px;
     left: 0;
     bottom: 0;
     z-index: 50;
+    padding: 1rem 0.75rem;
 }
 
 .nav-menu {
     list-style: none;
-    padding: 1rem 0;
+    padding: 0;
     flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
 }
 
 .nav-item {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 0.9rem 1.2rem;
+    gap: 12px;
+    padding: 0.85rem 1.1rem;
     cursor: pointer;
-    color: var(--gray-600);
+    color: var(--gray-500);
     font-weight: 500;
-    transition: var(--transition);
-    border-left: 3px solid transparent;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 12px;
+    border: none;
+    margin: 0;
 }
 
 .nav-item:hover {
     background: var(--gray-50);
-    color: var(--primary);
+    color: var(--gray-700);
+    transform: translateX(2px);
 }
 
 .nav-item.active {
-    background: rgba(0, 139, 91, 0.08);
-    color: var(--primary);
-    border-left-color: var(--primary);
+    background: var(--primary);
+    color: var(--white);
     font-weight: 600;
+    box-shadow: 0 4px 12px rgba(0, 107, 71, 0.3);
+    transform: scale(1.02);
+}
+
+.nav-item.active:hover {
+    background: var(--primary-dark);
+    transform: scale(1.02) translateX(2px);
+}
+
+.nav-item.active .nav-icon {
+    filter: none;
 }
 
 .nav-icon {
-    font-size: 1.2rem;
+    font-size: 1.15rem;
+    min-width: 24px;
+    text-align: center;
 }
 
 .nav-text {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    letter-spacing: 0.3px;
 }
 
 .sidebar-footer {
-    padding: 1rem;
-    border-top: 1px solid var(--gray-200);
+    padding: 1rem 0.5rem;
+    border-top: 1px solid var(--gray-100);
+    margin-top: auto;
 }
 
 .btn-export {
@@ -656,18 +678,21 @@ body {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 0.7rem 1rem;
-    background: var(--gray-100);
-    border: 1px solid var(--gray-300);
-    border-radius: var(--radius);
-    color: var(--gray-700);
+    padding: 0.75rem 1rem;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    color: var(--gray-600);
     font-weight: 500;
+    font-size: 0.85rem;
     cursor: pointer;
-    transition: var(--transition);
+    transition: all 0.2s ease;
 }
 
 .btn-export:hover {
-    background: var(--gray-200);
+    background: var(--gray-100);
+    border-color: var(--gray-300);
+    color: var(--gray-700);
 }
 
 /* ============================================
@@ -675,7 +700,7 @@ body {
    ============================================ */
 .main-content {
     flex: 1;
-    margin-left: 200px;
+    margin-left: 220px;
     padding: 1.5rem;
     background: var(--gray-100);
 }
