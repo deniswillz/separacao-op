@@ -174,7 +174,9 @@ const Enderecos = {
                 );
 
                 this.data.push({
-                    id: Date.now() + index,
+                    // Use smaller IDs to fit within Supabase integer type (max ~2.1 billion)
+                    // Generate unique ID: random base + index
+                    id: Math.floor(Math.random() * 2000000000) + index + 1,
                     codigo: codigo,
                     descricao: descricao,
                     endereco: endereco,
