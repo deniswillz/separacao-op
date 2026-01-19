@@ -673,18 +673,18 @@ const Conferencia = {
 
             return `
             <tr>
-                <td>
+                <td style="text-align: center; vertical-align: middle;">
                     <input type="checkbox" 
                            ${isVerificado ? 'checked' : ''} 
                            onchange="Conferencia.toggleTransferenciaItem(${item.id}, this.checked)">
                 </td>
-                <td>
-                    ${item.codigo}
+                <td style="vertical-align: middle;">
+                    <div>${item.codigo}</div>
                     ${opInfo}
                 </td>
-                <td>${item.descricao || '-'}</td>
-                <td class="center">${qtdSolicitada.toLocaleString('pt-BR')}</td>
-                <td class="center" ${statusClass}>
+                <td style="vertical-align: middle;">${item.descricao || '-'}</td>
+                <td style="text-align: center; vertical-align: middle;">${qtdSolicitada.toLocaleString('pt-BR')}</td>
+                <td style="text-align: center; vertical-align: middle;" ${statusClass}>
                     ${qtdSeparada.toLocaleString('pt-BR')}
                     ${statusInfo}
                 </td>
@@ -707,15 +707,15 @@ const Conferencia = {
             <p><strong>Verificados:</strong> <span id="countTransferencia">${verificados}</span>/${total} 
                ${todosVerificados ? '✅' : '⏳'}</p>
         </div>
-        <div class="table-container" style="max-height: 400px; overflow-y: auto;">
-            <table class="data-table">
+        <div class="table-container" style="max-height: 400px; overflow: auto;">
+            <table class="data-table" style="min-width: 650px; width: 100%;">
                 <thead>
                     <tr>
-                        <th style="width: 50px;">OK</th>
-                        <th>Código</th>
-                        <th>Descrição</th>
-                        <th class="center">Qtd Solicitada</th>
-                        <th class="center">Qtd Separada</th>
+                        <th style="width: 50px; text-align: center;">OK</th>
+                        <th style="width: 160px;">Código</th>
+                        <th style="min-width: 180px;">Descrição</th>
+                        <th style="width: 100px; text-align: center;">Qtd Solic.</th>
+                        <th style="width: 100px; text-align: center;">Qtd Separ.</th>
                     </tr>
                 </thead>
                 <tbody>
