@@ -536,14 +536,6 @@ body {
     filter: brightness(0) invert(1);
 }
 
-.login-logo-img {
-    height: 180px;
-    width: auto;
-    /* Filter to convert gray logo to green (#006B47) */
-    filter: brightness(0) saturate(100%) invert(27%) sepia(89%) saturate(1057%) hue-rotate(131deg) brightness(92%) contrast(101%);
-    margin-bottom: 1.5rem;
-}
-
 .logo-text {
     display: flex;
     flex-direction: column;
@@ -606,7 +598,26 @@ body {
     left: 0;
     bottom: 0;
     z-index: 50;
-    padding: 1rem 0.75rem;
+    padding: 1.5rem 0.75rem 1rem;
+}
+
+.sidebar-title {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    color: var(--primary);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    line-height: 1.4;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--gray-100);
+}
+
+.sidebar-title span {
+    display: block;
 }
 
 .nav-menu {
@@ -2103,81 +2114,65 @@ tr.has-falta td {
     align-items: center;
     justify-content: center;
     flex-direction: column;
-}
-
-/* Decorative background 'N' watermark */
-.login-overlay::before {
-    content: 'N';
-    position: absolute;
-    right: 5%;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 50vw;
-    font-weight: 900;
-    color: rgba(255, 255, 255, 0.03);
-    pointer-events: none;
-    z-index: 0;
+    padding: 2rem;
 }
 
 .login-overlay.show {
     display: flex;
 }
 
+/* Login Branding Section */
+.login-branding {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    z-index: 1;
+}
+
+.login-logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.login-logo-img {
+    height: 120px;
+    width: auto;
+    filter: brightness(0) invert(1);
+}
+
+.login-logo-text {
+    font-size: 3rem;
+    font-weight: 700;
+    font-style: italic;
+    color: var(--white);
+    letter-spacing: -1px;
+}
+
+.login-subtitle {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin: 0;
+}
+
+/* Login Card */
 .login-card {
     background: var(--white);
-    border-radius: var(--radius-2xl);
+    border-radius: 24px;
     box-shadow: 0 30px 60px -10px rgba(0, 0, 0, 0.3);
     max-width: 420px;
-    width: 90%;
+    width: 100%;
     overflow: hidden;
     position: relative;
     z-index: 1;
 }
 
-.login-header {
-    background: var(--white);
-    padding: 2.5rem 2rem 1.5rem;
-    text-align: center;
-    border-bottom: none;
-}
-
-.login-logo {
-    width: 80px;
-    height: 80px;
-    margin: 0 auto 1.25rem;
-    background: var(--primary);
-    border-radius: var(--radius-xl);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 8px 20px rgba(0, 107, 71, 0.3);
-}
-
-.login-logo svg {
-    width: 50%;
-    height: 50%;
-    color: var(--white);
-}
-
-.login-header h1 {
-    font-size: 2rem;
-    font-weight: 800;
-    color: var(--primary);
-    margin: 0;
-    letter-spacing: -1px;
-    text-transform: uppercase;
-}
-
-.login-header p {
-    font-size: 0.8rem;
-    color: var(--gray-400);
-    margin: 0.5rem 0 0;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-}
-
 .login-form {
-    padding: 1.5rem 2rem 2rem;
+    padding: 2rem 2rem 2.5rem;
 }
 
 .login-form .form-group {
@@ -2191,24 +2186,20 @@ tr.has-falta td {
     font-weight: 500;
     color: var(--gray-500);
     margin-bottom: 0.75rem;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 1px;
 }
 
-.login-form label::before {
-    content: '';
-    width: 16px;
-    height: 16px;
-    background-size: contain;
-    opacity: 0.5;
+.label-icon {
+    font-size: 0.9rem;
 }
 
 .login-form input {
     width: 100%;
     padding: 1rem 1.25rem;
     border: 1px solid var(--gray-200);
-    border-radius: var(--radius-lg);
+    border-radius: 12px;
     font-size: 1rem;
     transition: var(--transition);
     background: var(--gray-50);
@@ -2227,11 +2218,11 @@ tr.has-falta td {
 
 .login-form .btn-primary {
     padding: 1rem 2rem;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    border-radius: var(--radius-lg);
+    letter-spacing: 2px;
+    border-radius: 12px;
     margin-top: 0.5rem;
 }
 
@@ -2239,20 +2230,37 @@ tr.has-falta td {
     width: 100%;
 }
 
-.login-footer {
-    padding: 1.25rem 2rem;
+.guest-link {
+    display: block;
     text-align: center;
-    background: transparent;
-    color: var(--gray-400);
-    font-size: 0.75rem;
+    margin-top: 1.5rem;
+    color: var(--primary);
+    font-size: 0.8rem;
+    font-weight: 500;
     letter-spacing: 1px;
-    text-transform: uppercase;
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+.guest-link:hover {
+    color: var(--primary-dark);
+    text-decoration: underline;
+}
+
+.login-footer {
+    text-align: center;
     position: absolute;
-    bottom: 2rem;
+    bottom: 1.5rem;
     left: 50%;
     transform: translateX(-50%);
     width: 100%;
-    color: rgba(255, 255, 255, 0.6);
+    z-index: 1;
+}
+
+.login-footer small {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.7rem;
+    letter-spacing: 1px;
 }
 
 /* ============================================

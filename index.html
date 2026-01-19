@@ -40,28 +40,32 @@
 
     <!-- Login Overlay -->
     <div class="login-overlay" id="loginOverlay">
-        <div class="login-card">
-            <div class="login-header">
+        <div class="login-branding">
+            <div class="login-logo-container">
                 <img src="logo.png" alt="Nano Pro" class="login-logo-img">
-                <h1>NANO PRO</h1>
-                <p>Logística Industrial Inteligente</p>
+                <span class="login-logo-text">Nano Pro</span>
             </div>
+            <p class="login-subtitle">LOGÍSTICA INDUSTRIAL INTELIGENTE</p>
+        </div>
+        <div class="login-card">
             <form class="login-form" id="loginForm" onsubmit="return false;">
                 <div class="form-group">
-                    <label>👤 Login</label>
+                    <label><span class="label-icon">👤</span> LOGIN</label>
                     <input type="text" id="loginUsername" placeholder="Seu login">
                 </div>
                 <div class="form-group">
-                    <label>🔒 Senha</label>
+                    <label><span class="label-icon">🔒</span> SENHA</label>
                     <input type="password" id="loginPassword" placeholder="••••••••">
                 </div>
                 <button type="submit" class="btn btn-primary btn-lg btn-block" id="btnLogin">
                     ENTRAR
                 </button>
+                <a href="#" class="guest-link" onclick="Auth.loginAsGuest(); return false;">MODO CONSULTA
+                    (VISITANTE)</a>
             </form>
         </div>
         <div class="login-footer">
-            <small>NANO PRO © 2026 - Gestão Industrial de Alta Performance</small>
+            <small>NANO PRO © 2026 - GESTÃO INDUSTRIAL DE ALTA PERFORMANCE</small>
         </div>
     </div>
 
@@ -69,6 +73,11 @@
     <div class="app-container" id="appContainer">
         <!-- Sidebar Navigation -->
         <nav class="sidebar">
+            <div class="sidebar-title">
+                <span>SEPARAÇÃO</span>
+                <span>DE</span>
+                <span>OP</span>
+            </div>
             <ul class="nav-menu">
                 <li class="nav-item active" data-tab="dashboard">
                     <span class="nav-icon">🏠</span>
