@@ -181,7 +181,8 @@ const Dashboard = {
                 nome: l.nome,
                 armazem: l.armazem || 'N/A',
                 tipo: 'Separação',
-                tab: 'separacao'
+                tab: 'separacao',
+                borderClass: 'border-separacao'
             });
         });
 
@@ -191,7 +192,8 @@ const Dashboard = {
                 nome: l.nome,
                 armazem: l.armazem || 'N/A',
                 tipo: 'Conferência',
-                tab: 'conferencia'
+                tab: 'conferencia',
+                borderClass: 'border-conferencia'
             });
         });
 
@@ -201,12 +203,14 @@ const Dashboard = {
         }
 
         container.innerHTML = pendencias.map(p => `
-            <div class="dashboard-list-item" onclick="App.switchTab('${p.tab}')">
-                <div class="item-info">
-                    <span class="item-name">${p.nome}</span>
-                    <span class="item-armazem">🏭 ${p.armazem}</span>
+            <div class="dashboard-card-item ${p.borderClass}" onclick="App.switchTab('${p.tab}')">
+                <div class="card-item-header">
+                    <span class="card-item-badge ${p.tab}">${p.tipo}</span>
                 </div>
-                <span class="item-status pending">${p.tipo}</span>
+                <div class="card-item-body">
+                    <span class="card-item-name">${p.nome}</span>
+                    <span class="card-item-armazem">🏭 ${p.armazem}</span>
+                </div>
             </div>
         `).join('');
     },
@@ -225,12 +229,14 @@ const Dashboard = {
         }
 
         container.innerHTML = finalizadasPeriodo.map(r => `
-            <div class="dashboard-list-item" onclick="App.switchTab('historico')">
-                <div class="item-info">
-                    <span class="item-name">${r.nome}</span>
-                    <span class="item-armazem">🏭 ${r.armazem || 'N/A'}</span>
+            <div class="dashboard-card-item border-finalizado" onclick="App.switchTab('historico')">
+                <div class="card-item-header">
+                    <span class="card-item-badge finalizado">Finalizado</span>
                 </div>
-                <span class="item-status completed">Finalizado</span>
+                <div class="card-item-body">
+                    <span class="card-item-name">${r.nome}</span>
+                    <span class="card-item-armazem">🏭 ${r.armazem || 'N/A'}</span>
+                </div>
             </div>
         `).join('');
     },
