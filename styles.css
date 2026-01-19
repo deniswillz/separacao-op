@@ -504,7 +504,7 @@ body {
     background: var(--primary);
     color: var(--white);
     padding: 0 1.5rem;
-    height: 64px;
+    height: 80px;
     display: flex;
     align-items: center;
     box-shadow: var(--shadow-md);
@@ -527,17 +527,17 @@ body {
 .logo {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
 }
 
 .logo-img {
-    height: 55px;
+    height: 60px;
     width: auto;
     filter: brightness(0) invert(1);
 }
 
 .login-logo-img {
-    height: 120px;
+    height: 140px;
     width: auto;
     filter: brightness(0) invert(1);
     margin-bottom: 1rem;
@@ -556,10 +556,11 @@ body {
 }
 
 .logo-subtitle {
-    font-size: 0.7rem;
-    font-weight: 500;
-    letter-spacing: 1px;
-    opacity: 0.9;
+    font-size: 0.85rem;
+    font-weight: 600;
+    letter-spacing: 2px;
+    opacity: 0.95;
+    text-transform: uppercase;
 }
 
 .header-info {
@@ -586,8 +587,8 @@ body {
    ============================================ */
 .app-container {
     display: flex;
-    margin-top: 64px;
-    min-height: calc(100vh - 64px);
+    margin-top: 80px;
+    min-height: calc(100vh - 80px);
 }
 
 /* ============================================
@@ -600,7 +601,7 @@ body {
     display: flex;
     flex-direction: column;
     position: fixed;
-    top: 64px;
+    top: 80px;
     left: 0;
     bottom: 0;
     z-index: 50;
