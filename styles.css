@@ -622,14 +622,25 @@ body {
     display: block;
 }
 
-.sidebar-title span:first-child {
+.sidebar-icon {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.sidebar-title span:nth-child(2) {
     font-size: 1.3rem;
     font-weight: 800;
     letter-spacing: 4px;
 }
 
+.sidebar-title span:nth-child(3) {
+    font-size: 0.9rem;
+    font-weight: 600;
+    letter-spacing: 3px;
+}
+
 .sidebar-title span:last-child {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     letter-spacing: 2px;
     opacity: 0.9;
     margin-top: 2px;
@@ -2207,17 +2218,18 @@ tr.has-falta td {
 }
 
 .label-icon {
-    font-size: 0.9rem;
+    font-size: 0.75rem;
 }
 
 .login-form input {
     width: 100%;
     padding: 1rem 1.25rem;
-    border: 1px solid var(--gray-200);
-    border-radius: 12px;
-    font-size: 1rem;
+    border: none;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 500;
     transition: var(--transition);
-    background: var(--gray-50);
+    background: var(--gray-100);
 }
 
 .login-form input::placeholder {
@@ -2226,19 +2238,23 @@ tr.has-falta td {
 
 .login-form input:focus {
     outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 4px rgba(0, 107, 71, 0.1);
-    background: var(--white);
+    box-shadow: 0 0 0 3px rgba(0, 107, 71, 0.2);
+    background: var(--gray-50);
 }
 
 .login-form .btn-primary {
     padding: 1rem 2rem;
-    font-size: 0.95rem;
-    font-weight: 600;
+    font-size: 0.85rem;
+    font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 2px;
-    border-radius: 12px;
+    letter-spacing: 3px;
+    border-radius: 10px;
     margin-top: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.login-form .btn-primary:active {
+    transform: scale(0.98);
 }
 
 .btn-block {
@@ -2248,11 +2264,12 @@ tr.has-falta td {
 .guest-link {
     display: block;
     text-align: center;
-    margin-top: 1.5rem;
-    color: var(--primary);
-    font-size: 0.8rem;
-    font-weight: 500;
-    letter-spacing: 1px;
+    margin-top: 1.25rem;
+    color: var(--gray-400);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
     text-decoration: none;
     transition: var(--transition);
 }
