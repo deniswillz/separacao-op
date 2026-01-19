@@ -52,7 +52,47 @@ const ExcelHelper = {
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
 
-                    // Convert with headers
+                    // First, read as raw array to check if headers are on row 2
+                    const rawData = XLSX.utils.sheet_to_json(worksheet, {
+                        header: 1,
+                        defval: ''
+                    });
+
+                    // Check if first row looks like a title (single non-empty cell or contains __EMPTY)
+                    // by looking at the second row for actual headers
+                    if (rawData.length >= 2) {
+                        const firstRow = rawData[0];
+                        const secondRow = rawData[1];
+
+                        // Check if second row looks like headers (has multiple non-empty values)
+                        const secondRowNonEmpty = secondRow.filter(v => v !== '').length;
+                        const firstRowNonEmpty = firstRow.filter(v => v !== '').length;
+
+                        console.log(`📋 Linha 1: ${firstRowNonEmpty} células preenchidas`);
+                        console.log(`📋 Linha 2: ${secondRowNonEmpty} células preenchidas`);
+
+                        // If second row has more content, use row 2 as headers
+                        if (secondRowNonEmpty > firstRowNonEmpty && secondRowNonEmpty >= 3) {
+                            console.log('📋 Usando linha 2 como cabeçalho (linha 1 parece ser título)');
+                            const headers = secondRow;
+                            const dataRows = rawData.slice(2); // Skip row 1 (title) and row 2 (headers)
+
+                            const result = dataRows.map(row => {
+                                const obj = {};
+                                headers.forEach((header, i) => {
+                                    if (header && header !== '') {
+                                        obj[String(header).trim()] = row[i] !== undefined ? row[i] : '';
+                                    }
+                                });
+                                return obj;
+                            });
+
+                            resolve(result);
+                            return;
+                        }
+                    }
+
+                    // Default: use first row as headers
                     const jsonData = XLSX.utils.sheet_to_json(worksheet, {
                         defval: ''
                     });
