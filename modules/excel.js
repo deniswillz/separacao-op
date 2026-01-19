@@ -52,44 +52,55 @@ const ExcelHelper = {
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
 
-                    // First, read as raw array to check if headers are on row 2
+                    // First, read as raw array to detect row structure
                     const rawData = XLSX.utils.sheet_to_json(worksheet, {
                         header: 1,
-                        defval: ''
+                        defval: '',
+                        blankrows: false
                     });
 
-                    // Check if first row looks like a title (single non-empty cell or contains __EMPTY)
-                    // by looking at the second row for actual headers
-                    if (rawData.length >= 2) {
-                        const firstRow = rawData[0];
-                        const secondRow = rawData[1];
+                    if (rawData.length < 2) {
+                        resolve([]);
+                        return;
+                    }
 
-                        // Check if second row looks like headers (has multiple non-empty values)
-                        const secondRowNonEmpty = secondRow.filter(v => v !== '').length;
-                        const firstRowNonEmpty = firstRow.filter(v => v !== '').length;
+                    const firstRow = rawData[0];
+                    const secondRow = rawData[1];
 
-                        console.log(`📋 Linha 1: ${firstRowNonEmpty} células preenchidas`);
-                        console.log(`📋 Linha 2: ${secondRowNonEmpty} células preenchidas`);
+                    // Count non-empty cells
+                    const firstRowNonEmpty = firstRow.filter(v => v !== '' && v !== null && v !== undefined).length;
+                    const secondRowNonEmpty = secondRow.filter(v => v !== '' && v !== null && v !== undefined).length;
 
-                        // If second row has more content, use row 2 as headers
-                        if (secondRowNonEmpty > firstRowNonEmpty && secondRowNonEmpty >= 3) {
-                            console.log('📋 Usando linha 2 como cabeçalho (linha 1 parece ser título)');
-                            const headers = secondRow;
-                            const dataRows = rawData.slice(2); // Skip row 1 (title) and row 2 (headers)
+                    console.log(`📋 Linha 1: ${firstRowNonEmpty} células preenchidas`);
+                    console.log(`📋 Linha 2: ${secondRowNonEmpty} células preenchidas`);
+                    console.log(`📋 Raw linha 1:`, firstRow.slice(0, 5));
+                    console.log(`📋 Raw linha 2:`, secondRow.slice(0, 10));
+                    console.log(`📋 Raw linha 3 (dados):`, rawData[2]?.slice(0, 10));
 
-                            const result = dataRows.map(row => {
-                                const obj = {};
-                                headers.forEach((header, i) => {
-                                    if (header && header !== '') {
-                                        obj[String(header).trim()] = row[i] !== undefined ? row[i] : '';
-                                    }
-                                });
-                                return obj;
-                            });
+                    // If second row has more content, use row 2 as headers
+                    if (secondRowNonEmpty > firstRowNonEmpty && secondRowNonEmpty >= 3) {
+                        console.log('📋 Usando linha 2 como cabeçalho (linha 1 parece ser título)');
 
-                            resolve(result);
-                            return;
+                        // Get the worksheet range
+                        const range = XLSX.utils.decode_range(worksheet['!ref']);
+
+                        // Modify range to start from row 2 (0-indexed = 1)
+                        range.s.r = 1; // Start from row 2
+                        worksheet['!ref'] = XLSX.utils.encode_range(range);
+
+                        // Now read with the modified range - row 2 becomes headers
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+                            defval: '',
+                            blankrows: false
+                        });
+
+                        console.log(`📋 Lidas ${jsonData.length} linhas de dados`);
+                        if (jsonData.length > 0) {
+                            console.log(`📋 Primeira linha processada:`, jsonData[0]);
                         }
+
+                        resolve(jsonData);
+                        return;
                     }
 
                     // Default: use first row as headers
