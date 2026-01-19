@@ -295,7 +295,7 @@ const Separacao = {
         this.emptyState.classList.remove('show');
 
         this.cardsContainer.innerHTML = listasDisponiveis.map(lista => `
-            <div class="list-card pending" onclick="Separacao.abrirLista('${lista.id}')">
+            <div class="list-card pending border-separacao" onclick="Separacao.abrirLista('${lista.id}')">
                 <div class="list-card-header">
                     <span class="list-card-title">${lista.nome}</span>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
