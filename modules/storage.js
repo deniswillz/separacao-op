@@ -163,9 +163,15 @@ const Storage = {
             // STEP 1: UPSERT all local records (insert or update)
             const BATCH_SIZE = 500;
             let upserted = 0;
+            const totalBatches = Math.ceil(preparedData.length / BATCH_SIZE);
+
+            console.log(`📊 ${table}: ${preparedData.length} registros para enviar em ${totalBatches} lotes...`);
 
             for (let i = 0; i < preparedData.length; i += BATCH_SIZE) {
+                const batchNum = Math.floor(i / BATCH_SIZE) + 1;
                 const batch = preparedData.slice(i, i + BATCH_SIZE);
+
+                console.log(`📤 ${table}: Enviando lote ${batchNum}/${totalBatches} (${batch.length} registros)...`);
 
                 // Use upsert with 'id' as conflict key for most tables
                 // For usuarios, use 'username' as conflict key
@@ -176,21 +182,25 @@ const Storage = {
                 });
 
                 if (result.error) {
-                    console.error(`❌ Erro upsert batch ${table}:`, result.error);
+                    console.error(`❌ Erro upsert batch ${batchNum} de ${table}:`, result.error);
                     // Try individual inserts as fallback
+                    let individualSuccess = 0;
                     for (const record of batch) {
                         try {
                             await supabaseClient.from(table).upsert([record], {
                                 onConflict: conflictKey,
                                 ignoreDuplicates: false
                             });
-                            upserted++;
+                            individualSuccess++;
                         } catch (e) {
                             console.warn(`⚠️ Falha ao sincronizar registro:`, e);
                         }
                     }
+                    upserted += individualSuccess;
+                    console.log(`🔄 Lote ${batchNum}: ${individualSuccess}/${batch.length} salvos individualmente`);
                 } else {
                     upserted += batch.length;
+                    console.log(`✅ Lote ${batchNum}: ${batch.length} registros enviados (total: ${upserted})`);
                 }
             }
 

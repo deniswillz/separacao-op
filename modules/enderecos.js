@@ -117,8 +117,12 @@ const Enderecos = {
                 newItems++;
             });
 
+            console.log(`📊 Excel: ${rawData.length} linhas lidas do arquivo`);
+
             this.save();
             this.render();
+
+            console.log(`✅ Endereços importados: ${this.data.length} total após importação`);
 
             let message = `${newItems} endereços importados!`;
             if (duplicatesSkipped > 0) {
