@@ -3402,3 +3402,164 @@ tr.has-falta td {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(0, 107, 71, 0.3);
 }
+
+/* Matriz x Filial Styles */
+.pa-container {
+    padding: 1.5rem;
+}
+
+.pa-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+.pa-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--gray-200);
+    overflow: hidden;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.pa-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.pa-card-header {
+    padding: 1rem;
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.pa-op {
+    font-weight: 800;
+    font-size: 1.1rem;
+    color: var(--primary);
+}
+
+.pa-status-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.pa-card-body {
+    padding: 1.5rem;
+    flex: 1;
+}
+
+.pa-produto {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+    color: var(--gray-900);
+}
+
+.pa-desc {
+    color: var(--gray-600);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    line-height: 1.4;
+}
+
+.pa-qty {
+    font-size: 1rem;
+    color: var(--gray-700);
+}
+
+.pa-timeline {
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed var(--gray-200);
+    color: var(--gray-500);
+    font-size: 0.8rem;
+}
+
+.pa-card-footer {
+    padding: 1rem;
+    border-top: 1px solid var(--gray-100);
+    background: #fafafa;
+    display: flex;
+    justify-content: center;
+}
+
+/* Status variants */
+.pa-card.status-matriz {
+    border-left: 6px solid var(--gray-400);
+}
+
+.pa-card.status-matriz .pa-status-badge {
+    background: var(--gray-100);
+    color: var(--gray-700);
+}
+
+.pa-card.status-qualidade {
+    border-left: 6px solid #8b5cf6;
+}
+
+.pa-card.status-qualidade .pa-status-badge {
+    background: #f5f3ff;
+    color: #5b21b6;
+}
+
+.pa-card.status-enderecar {
+    border-left: 6px solid #f97316;
+}
+
+.pa-card.status-enderecar .pa-status-badge {
+    background: #fff7ed;
+    color: #9a3412;
+}
+
+.pa-card.status-transito {
+    border-left: 6px solid var(--primary);
+}
+
+.pa-card.status-transito .pa-status-badge {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.pa-card.status-recebido {
+    border-left: 6px solid var(--success);
+    opacity: 0.85;
+}
+
+.pa-card.status-recebido .pa-status-badge {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+/* Dark theme PA */
+body.dark-theme .pa-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+body.dark-theme .pa-card-header {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+body.dark-theme .pa-produto {
+    color: #f8fafc;
+}
+
+body.dark-theme .pa-desc {
+    color: #94a3b8;
+}
+
+body.dark-theme .pa-card-footer {
+    background: #0f172a;
+    border-color: #334155;
+}

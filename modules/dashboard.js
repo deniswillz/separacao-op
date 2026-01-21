@@ -334,28 +334,24 @@ const Dashboard = {
 
         historico.forEach(reg => {
             reg.itens.forEach(item => {
-                const info = Enderecos.getEnderecoInfo(item.codigo);
-                if (info && info.endereco) {
-                    // Normalize address (take only the sector/aisle if it's long)
-                    const sector = info.endereco.split('-')[0] || info.endereco;
-                    movement[sector] = (movement[sector] || 0) + 1;
-                }
+                const key = item.codigo;
+                movement[key] = (movement[key] || 0) + 1;
             });
         });
 
         const sorted = Object.entries(movement).sort((a, b) => b[1] - a[1]);
         const max = sorted[0]?.[1] || 1;
 
-        const heatmapHTML = sorted.map(([sector, count]) => {
+        const heatmapHTML = sorted.map(([codigo, count]) => {
             const intensity = (count / max) * 100;
             return `
                 <div class="heatmap-sector">
                     <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                        <strong>Setor ${sector}</strong>
-                        <span>${count} mov.</span>
+                        <strong style="font-size: 0.85rem;">[${codigo}]</strong>
+                        <span style="font-size: 0.8rem;">${count} mov.</span>
                     </div>
                     <div class="heatmap-bar" style="width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden;">
-                        <div style="width: ${intensity}%; height: 100%; background: linear-gradient(to right, #fbbf24, #ef4444); border-radius: 4px;"></div>
+                        <div style="width: ${intensity}%; height: 100%; background: linear-gradient(to right, var(--warning), var(--danger)); border-radius: 4px;"></div>
                     </div>
                 </div>
             `;
@@ -363,8 +359,8 @@ const Dashboard = {
 
         const body = `
             <div style="padding: 1rem;">
-                <p style="margin-bottom: 1.5rem;">Frequência de movimentação por setor (Baseado em endereços):</p>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <p style="margin-bottom: 1.5rem;">Frequência de movimentação por <strong>código de item</strong>:</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; max-height: 400px; overflow-y: auto; padding-right: 0.5rem;">
                     ${heatmapHTML || '<p class="empty-text">Sem dados de movimentação</p>'}
                 </div>
                 <div style="margin-top: 2rem; padding: 1rem; background: #f0f7ff; border-radius: 8px; font-size: 0.85rem;">

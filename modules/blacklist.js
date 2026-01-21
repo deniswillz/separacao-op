@@ -5,6 +5,7 @@
 
 const Blacklist = {
     data: [],
+    searchQuery: '',
     tableBody: null,
     emptyState: null,
 
@@ -52,6 +53,15 @@ const Blacklist = {
         if (codeInput) {
             codeInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') this.addItem();
+            });
+        }
+
+        // Suporte para busca/pesquisa
+        const searchInput = document.getElementById('blacklistSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                this.searchQuery = e.target.value.toLowerCase();
+                this.render();
             });
         }
 
@@ -215,7 +225,20 @@ const Blacklist = {
 
         this.emptyState.classList.remove('show');
 
-        this.tableBody.innerHTML = this.data.map(item => `
+        // Apply filtering
+        const filtered = this.data.filter(item => {
+            const query = this.searchQuery.trim();
+            if (!query) return true;
+            return item.codigo.toLowerCase().includes(query) ||
+                (item.descricao && item.descricao.toLowerCase().includes(query));
+        });
+
+        if (filtered.length === 0 && this.data.length > 0) {
+            this.tableBody.innerHTML = '<tr><td colspan="6" class="center">Nenhum item encontrado para sua pesquisa.</td></tr>';
+            return;
+        }
+
+        this.tableBody.innerHTML = filtered.map(item => `
             <tr>
                 <td>${item.codigo}</td>
                 <td>${item.descricao || '-'}</td>

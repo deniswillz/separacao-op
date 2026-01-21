@@ -109,6 +109,7 @@ const App = {
         Conferencia.init();
         Historico.init();
         Auditoria.init();
+        MatrizFilial.init();
         Configuracoes.init();
 
         // Start Realtime subscriptions (after modules registered their callbacks)

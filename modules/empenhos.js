@@ -99,6 +99,11 @@ const Empenhos = {
                 const quantidade = row[22] || 0;  // Coluna W
                 const unidade = row[23] || 'UN';  // Coluna X
 
+                // PA Data (Novas colunas para Matriz x Filial)
+                const paProduto = row[1] || '';   // Coluna B
+                const paDescricao = row[2] || ''; // Coluna C
+                const paQtdProd = row[7] || 0;    // Coluna H
+
                 return {
                     id: this.data.length + Date.now() + index,
                     op: String(op).trim(),
@@ -106,7 +111,13 @@ const Empenhos = {
                     codigo: String(codigo).toUpperCase().trim(),
                     descricao: String(descricao).trim(),
                     quantidade: parseFloat(quantidade) || 0,
-                    unidade: String(unidade).toUpperCase().trim() || 'UN'
+                    unidade: String(unidade).toUpperCase().trim() || 'UN',
+                    // Info do Produto Acabado da OP
+                    pa: {
+                        produto: String(paProduto).trim(),
+                        descricao: String(paDescricao).trim(),
+                        quantidade: parseFloat(paQtdProd) || 0
+                    }
                 };
             }).filter(item => item.codigo && item.op); // Remove linhas vazias
 
@@ -356,6 +367,25 @@ const Empenhos = {
             documento: '',
             responsavel: ''
         });
+
+        // NOVO: Gerar registros para Matriz x Filial (Produtos Acabados)
+        const paRecords = [];
+        const processedOPs = new Set();
+        selectedData.forEach(item => {
+            if (!processedOPs.has(item.op) && item.pa && item.pa.produto) {
+                paRecords.push({
+                    op: item.op,
+                    produto: item.pa.produto,
+                    descricao: item.pa.descricao,
+                    quantidade: item.pa.quantidade
+                });
+                processedOPs.add(item.op);
+            }
+        });
+
+        if (paRecords.length > 0) {
+            MatrizFilial.addRecords(paRecords);
+        }
 
         // Clear selection
         this.selectedOPs.clear();
