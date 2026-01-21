@@ -7,6 +7,7 @@ const MatrizFilial = {
     records: [],
     historico: [],
     searchQuery: '',
+    statusFilter: 'all',
 
     init() {
         // Load saved data
@@ -21,6 +22,15 @@ const MatrizFilial = {
         if (searchInput) {
             searchInput.addEventListener('input', (e) => {
                 this.searchQuery = e.target.value.toLowerCase();
+                this.render();
+            });
+        }
+
+        // Status filter support
+        const statusFilter = document.getElementById('matrizFilialStatusFilter');
+        if (statusFilter) {
+            statusFilter.addEventListener('change', (e) => {
+                this.statusFilter = e.target.value;
                 this.render();
             });
         }
@@ -140,6 +150,36 @@ const MatrizFilial = {
         App.showToast('Movimentação arquivada no histórico', 'success');
     },
 
+    excluirCard(id) {
+        if (Auth.currentUser?.tipo !== 'admin') {
+            App.showToast('Apenas administradores podem excluir registros', 'error');
+            return;
+        }
+
+        if (!confirm('Deseja realmente excluir este card de produto acabado?')) return;
+
+        this.records = this.records.filter(r => r.id !== id);
+        this.save();
+        this.render();
+        App.showToast('Registro excluído com sucesso', 'success');
+        Auditoria.log('EXCLUIR_PA_CARD', { id });
+    },
+
+    excluirHistorico(id) {
+        if (Auth.currentUser?.tipo !== 'admin') {
+            App.showToast('Apenas administradores podem excluir do histórico', 'error');
+            return;
+        }
+
+        if (!confirm('Deseja realmente remover este item do histórico?')) return;
+
+        this.historico = this.historico.filter(r => r.id !== id);
+        this.save();
+        this.showHistorico(); // Re-render modal
+        App.showToast('Item removido do histórico', 'success');
+        Auditoria.log('EXCLUIR_PA_HISTORICO', { id });
+    },
+
     render() {
         const container = document.getElementById('matrizFilialCards');
         if (!container) return;
@@ -157,10 +197,14 @@ const MatrizFilial = {
         // Apply filtering
         const filtered = this.records.filter(r => {
             const query = this.searchQuery.trim();
-            if (!query) return true;
-            return r.op.toLowerCase().includes(query) ||
+            const matchesQuery = !query ||
+                r.op.toLowerCase().includes(query) ||
                 r.produto.toLowerCase().includes(query) ||
-                r.descricao.toLowerCase().includes(query);
+                (r.descricao && r.descricao.toLowerCase().includes(query));
+
+            const matchesStatus = this.statusFilter === 'all' || r.status === this.statusFilter;
+
+            return matchesQuery && matchesStatus;
         });
 
         if (filtered.length === 0 && this.records.length > 0) {
@@ -234,14 +278,18 @@ const MatrizFilial = {
         }
 
         // Admin Revert Action
-        if (isAdmin && ['conferencia', 'qualidade', 'enderecar', 'transito', 'recebido'].includes(r.status)) {
-            buttons.push(`<button class="btn btn-danger btn-outline btn-sm" onclick="MatrizFilial.reverterStatus('${r.id}')" title="Voltar Status">↩️ Voltar</button>`);
+        if (isAdmin) {
+            if (['conferencia', 'qualidade', 'enderecar', 'transito', 'recebido'].includes(r.status)) {
+                buttons.push(`<button class="btn btn-danger btn-outline btn-sm" onclick="MatrizFilial.reverterStatus('${r.id}')" title="Voltar Status">↩️ Voltar</button>`);
+            }
+            buttons.push(`<button class="btn btn-danger btn-sm" onclick="MatrizFilial.excluirCard('${r.id}')" title="Excluir Definitivamente">🗑️</button>`);
         }
 
         return buttons.join('');
     },
 
     showHistorico() {
+        const isAdmin = Auth.currentUser?.tipo === 'admin';
         const rows = this.historico.map(r => `
             <tr>
                 <td>${r.op}</td>
@@ -249,8 +297,11 @@ const MatrizFilial = {
                 <td class="center">${r.quantidade}</td>
                 <td class="center">${new Date(r.dataCriacao).toLocaleDateString()}</td>
                 <td>${r.historicoStatus.map(h => `<small><strong>${this.getStatusLabel(h.status)}</strong> (${new Date(h.data).toLocaleDateString()})</small>`).join(' → ')}</td>
+                <td class="center">
+                    ${isAdmin ? `<button class="btn btn-danger btn-sm" onclick="MatrizFilial.excluirHistorico('${r.id}')" title="Excluir">🗑️</button>` : '-'}
+                </td>
             </tr>
-        `).join('') || '<tr><td colspan="5" class="center">Nenhum histórico registrado</td></tr>';
+        `).join('') || '<tr><td colspan="6" class="center">Nenhum histórico registrado</td></tr>';
 
         const body = `
             <div class="table-container" style="max-height: 400px; overflow-y: auto;">
@@ -262,6 +313,7 @@ const MatrizFilial = {
                             <th class="center">Qtd</th>
                             <th class="center">Data</th>
                             <th>Fluxo de Movimentação</th>
+                            <th class="center">Ações</th>
                         </tr>
                     </thead>
                     <tbody>${rows}</tbody>
