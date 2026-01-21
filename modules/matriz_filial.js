@@ -36,6 +36,14 @@ const MatrizFilial = {
         }
 
         this.render();
+
+        // Register realtime callback
+        if (typeof SupabaseClient !== 'undefined') {
+            SupabaseClient.onRealtimeUpdate('matriz_filial', (payload) => {
+                console.log('🔄 MatrizFilial: recebida atualização remota');
+                this.reload();
+            });
+        }
     },
 
     /**
@@ -74,8 +82,25 @@ const MatrizFilial = {
     },
 
     save() {
-        Storage.save(Storage.KEYS.MATRIZ_FILIAL, this.records);
         Storage.save(Storage.KEYS.MATRIZ_FILIAL_HISTORICO, this.historico);
+    },
+
+    /**
+     * Reload data from cloud and refresh UI
+     */
+    async reload() {
+        const cloudData = await Storage.loadFromCloud(Storage.KEYS.MATRIZ_FILIAL);
+        if (Array.isArray(cloudData)) {
+            this.records = cloudData;
+
+            // Reload history too
+            const histData = await Storage.loadFromCloud(Storage.KEYS.MATRIZ_FILIAL_HISTORICO);
+            if (Array.isArray(histData)) this.historico = histData;
+
+            this.render();
+            // Also update Dashboard
+            if (typeof Dashboard !== 'undefined') Dashboard.render();
+        }
     },
 
     updateStatus(id, newStatus) {
@@ -114,6 +139,23 @@ const MatrizFilial = {
             this.save();
             this.render();
             Auditoria.log('ALTERAR_STATUS_PA_LOTE', { ops, status: newStatus });
+        }
+    },
+
+    /**
+     * NOVO: Remover registros de PA por lista de OPs (Cascade Delete)
+     * Usado quando uma lista de separação ou conferência é excluída
+     */
+    removeRecordsByOPs(ops) {
+        if (!ops || ops.length === 0) return;
+
+        const countAntes = this.records.length;
+        this.records = this.records.filter(r => !ops.includes(r.op));
+
+        if (this.records.length !== countAntes) {
+            this.save();
+            this.render();
+            console.log(`🗑️ Matriz x Filial: ${countAntes - this.records.length} registros removidos via cascade delete (OPs: ${ops.join(', ')})`);
         }
     },
 

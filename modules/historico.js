@@ -29,6 +29,11 @@ const Historico = {
             this.exportarTudo();
         });
 
+        // Add filter listeners
+        document.getElementById('filtroArmazemHistorico').addEventListener('change', () => this.render());
+        document.getElementById('filtroDataInicioHistorico').addEventListener('change', () => this.render());
+        document.getElementById('filtroDataFimHistorico').addEventListener('change', () => this.render());
+
         // Register realtime callback
         SupabaseClient.onRealtimeUpdate('historico', (payload) => {
             console.log('🔄 Historico: recebida atualização remota');
@@ -164,27 +169,62 @@ const Historico = {
     },
 
     deletarRegistro(id) {
-        if (!confirm('Deseja realmente excluir este registro do histórico?')) {
+        const registro = this.registros.find(r => String(r.id) === String(id));
+        if (!registro) return;
+
+        if (!confirm(`Deseja realmente excluir o registro "${registro.nome}" do histórico? Isso removerá também quaisquer registros pendentes vinculados em Matriz x Filial.`)) {
             return;
+        }
+
+        // CASCADE DELETE: Matriz x Filial (remover registros das OPs)
+        if (typeof MatrizFilial !== 'undefined' && registro.ordens) {
+            MatrizFilial.removeRecordsByOPs(registro.ordens);
         }
 
         this.registros = this.registros.filter(r => String(r.id) !== String(id));
         this.save();
         this.render();
-        App.showToast('Registro excluído!', 'success');
+        App.showToast('Registro excluído do histórico e dependências!', 'success');
     },
 
     render() {
         const searchTerm = this.searchInput.value.toLowerCase();
+        const armazemFilter = document.getElementById('filtroArmazemHistorico').value;
+        const dataInicio = document.getElementById('filtroDataInicioHistorico').value;
+        const dataFim = document.getElementById('filtroDataFimHistorico').value;
 
         let filtered = this.registros;
 
+        // Search filter
         if (searchTerm) {
             filtered = filtered.filter(r =>
                 r.nome.toLowerCase().includes(searchTerm) ||
                 r.armazem.toLowerCase().includes(searchTerm) ||
-                r.ordens.some(op => op.toLowerCase().includes(searchTerm))
+                (r.ordens && r.ordens.some(op => op.toLowerCase().includes(searchTerm)))
             );
+        }
+
+        // Warehouse filter
+        if (armazemFilter) {
+            filtered = filtered.filter(r => r.armazem === armazemFilter);
+        }
+
+        // Date range filter
+        if (dataInicio || dataFim) {
+            filtered = filtered.filter(r => {
+                const dataFinalizacao = new Date(r.dataFinalizacao || r.data_finalizacao);
+                if (dataInicio) {
+                    const dInicio = new Date(dataInicio);
+                    dInicio.setHours(0, 0, 0, 0);
+                    if (dataFinalizacao < dInicio) return false;
+                }
+                if (dataFim) {
+                    const dFim = new Date(dataFim);
+                    dFim.setHours(23, 59, 59, 999);
+                    if (dataFinalizacao > dFim) return false;
+                }
+                return true;
+            });
         }
 
         // Sort A-Z by name

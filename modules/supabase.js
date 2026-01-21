@@ -17,7 +17,7 @@ const SupabaseClient = {
     isSyncing: {},                  // Flag to ignore own sync events
 
     // Tables to monitor for realtime changes
-    REALTIME_TABLES: ['separacao', 'conferencia', 'historico'],
+    REALTIME_TABLES: ['separacao', 'conferencia', 'historico', 'empenhos', 'matriz_filial'],
 
     // Debounce delay for realtime events (wait for sync to finish)
     REALTIME_DEBOUNCE_MS: 3000,

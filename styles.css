@@ -713,6 +713,46 @@ body {
     color: #059669;
 }
 
+/* Urgency Levels */
+.urgency-badge {
+    display: inline-block;
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: white;
+}
+
+.urgency-baixa {
+    background-color: var(--gray-500);
+}
+
+.urgency-media {
+    background-color: var(--warning);
+}
+
+.urgency-alta {
+    background-color: var(--danger);
+}
+
+.urgency-extrema {
+    background-color: #7F1D1D;
+    animation: pulse-glow-red 2s infinite;
+}
+
+@keyframes pulse-glow-red {
+
+    0%,
+    100% {
+        box-shadow: 0 0 10px rgba(127, 29, 29, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 20px rgba(127, 29, 29, 0.8);
+    }
+}
+
 /* ============================================
    HEADER
    ============================================ */

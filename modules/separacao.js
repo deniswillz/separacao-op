@@ -42,6 +42,13 @@ const Separacao = {
             });
         }
 
+        const btnSalvarPendente = document.getElementById('btnSalvarPendenteSeparacao');
+        if (btnSalvarPendente) {
+            btnSalvarPendente.addEventListener('click', () => {
+                this.salvarComPendencias();
+            });
+        }
+
         const searchInput = document.getElementById('searchSeparacao');
         if (searchInput) {
             searchInput.addEventListener('input', () => {
@@ -108,6 +115,17 @@ const Separacao = {
     },
 
     criarLista(lista) {
+        // VERIFICAR DUPLICIDADE: Evitar listas com mesmo ID ou mesmo nome no mesmo armazém
+        const existe = this.listas.find(l =>
+            String(l.id) === String(lista.id) ||
+            (l.nome === lista.nome && l.armazem === lista.armazem && l.status === 'pendente')
+        );
+
+        if (existe) {
+            console.warn('⚠️ Lista já existe, ignorando criação duplicada');
+            return;
+        }
+
         // Auto-mark blacklist items as "naoSeparado"
         const blacklistCodes = Blacklist.getBlacklistedCodes();
         lista.itens.forEach(item => {
@@ -143,9 +161,38 @@ const Separacao = {
         }
     },
 
+    salvarComPendencias() {
+        if (!this.listaAtual) return;
+
+        const responsavel = document.getElementById('responsavelSeparacao').value;
+        if (!responsavel) {
+            App.showToast('Informe o responsável pela separação', 'warning');
+            document.getElementById('responsavelSeparacao').focus();
+            return;
+        }
+
+        this.saveInfo();
+        this.voltarParaLista();
+        App.showToast('Progresso de separação salvo com sucesso!', 'success');
+    },
+
     abrirLista(id) {
         const lista = this.listas.find(l => String(l.id) === String(id));
         if (!lista) return;
+
+        // BLOQUEIO MULTI-USUÁRIO: Verificar se já está em uso por outro usuário
+        if (lista.usuarioAtual && lista.usuarioAtual !== (Auth.currentUser?.nome || 'Anônimo')) {
+            const body = `
+                <div style="text-align: center; padding: 1rem;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
+                    <h3 style="color: #dc3545; margin-bottom: 1rem;">Lista em Uso!</h3>
+                    <p>Esta lista está sendo editada por: <strong style="color: #0d6efd;">${lista.usuarioAtual}</strong></p>
+                    <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">Para evitar duplicidade de dados, aguarde o outro usuário terminar ou peça para ele fechar o card.</p>
+                </div>
+            `;
+            App.showModal('Acesso Bloqueado', body, `<button class="btn btn-primary" onclick="App.closeModal()">Entendi</button>`);
+            return;
+        }
 
         this.listaAtual = lista;
 
@@ -303,14 +350,34 @@ const Separacao = {
     },
 
     deletarLista(id) {
-        if (!confirm('Deseja realmente excluir esta lista?')) {
+        const lista = this.listas.find(l => String(l.id) === String(id));
+        if (!lista) return;
+
+        if (!confirm(`Deseja realmente excluir a lista "${lista.nome}"? Isso removerá também os registros pendentes vinculados em Matriz x Filial e Conferência.`)) {
             return;
         }
 
+        // 1. CASCADE DELETE: Matriz x Filial (remover registros das OPs)
+        if (typeof MatrizFilial !== 'undefined') {
+            MatrizFilial.removeRecordsByOPs(lista.ordens);
+        }
+
+        // 2. CASCADE DELETE: Conferência (remover lista vinculada se existir)
+        if (typeof Conferencia !== 'undefined') {
+            const listId = String(id);
+            Conferencia.listas = Conferencia.listas.filter(l => String(l.separacaoId) !== listId);
+            Conferencia.save();
+        }
+
+        // 3. Remover a lista de separação
         this.listas = this.listas.filter(l => String(l.id) !== String(id));
         this.save();
         this.renderListas();
-        App.showToast('Lista excluída!', 'success');
+
+        // Update dashboard stats
+        if (typeof Dashboard !== 'undefined') Dashboard.render();
+
+        App.showToast('Lista e dependências excluídas!', 'success');
     },
 
     excluirLista(id) {
@@ -343,6 +410,7 @@ const Separacao = {
                     <span class="list-card-title">${lista.nome}</span>
                     <div style="display: flex; align-items: center; gap: 0.5rem;">
                         <span class="list-card-badge pending">Pendente</span>
+                        ${lista.urgencia ? `<span class="urgency-badge urgency-${lista.urgencia === 'urgencia' ? 'extrema' : lista.urgencia}">${lista.urgencia.toUpperCase()}</span>` : ''}
                         ${Auth.isAdmin() ? `<button class="btn-delete-item" onclick="event.stopPropagation(); Separacao.excluirLista('${lista.id}')" title="Excluir lista">✕</button>` : ''}
                     </div>
                 </div>

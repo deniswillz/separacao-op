@@ -6,7 +6,7 @@
 const Empenhos = {
     data: [],                   // All imported items
     opsList: [],                // Unique OPs with metadata
-    selectedOPs: new Set(),     // OPs selected for separation
+    selectedOPs: {},            // OPs selected for separation: { op: urgencyLevel }
 
     tableBody: null,
     emptyState: null,
@@ -20,7 +20,7 @@ const Empenhos = {
         if (saved) {
             this.data = saved.data || [];
             this.opsList = saved.opsList || [];
-            this.selectedOPs = new Set(saved.selectedOPs || []);
+            this.selectedOPs = saved.selectedOPs || {};
         }
 
         // Setup event listeners
@@ -48,6 +48,14 @@ const Empenhos = {
 
         this.renderOPSelector();
         this.renderPendentes();
+
+        // Register realtime callback
+        if (typeof SupabaseClient !== 'undefined') {
+            SupabaseClient.onRealtimeUpdate('empenhos', (payload) => {
+                console.log('🔄 Empenhos: recebida atualização remota');
+                this.reload();
+            });
+        }
     },
 
     downloadTemplate() {
@@ -85,52 +93,60 @@ const Empenhos = {
             // Skip header row (index 0)
             const dataRows = rawData.slice(1);
 
+            const existingOPCodes = new Set(this.data.map(item => `${item.op}|${item.codigo}`));
+            let duplicatesSkipped = 0;
+
             const newData = dataRows.map((row, index) => {
-                // MAPEAMENTO RÍGIDO POR ÍNDICE DE COLUNA:
-                // Coluna A (índice 0): Ordem de Produção
-                // Coluna U (índice 20): Código
-                // Coluna V (índice 21): Descrição
-                // Coluna W (índice 22): Quantidade
-                // Coluna X (índice 23): Unidade de Medida
+                const op = String(row[0] || '').trim();
+                const codigo = String(row[20] || '').toUpperCase().trim();
 
-                const op = row[0] || '';  // Coluna A
-                const codigo = row[20] || '';  // Coluna U
-                const descricao = row[21] || '';  // Coluna V
-                const quantidade = row[22] || 0;  // Coluna W
-                const unidade = row[23] || 'UN';  // Coluna X
+                if (!op || !codigo) return null;
 
-                // PA Data (Novas colunas para Matriz x Filial)
-                const paProduto = row[1] || '';   // Coluna B
-                const paDescricao = row[2] || ''; // Coluna C
-                const paQtdProd = row[7] || 0;    // Coluna H
+                const opCodeKey = `${op}|${codigo}`;
+                if (existingOPCodes.has(opCodeKey)) {
+                    duplicatesSkipped++;
+                    return null;
+                }
+                existingOPCodes.add(opCodeKey);
+
+                const descricao = String(row[21] || '').trim();
+                const quantidade = parseFloat(row[22]) || 0;
+                const unidade = String(row[23] || 'UN').toUpperCase().trim();
+
+                const paProduto = String(row[1] || '').trim();
+                const paDescricao = String(row[2] || '').trim();
+                const paQtdProd = parseFloat(row[7]) || 0;
 
                 return {
-                    id: this.data.length + Date.now() + index,
-                    op: String(op).trim(),
+                    // Unique ID based on OP and Code to prevent technical duplicates
+                    id: Storage.generateUUID(),
+                    op,
                     data: new Date().toLocaleDateString('pt-BR'),
-                    codigo: String(codigo).toUpperCase().trim(),
-                    descricao: String(descricao).trim(),
-                    quantidade: parseFloat(quantidade) || 0,
-                    unidade: String(unidade).toUpperCase().trim() || 'UN',
-                    // Info do Produto Acabado da OP
+                    codigo,
+                    descricao,
+                    quantidade,
+                    unidade,
                     pa: {
-                        produto: String(paProduto).trim(),
-                        descricao: String(paDescricao).trim(),
-                        quantidade: parseFloat(paQtdProd) || 0
+                        produto: paProduto,
+                        descricao: paDescricao,
+                        quantidade: paQtdProd
                     }
                 };
-            }).filter(item => item.codigo && item.op); // Remove linhas vazias
+            }).filter(item => item !== null);
 
-            this.data = [...this.data, ...newData];
+            if (newData.length > 0) {
+                this.data = [...this.data, ...newData];
+                this.buildOPsList();
+                this.save();
+                this.renderOPSelector();
+                this.renderPendentes();
 
-            // Build OPs list
-            this.buildOPsList();
-
-            this.save();
-            this.renderOPSelector();
-            this.renderPendentes();
-
-            App.showToast(`${newData.length} itens importados com sucesso!`, 'success');
+                let msg = `${newData.length} itens importados!`;
+                if (duplicatesSkipped > 0) msg += ` (${duplicatesSkipped} duplicados ignorados)`;
+                App.showToast(msg, 'success');
+            } else {
+                App.showToast(duplicatesSkipped > 0 ? 'Todos os itens já foram importados anteriormente.' : 'Nenhum item válido encontrado no arquivo.', 'warning');
+            }
         } catch (error) {
             console.error(error);
             App.showToast('Erro ao importar arquivo', 'error');
@@ -150,7 +166,7 @@ const Empenhos = {
                     op: item.op,
                     data: item.data || new Date().toLocaleDateString('pt-BR'),
                     itensCount: 0,
-                    isSelected: this.selectedOPs.has(item.op)
+                    isSelected: !!this.selectedOPs[item.op]
                 };
             }
             opsMap[item.op].itensCount++;
@@ -163,22 +179,45 @@ const Empenhos = {
         Storage.save(Storage.KEYS.EMPENHOS, {
             data: this.data,
             opsList: this.opsList,
-            selectedOPs: Array.from(this.selectedOPs)
+            selectedOPs: this.selectedOPs
         });
+    },
+
+    /**
+     * Reload data from cloud and refresh UI
+     */
+    async reload() {
+        const cloudData = await Storage.loadFromCloud(Storage.KEYS.EMPENHOS);
+        if (cloudData) {
+            this.data = cloudData.data || [];
+            this.opsList = cloudData.opsList || [];
+            this.selectedOPs = cloudData.selectedOPs || {};
+            this.renderOPSelector();
+            this.renderPendentes();
+            // Also update Dashboard
+            if (typeof Dashboard !== 'undefined') Dashboard.render();
+        }
     },
 
     selectOP(op) {
         // Add to selected list
-        if (!this.selectedOPs.has(op)) {
-            this.selectedOPs.add(op);
+        if (!this.selectedOPs[op]) {
+            this.selectedOPs[op] = 'media';
             this.save();
             this.renderOPSelector();
             this.renderPendentes();
         }
     },
 
+    updateUrgency(op, level) {
+        if (this.selectedOPs[op]) {
+            this.selectedOPs[op] = level;
+            this.save();
+        }
+    },
+
     removeOP(op) {
-        this.selectedOPs.delete(op);
+        delete this.selectedOPs[op];
         this.save();
         this.renderOPSelector();
         this.renderPendentes();
@@ -188,7 +227,7 @@ const Empenhos = {
         const container = document.getElementById('opSelector');
 
         // Filter out already selected OPs
-        const availableOPs = this.opsList.filter(op => !this.selectedOPs.has(op.op));
+        const availableOPs = this.opsList.filter(op => !this.selectedOPs[op.op]);
 
         if (this.opsList.length === 0) {
             container.innerHTML = '<span class="empty-text">Importe ordens para selecionar</span>';
@@ -208,7 +247,7 @@ const Empenhos = {
     },
 
     renderPendentes() {
-        const selectedList = this.opsList.filter(op => this.selectedOPs.has(op.op));
+        const selectedList = this.opsList.filter(op => !!this.selectedOPs[op.op]);
 
         if (selectedList.length === 0) {
             this.tableBody.innerHTML = '';
@@ -218,23 +257,34 @@ const Empenhos = {
 
         this.emptyState.classList.remove('show');
 
-        this.tableBody.innerHTML = selectedList.map(op => `
-            <tr>
-                <td><strong>${op.op}</strong></td>
-                <td>${op.data}</td>
-                <td>${op.itensCount}</td>
-                <td><span class="status-badge pending">Pendente</span></td>
-                <td>
-                    <button class="btn-delete" onclick="Empenhos.removeOP('${op.op}')">
-                        🗑️ Remover
-                    </button>
-                </td>
-            </tr>
-        `).join('');
+        this.tableBody.innerHTML = selectedList.map(op => {
+            const urgency = this.selectedOPs[op.op] || 'media';
+            return `
+                <tr>
+                    <td><strong>${op.op}</strong></td>
+                    <td>${op.data}</td>
+                    <td>${op.itensCount}</td>
+                    <td>
+                        <select class="urgency-select" onchange="Empenhos.updateUrgency('${op.op}', this.value)">
+                            <option value="baixa" ${urgency === 'baixa' ? 'selected' : ''}>🔵 Baixa</option>
+                            <option value="media" ${urgency === 'media' ? 'selected' : ''}>🟡 Média</option>
+                            <option value="alta" ${urgency === 'alta' ? 'selected' : ''}>🔴 Alta</option>
+                            <option value="urgencia" ${urgency === 'urgencia' ? 'selected' : ''}>🔥 Urgência</option>
+                        </select>
+                    </td>
+                    <td>
+                        <button class="btn-delete" onclick="Empenhos.removeOP('${op.op}')">
+                            🗑️ Remover
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
     },
 
     gerarSeparacao() {
-        if (this.selectedOPs.size === 0) {
+        const selectedOPNames = Object.keys(this.selectedOPs);
+        if (selectedOPNames.length === 0) {
             App.showToast('Selecione pelo menos uma OP', 'warning');
             return;
         }
@@ -248,7 +298,7 @@ const Empenhos = {
         }
 
         // Get unique OPs sorted
-        const ordens = [...this.selectedOPs].sort();
+        const ordens = selectedOPNames.sort();
 
         // VERIFICAR DUPLICIDADE: Checar se alguma OP já existe em Separação, Conferência ou Histórico
         const opsEmSeparacao = (Separacao.listas || []).flatMap(l => l.ordens || []);
@@ -301,7 +351,7 @@ const Empenhos = {
         }
 
         // Get items from selected OPs
-        const selectedData = this.data.filter(item => this.selectedOPs.has(item.op));
+        const selectedData = this.data.filter(item => !!this.selectedOPs[item.op]);
 
         if (selectedData.length === 0) {
             App.showToast('Nenhum item nas OPs selecionadas', 'warning');
@@ -355,6 +405,15 @@ const Empenhos = {
         // Create list name
         const listName = `OP ${ordens[0]}${ordens.length > 1 ? ' - ' + ordens[ordens.length - 1] : ''}`;
 
+        // Determine list urgency (highest priority among selected OPs)
+        const priorityOrder = { 'baixa': 0, 'media': 1, 'alta': 2, 'urgencia': 3 };
+        let maxUrgency = 'baixa';
+        ordens.forEach(op => {
+            if (priorityOrder[this.selectedOPs[op]] > priorityOrder[maxUrgency]) {
+                maxUrgency = this.selectedOPs[op];
+            }
+        });
+
         // NOVO: Gerar registros para Matriz x Filial (Produtos Acabados)
         const paRecords = [];
         const processedOPs = new Set();
@@ -382,13 +441,14 @@ const Empenhos = {
             ordens: ordens,
             itens: separacaoData,
             status: 'pendente',
+            urgencia: maxUrgency,
             dataCriacao: new Date().toISOString(),
             documento: '',
             responsavel: ''
         });
 
         // Clear selection
-        this.selectedOPs.clear();
+        this.selectedOPs = {};
         this.save();
         this.renderOPSelector();
         this.renderPendentes();

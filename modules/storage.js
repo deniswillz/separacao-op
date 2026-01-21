@@ -26,6 +26,7 @@ const Storage = {
     TABLE_MAP: {
         'separacao_cadastro': 'cadastro',
         'separacao_enderecos': 'enderecos',
+        'separacao_empenhos': 'empenhos',
         'separacao_blacklist': 'blacklist',
         'separacao_lista': 'separacao',
         'separacao_conferencia': 'conferencia',

@@ -115,6 +115,13 @@ const Conferencia = {
     },
 
     receberLista(listaSeparacao) {
+        // VERIFICAR DUPLICIDADE: Evitar receber a mesma lista de separação mais de uma vez
+        const existe = this.listas.find(l => String(l.separacaoId) === String(listaSeparacao.id));
+        if (existe) {
+            console.warn('⚠️ Lista de conferência já existe para esta separação, ignorando');
+            return;
+        }
+
         const blacklistCodes = Blacklist.getBlacklistedCodes();
 
         // Filter out blacklist items when receiving
@@ -226,6 +233,20 @@ const Conferencia = {
         const lista = this.listas.find(l => String(l.id) === String(id));
         if (!lista) return;
 
+        // BLOQUEIO MULTI-USUÁRIO: Verificar se já está em uso por outro usuário
+        if (lista.usuarioAtual && lista.usuarioAtual !== (Auth.currentUser?.nome || 'Anônimo')) {
+            const body = `
+                <div style="text-align: center; padding: 1rem;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
+                    <h3 style="color: #dc3545; margin-bottom: 1rem;">Lista em Uso!</h3>
+                    <p>Esta lista está sendo conferida por: <strong style="color: #0d6efd;">${lista.usuarioAtual}</strong></p>
+                    <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">Para evitar duplicidade de dados, aguarde o outro usuário terminar ou peça para ele fechar o card.</p>
+                </div>
+            `;
+            App.showModal('Acesso Bloqueado', body, `<button class="btn btn-primary" onclick="App.closeModal()">Entendi</button>`);
+            return;
+        }
+
         this.listaAtual = lista;
         this.filtroOP = '';
 
@@ -238,8 +259,12 @@ const Conferencia = {
         document.getElementById('responsavelConferencia').value = responsavel;
         if (!lista.responsavelConferencia && Auth.currentUser?.nome) {
             lista.responsavelConferencia = Auth.currentUser.nome;
-            this.save();
+            // this.save(); // Not saving yet, only when edited or user confirms
         }
+
+        // Mark as in use by current user
+        lista.usuarioAtual = Auth.currentUser?.nome || 'Anônimo';
+        this.save();
 
         document.getElementById('dataConferencia').value = lista.dataConferencia;
 
@@ -274,6 +299,14 @@ const Conferencia = {
     },
 
     voltarParaLista() {
+        if (this.listaAtual) {
+            // Limpar status de uso
+            const lista = this.listas.find(l => l.id === this.listaAtual.id);
+            if (lista) {
+                lista.usuarioAtual = null;
+                this.save();
+            }
+        }
         this.listaAtual = null;
         this.filtroOP = '';
         this.detailView.style.display = 'none';
@@ -317,15 +350,25 @@ const Conferencia = {
     },
 
     excluirLista(id) {
-        if (!confirm('Deseja realmente excluir esta lista de conferência?')) {
+        const lista = this.listas.find(l => String(l.id) === String(id));
+        if (!lista) return;
+
+        if (!confirm('Deseja realmente excluir esta lista de conferência? Isso removerá também os registros pendentes vinculados em Matriz x Filial.')) {
             return;
+        }
+
+        // CASCADE DELETE: Matriz x Filial (remover registros das OPs)
+        if (typeof MatrizFilial !== 'undefined') {
+            MatrizFilial.removeRecordsByOPs(lista.ordens);
         }
 
         this.listas = this.listas.filter(l => String(l.id) !== String(id));
         this.save();
         this.renderListas();
-        Dashboard.render();
-        App.showToast('Lista de conferência excluída!', 'success');
+
+        if (typeof Dashboard !== 'undefined') Dashboard.render();
+
+        App.showToast('Lista de conferência e registros vinculados excluídos!', 'success');
     },
 
     renderOrdens() {
@@ -683,12 +726,18 @@ const Conferencia = {
             const opsTotal = lista.ordens.length;
             const hasFalta = faltando > 0;
 
+            const inUseBy = lista.usuarioAtual;
+            const inUseBadge = inUseBy && inUseBy !== Auth.currentUser?.nome
+                ? `<div class="list-status-badge in-use">👀 Aberto por: ${inUseBy}</div>`
+                : '';
+
             return `
                 <div class="list-card ${hasFalta ? 'urgent' : 'pending'}" onclick="Conferencia.abrirLista('${lista.id}')">
                     <div class="list-card-header">
                         <span class="list-card-title">${lista.nome}</span>
                         <div style="display: flex; align-items: center; gap: 0.5rem;">
                             <span class="list-card-badge ${hasFalta ? 'danger' : 'pending'}">${hasFalta ? '🚨 URGENTE' : 'Pendente'}</span>
+                            ${lista.urgencia ? `<span class="urgency-badge urgency-${lista.urgencia === 'urgencia' ? 'extrema' : lista.urgencia}">${lista.urgencia.toUpperCase()}</span>` : ''}
                             ${Auth.isAdmin() ? `<button class="btn-delete-item" onclick="event.stopPropagation(); Conferencia.excluirLista('${lista.id}')" title="Excluir lista">✕</button>` : ''}
                         </div>
                     </div>
@@ -702,6 +751,7 @@ const Conferencia = {
                         <span class="list-card-date">${lista.dataConferencia}</span>
                         <span class="list-card-count">${total} itens</span>
                     </div>
+                    ${inUseBadge}
                 </div>
             `;
         }).join('');

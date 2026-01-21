@@ -477,6 +477,10 @@
                             <span class="search-icon">🔍</span>
                         </div>
                         <div class="toolbar-actions">
+                            <button class="btn btn-warning" id="btnSalvarPendenteSeparacao"
+                                style="margin-right: 0.5rem;">
+                                <span>⏸️</span> Salvar com Pendências
+                            </button>
                             <button class="btn btn-success" id="btnEnviarConferencia">
                                 <span>📤</span> Enviar para Conferência
                             </button>
@@ -637,6 +641,27 @@
                         <input type="text" id="searchHistorico" placeholder="Buscar ordem...">
                         <span class="search-icon">🔍</span>
                     </div>
+
+                    <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                        <div class="info-field" style="margin: 0; min-width: 150px;">
+                            <label style="font-size: 0.75rem;">Armazém</label>
+                            <select id="filtroArmazemHistorico" style="height: 38px; padding: 0 10px;">
+                                <option value="">Todos</option>
+                                <option value="MATRIZ">MATRIZ</option>
+                                <option value="FILIAL">FILIAL</option>
+                                <option value="EXTERNO">EXTERNO</option>
+                            </select>
+                        </div>
+                        <div class="info-field" style="margin: 0;">
+                            <label style="font-size: 0.75rem;">Início</label>
+                            <input type="date" id="filtroDataInicioHistorico" style="height: 38px;">
+                        </div>
+                        <div class="info-field" style="margin: 0;">
+                            <label style="font-size: 0.75rem;">Fim</label>
+                            <input type="date" id="filtroDataFimHistorico" style="height: 38px;">
+                        </div>
+                    </div>
+
                     <div class="toolbar-actions">
                         <button class="btn btn-outline" id="btnExportarHistorico">
                             <span>📤</span> Exportar Histórico
