@@ -148,7 +148,8 @@ const Storage = {
                     // Skip fields that don't exist in Supabase tables
                     const skipFields = [
                         'total_itens', 'itens_ok', 'itens_o_k', 'totalItens', 'itensOk', 'itensOK',
-                        'itensTransferenciaVerificados', 'itens_transferencia_verificados'
+                        'itensTransferenciaVerificados', 'itens_transferencia_verificados',
+                        'naoSep', 'nao_sep', 'talvez'
                     ];
                     if (skipFields.includes(k)) continue;
 
