@@ -49,10 +49,10 @@ const MatrizFilial = {
             produto: r.produto,
             descricao: r.descricao,
             quantidade: r.quantidade,
-            status: 'qualidade', // Start at Quality
+            status: 'separacao', // Inicia no fluxo de separação
             dataCriacao: timestamp,
             historicoStatus: [
-                { status: 'qualidade', data: timestamp, usuario: Auth.currentUser?.nome || 'Sistema' }
+                { status: 'separacao', data: timestamp, usuario: Auth.currentUser?.nome || 'Sistema' }
             ]
         }));
 
@@ -84,6 +84,45 @@ const MatrizFilial = {
         this.render();
 
         Auditoria.log('ALTERAR_STATUS_PA', { op: record.op, status: newStatus });
+    },
+
+    updateStatusByOPs(ops, newStatus) {
+        let count = 0;
+        this.records.forEach(record => {
+            if (ops.includes(record.op)) {
+                record.status = newStatus;
+                record.historicoStatus.push({
+                    status: newStatus,
+                    data: new Date().toISOString(),
+                    usuario: Auth.currentUser?.nome || 'Sistema'
+                });
+                count++;
+            }
+        });
+
+        if (count > 0) {
+            this.save();
+            this.render();
+            Auditoria.log('ALTERAR_STATUS_PA_LOTE', { ops, status: newStatus });
+        }
+    },
+
+    reverterStatus(id) {
+        if (Auth.currentUser?.tipo !== 'admin') {
+            App.showToast('Apenas administradores podem reverter processos', 'error');
+            return;
+        }
+
+        const record = this.records.find(r => r.id === id);
+        if (!record) return;
+
+        const fluxoSequence = ['separacao', 'conferencia', 'qualidade', 'enderecar', 'transito', 'recebido'];
+        const currentIndex = fluxoSequence.indexOf(record.status);
+        if (currentIndex <= 0) return;
+
+        const prevStatus = fluxoSequence[currentIndex - 1];
+        this.updateStatus(id, prevStatus);
+        App.showToast(`Status revertido para: ${this.getStatusLabel(prevStatus)}`, 'success');
     },
 
     arquivar(id) {
@@ -164,6 +203,8 @@ const MatrizFilial = {
 
     getStatusLabel(status) {
         const labels = {
+            'separacao': '📦 Em Separação',
+            'conferencia': '🔍 Em Conferência',
             'qualidade': '🔬 Em Qualidade',
             'enderecar': '📍 Endereçar',
             'transito': '🚚 Em Trânsito',
@@ -173,19 +214,31 @@ const MatrizFilial = {
     },
 
     renderActions(r) {
-        if (r.status === 'qualidade') {
-            return `<button class="btn btn-primary btn-sm" onclick="MatrizFilial.updateStatus('${r.id}', 'enderecar')">✅ Aprovar Qualidade</button>`;
+        const isAdmin = Auth.currentUser?.tipo === 'admin';
+        const buttons = [];
+
+        // Main Actions
+        if (r.status === 'separacao') {
+            buttons.push(`<button class="btn btn-outline btn-sm" disabled style="opacity: 0.6;">Aguardando Separação...</button>`);
+        } else if (r.status === 'conferencia') {
+            buttons.push(`<button class="btn btn-outline btn-sm" disabled style="opacity: 0.6;">Aguardando Conferência...</button>`);
+        } else if (r.status === 'qualidade') {
+            const disabled = !isAdmin ? 'disabled title="Apenas administradores podem aprovar a qualidade"' : '';
+            buttons.push(`<button class="btn btn-primary btn-sm" ${disabled} onclick="MatrizFilial.updateStatus('${r.id}', 'enderecar')">✅ Aprovar Qualidade</button>`);
+        } else if (r.status === 'enderecar') {
+            buttons.push(`<button class="btn btn-primary btn-sm" onclick="MatrizFilial.updateStatus('${r.id}', 'transito')">🚚 Enviar p/ Filial</button>`);
+        } else if (r.status === 'transito') {
+            buttons.push(`<button class="btn btn-success btn-sm" onclick="MatrizFilial.updateStatus('${r.id}', 'recebido')">📦 Confirmar Recebimento</button>`);
+        } else if (r.status === 'recebido') {
+            buttons.push(`<button class="btn btn-outline btn-sm" onclick="MatrizFilial.arquivar('${r.id}')">📚 Arquivar no Histórico</button>`);
         }
-        if (r.status === 'enderecar') {
-            return `<button class="btn btn-primary btn-sm" onclick="MatrizFilial.updateStatus('${r.id}', 'transito')">🚚 Enviar p/ Filial</button>`;
+
+        // Admin Revert Action
+        if (isAdmin && ['conferencia', 'qualidade', 'enderecar', 'transito', 'recebido'].includes(r.status)) {
+            buttons.push(`<button class="btn btn-danger btn-outline btn-sm" onclick="MatrizFilial.reverterStatus('${r.id}')" title="Voltar Status">↩️ Voltar</button>`);
         }
-        if (r.status === 'transito') {
-            return `<button class="btn btn-success btn-sm" onclick="MatrizFilial.updateStatus('${r.id}', 'recebido')">📦 Confirmar Recebimento</button>`;
-        }
-        if (r.status === 'recebido') {
-            return `<button class="btn btn-outline btn-sm" onclick="MatrizFilial.arquivar('${r.id}')">📚 Arquivar no Histórico</button>`;
-        }
-        return ``;
+
+        return buttons.join('');
     },
 
     showHistorico() {

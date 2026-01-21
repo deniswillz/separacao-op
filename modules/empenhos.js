@@ -355,19 +355,6 @@ const Empenhos = {
         // Create list name
         const listName = `OP ${ordens[0]}${ordens.length > 1 ? ' - ' + ordens[ordens.length - 1] : ''}`;
 
-        // Send to Separação module
-        Separacao.criarLista({
-            id: Storage.generateUUID(),
-            nome: listName,
-            armazem: armazem,
-            ordens: ordens,
-            itens: separacaoData,
-            status: 'pendente',
-            dataCriacao: new Date().toISOString(),
-            documento: '',
-            responsavel: ''
-        });
-
         // NOVO: Gerar registros para Matriz x Filial (Produtos Acabados)
         const paRecords = [];
         const processedOPs = new Set();
@@ -386,6 +373,19 @@ const Empenhos = {
         if (paRecords.length > 0) {
             MatrizFilial.addRecords(paRecords);
         }
+
+        // Send to Separação module
+        Separacao.criarLista({
+            id: Storage.generateUUID(),
+            nome: listName,
+            armazem: armazem,
+            ordens: ordens,
+            itens: separacaoData,
+            status: 'pendente',
+            dataCriacao: new Date().toISOString(),
+            documento: '',
+            responsavel: ''
+        });
 
         // Clear selection
         this.selectedOPs.clear();

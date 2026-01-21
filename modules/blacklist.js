@@ -64,6 +64,20 @@ const Blacklist = {
                 this.render();
             });
         }
+        // Bulk selection support
+        const selectAllNaoSep = document.getElementById('selectAllNaoSep');
+        if (selectAllNaoSep) {
+            selectAllNaoSep.addEventListener('change', (e) => {
+                this.toggleAllNaoSep(e.target.checked);
+            });
+        }
+
+        const selectAllTalvez = document.getElementById('selectAllTalvez');
+        if (selectAllTalvez) {
+            selectAllTalvez.addEventListener('change', (e) => {
+                this.toggleAllTalvez(e.target.checked);
+            });
+        }
 
         this.render();
     },
@@ -139,6 +153,41 @@ const Blacklist = {
         this.save();
         this.render();
         App.showToast('BlackList limpa com sucesso!', 'success');
+    },
+
+    toggleAllNaoSep(checked) {
+        const filtered = this.getFilteredData();
+        if (filtered.length === 0) return;
+
+        filtered.forEach(item => {
+            item.naoSep = checked;
+        });
+
+        this.save();
+        this.render();
+        App.showToast(`${filtered.length} itens marcados como ${checked ? 'Não Separar' : 'Pendente'}`, 'success');
+    },
+
+    toggleAllTalvez(checked) {
+        const filtered = this.getFilteredData();
+        if (filtered.length === 0) return;
+
+        filtered.forEach(item => {
+            item.talvez = checked;
+        });
+
+        this.save();
+        this.render();
+        App.showToast(`${filtered.length} itens marcados como ${checked ? 'Talvez' : 'Pendente'}`, 'success');
+    },
+
+    getFilteredData() {
+        const query = this.searchQuery.trim().toLowerCase();
+        if (!query) return this.data;
+        return this.data.filter(item =>
+            item.codigo.toLowerCase().includes(query) ||
+            (item.descricao && item.descricao.toLowerCase().includes(query))
+        );
     },
 
     addItem() {
@@ -225,13 +274,18 @@ const Blacklist = {
 
         this.emptyState.classList.remove('show');
 
-        // Apply filtering
-        const filtered = this.data.filter(item => {
-            const query = this.searchQuery.trim();
-            if (!query) return true;
-            return item.codigo.toLowerCase().includes(query) ||
-                (item.descricao && item.descricao.toLowerCase().includes(query));
-        });
+        const filtered = this.getFilteredData();
+
+        // Update header checkboxes state
+        const selectAllNaoSep = document.getElementById('selectAllNaoSep');
+        const selectAllTalvez = document.getElementById('selectAllTalvez');
+
+        if (selectAllNaoSep) {
+            selectAllNaoSep.checked = filtered.length > 0 && filtered.every(i => i.naoSep);
+        }
+        if (selectAllTalvez) {
+            selectAllTalvez.checked = filtered.length > 0 && filtered.every(i => i.talvez);
+        }
 
         if (filtered.length === 0 && this.data.length > 0) {
             this.tableBody.innerHTML = '<tr><td colspan="6" class="center">Nenhum item encontrado para sua pesquisa.</td></tr>';

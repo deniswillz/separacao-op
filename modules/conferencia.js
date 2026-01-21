@@ -629,6 +629,12 @@ const Conferencia = {
         lista.assinatura = sigData;
 
         Historico.adicionarRegistro(lista);
+
+        // NOVO: Avançar status no Matriz x Filial para "Qualidade"
+        if (typeof MatrizFilial !== 'undefined') {
+            MatrizFilial.updateStatusByOPs(lista.ordens, 'qualidade');
+        }
+
         this.listas = this.listas.filter(l => l.id !== lista.id);
         this.save();
 

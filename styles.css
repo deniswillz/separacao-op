@@ -3410,8 +3410,8 @@ tr.has-falta td {
 
 .pa-cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
     margin-top: 1rem;
 }
 
@@ -3432,7 +3432,7 @@ tr.has-falta td {
 }
 
 .pa-card-header {
-    padding: 1rem;
+    padding: 0.75rem 1rem;
     background: var(--gray-50);
     border-bottom: 1px solid var(--gray-200);
     display: flex;
@@ -3455,21 +3455,21 @@ tr.has-falta td {
 }
 
 .pa-card-body {
-    padding: 1.5rem;
+    padding: 1rem;
     flex: 1;
 }
 
 .pa-produto {
-    font-size: 1.25rem;
-    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+    margin-bottom: 0.3rem;
     color: var(--gray-900);
 }
 
 .pa-desc {
     color: var(--gray-600);
-    font-size: 0.9rem;
-    margin-bottom: 1rem;
-    line-height: 1.4;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.3;
 }
 
 .pa-qty {
@@ -3538,6 +3538,24 @@ tr.has-falta td {
 .pa-card.status-recebido .pa-status-badge {
     background: #dcfce7;
     color: #15803d;
+}
+
+.pa-card.status-separacao {
+    border-left: 6px solid var(--gray-400);
+}
+
+.pa-card.status-separacao .pa-status-badge {
+    background: var(--gray-100);
+    color: var(--gray-600);
+}
+
+.pa-card.status-conferencia {
+    border-left: 6px solid #fbbf24;
+}
+
+.pa-card.status-conferencia .pa-status-badge {
+    background: #fef3c7;
+    color: #92400e;
 }
 
 /* Dark theme PA */

@@ -286,6 +286,11 @@ const Separacao = {
                 }
             });
 
+            // NOVO: Avançar status no Matriz x Filial para "Conferência"
+            if (typeof MatrizFilial !== 'undefined') {
+                MatrizFilial.updateStatusByOPs(lista.ordens, 'conferencia');
+            }
+
             this.save();
         }
 

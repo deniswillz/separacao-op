@@ -344,14 +344,8 @@
                     <p>Itens que não necessitam separação (aparecem em vermelho)</p>
                 </div>
 
-                <div class="toolbar">
+                <div class="toolbar" style="flex-direction: column; align-items: flex-start; gap: 15px;">
                     <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; width: 100%;">
-                        <div class="search-box"
-                            style="flex: 1; min-width: 300px; display: flex; align-items: center; background: var(--gray-100); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--gray-200);">
-                            <span style="margin-right: 8px;">🔍</span>
-                            <input type="text" id="blacklistSearch" placeholder="Pesquisar por código ou descrição..."
-                                style="border: none; outline: none; background: transparent; width: 100%; font-size: 0.95rem;">
-                        </div>
                         <div class="add-blacklist-form" style="display: flex; gap: 10px;">
                             <input type="text" id="blacklistCode" placeholder="Código">
                             <input type="text" id="blacklistDesc" placeholder="Descrição">
@@ -360,7 +354,8 @@
                             </button>
                         </div>
                     </div>
-                    <div class="toolbar-actions">
+                    <div class="toolbar-actions"
+                        style="width: 100%; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
                         <button class="btn btn-outline" id="btnModeloBlacklist">
                             <span>📄</span> Baixar Modelo
                         </button>
@@ -368,9 +363,16 @@
                             <span>📥</span> Importar Excel
                             <input type="file" id="importBlacklist" accept=".xlsx,.xls" hidden>
                         </label>
-                        <button class="btn btn-danger" id="btnLimparBlacklist">
+                        <button class="btn btn-danger btn-outline" id="btnLimparBlacklist">
                             <span>🗑️</span> Limpar Tudo
                         </button>
+
+                        <div class="search-box"
+                            style="flex: 1; min-width: 300px; display: flex; align-items: center; background: var(--gray-100); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--gray-200); margin-left: auto;">
+                            <span style="margin-right: 8px;">🔍</span>
+                            <input type="text" id="blacklistSearch" placeholder="Pesquisar por código ou descrição..."
+                                style="border: none; outline: none; background: transparent; width: 100%; font-size: 0.95rem;">
+                        </div>
                     </div>
                 </div>
 
@@ -380,8 +382,18 @@
                             <tr>
                                 <th>Código</th>
                                 <th>Descrição</th>
-                                <th>Não Sep</th>
-                                <th>Talvez</th>
+                                <th class="center" style="width: 100px;">
+                                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                        <span style="font-size: 0.75rem;">Não Sep</span>
+                                        <input type="checkbox" id="selectAllNaoSep" title="Selecionar Todos">
+                                    </div>
+                                </th>
+                                <th class="center" style="width: 100px;">
+                                    <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                                        <span style="font-size: 0.75rem;">Talvez</span>
+                                        <input type="checkbox" id="selectAllTalvez" title="Selecionar Todos">
+                                    </div>
+                                </th>
                                 <th>Data Inclusão</th>
                                 <th>Ações</th>
                             </tr>
