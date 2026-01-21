@@ -712,8 +712,12 @@
                             <p>Controle de produtos acabados para a Filial</p>
                         </div>
                         <div style="display: flex; align-items: center; gap: 10px; flex: 1; max-width: 600px;">
+                            <button class="btn btn-outline btn-sm" onclick="MatrizFilial.showHistorico()"
+                                style="padding: 8px 12px; height: 38px; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                                <span>📚</span> Histórico Completo
+                            </button>
                             <select id="matrizFilialStatusFilter"
-                                style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--gray-200); background: white; font-size: 0.9rem; min-width: 150px;">
+                                style="padding: 8px 12px; border-radius: 8px; border: 1px solid var(--gray-200); background: white; font-size: 0.9rem; min-width: 150px; height: 38px;">
                                 <option value="all">Todos os Status</option>
                                 <option value="separacao">📦 Em Separação</option>
                                 <option value="conferencia">🔍 Em Conferência</option>
@@ -723,7 +727,7 @@
                                 <option value="recebido">✅ Recebido</option>
                             </select>
                             <div class="search-box"
-                                style="flex: 1; display: flex; align-items: center; background: var(--gray-100); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--gray-200);">
+                                style="flex: 1; display: flex; align-items: center; background: var(--gray-100); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--gray-200); height: 38px;">
                                 <span style="margin-right: 8px;">🔍</span>
                                 <input type="text" id="matrizFilialSearch" placeholder="Pesquisar..."
                                     style="border: none; outline: none; background: transparent; width: 100%; font-size: 0.95rem;">

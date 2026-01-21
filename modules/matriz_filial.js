@@ -207,10 +207,9 @@ const MatrizFilial = {
         });
 
         if (filtered.length === 0 && this.records.length > 0) {
-            contentHTML += `
+            container.innerHTML = `
                 <p class="empty-text">Nenhum resultado encontrado para sua pesquisa.</p>
             `;
-            container.innerHTML = contentHTML;
             return;
         }
 
@@ -234,12 +233,7 @@ const MatrizFilial = {
             </div>
         `).join('');
 
-        container.innerHTML = `
-            <div style="display: flex; justify-content: flex-start; margin-bottom: 1rem;">
-                <button class="btn btn-outline btn-sm" onclick="MatrizFilial.showHistorico()">📚 Histórico Completo</button>
-            </div>
-            <div class="pa-cards-grid">${cardsHTML}</div>
-        `;
+        container.innerHTML = `<div class="pa-cards-grid">${cardsHTML}</div>`;
     },
 
     getStatusLabel(status) {
