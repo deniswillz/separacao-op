@@ -105,7 +105,7 @@ const Storage = {
         if (data.length === 0) {
             try {
                 console.log(`🗑️ Limpando ${table} na nuvem...`);
-                const uuidTables = ['usuarios', 'separacao', 'conferencia', 'historico', 'auditoria'];
+                const uuidTables = ['usuarios', 'separacao', 'conferencia', 'historico', 'auditoria', 'matriz_filial', 'matriz_filial_historico'];
                 if (uuidTables.includes(table)) {
                     await supabaseClient.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
                 } else {
@@ -365,7 +365,12 @@ const Storage = {
 
             const table = this.TABLE_MAP[key];
             if (table && SupabaseClient?.isOnline) {
-                supabaseClient.from(table).delete().gte('id', 0);
+                const uuidTables = ['usuarios', 'separacao', 'conferencia', 'historico', 'auditoria', 'matriz_filial', 'matriz_filial_historico'];
+                if (uuidTables.includes(table)) {
+                    supabaseClient.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
+                } else {
+                    supabaseClient.from(table).delete().gte('id', 0);
+                }
             }
             return true;
         } catch (e) {

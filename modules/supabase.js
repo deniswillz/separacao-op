@@ -208,7 +208,7 @@ const SupabaseClient = {
         if (!this.isOnline || !supabaseClient) return null;
 
         try {
-            const { error } = await supabaseClient.from(table).delete().neq('id', 0);
+            const { error } = await supabaseClient.from(table).delete().filter('id', 'neq', '00000000-0000-0000-0000-000000000000').filter('id', 'neq', 0);
             if (error) throw error;
             return true;
         } catch (error) {
