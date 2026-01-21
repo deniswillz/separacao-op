@@ -33,6 +33,9 @@
                 <img src="logo.png" alt="Nano Pro" class="logo-img">
             </div>
             <div class="header-info">
+                <button id="btnToggleTheme" class="btn-icon" title="Alternar Tema Clare/Escuro">
+                    <span id="themeIcon">🌙</span>
+                </button>
                 <span class="current-date" id="currentDate"></span>
                 <span class="current-time" id="currentTime"></span>
                 <div class="user-info" id="userInfo"></div>
@@ -143,8 +146,11 @@
                 </div>
 
                 <!-- Time Filter -->
-                <div class="filter-bar">
-                    <label>Período:</label>
+                <div class="dashboard-controls">
+                    <button id="btnShowInsights" class="btn btn-info" style="margin-right: 1rem;">
+                        📊 Insights de Dados
+                    </button>
+                    <label for="dashboardPeriodo">Período:</label>
                     <select id="dashboardPeriodo">
                         <option value="7">Últimos 7 dias</option>
                         <option value="15">Últimos 15 dias</option>
@@ -405,6 +411,12 @@
                         </button>
                         <h1 id="separacaoListaTitulo">Lista de Separação</h1>
                         <p id="separacaoListaInfo"></p>
+                        <div class="scanner-container"
+                            style="margin-top: 10px; background: rgba(59, 130, 246, 0.05); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.2); display: flex; align-items: center; gap: 10px; max-width: 400px;">
+                            <span style="font-size: 1.1rem;">🔍</span>
+                            <input type="text" id="scannerInputSeparacao" placeholder="Aponte o leitor e escaneie..."
+                                style="flex: 1; background: transparent; border: none; outline: none; font-size: 0.95rem; color: inherit;">
+                        </div>
                     </div>
 
                     <div class="info-panel">
@@ -507,6 +519,12 @@
                         </div>
                         <h1 id="conferenciaListaTitulo">Conferência</h1>
                         <p id="conferenciaListaInfo"></p>
+                        <div class="scanner-container"
+                            style="margin-top: 10px; background: rgba(16, 185, 129, 0.05); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.2); display: flex; align-items: center; gap: 10px; max-width: 400px;">
+                            <span style="font-size: 1.1rem;">🔍</span>
+                            <input type="text" id="scannerInputConferencia" placeholder="Escaneie para conferir..."
+                                style="flex: 1; background: transparent; border: none; outline: none; font-size: 0.95rem; color: inherit;">
+                        </div>
                     </div>
 
                     <!-- Filtro por OP -->

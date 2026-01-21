@@ -24,12 +24,18 @@ const App = {
 
         // Setup login form
         const loginForm = document.getElementById('loginForm');
-        if (loginForm) {
-            loginForm.addEventListener('submit', (e) => {
-                e.preventDefault();
+        if (btnLogin) {
+            btnLogin.addEventListener('click', () => {
                 this.handleLogin();
             });
         }
+
+        // Theme Toggle
+        const btnToggleTheme = document.getElementById('btnToggleTheme');
+        if (btnToggleTheme) {
+            btnToggleTheme.addEventListener('click', () => this.toggleTheme());
+        }
+        this.loadTheme();
 
         const btnLogin = document.getElementById('btnLogin');
         if (btnLogin) {
@@ -101,6 +107,7 @@ const App = {
         Separacao.init();
         Conferencia.init();
         Historico.init();
+        Auditoria.init();
         Configuracoes.init();
 
         // Start Realtime subscriptions (after modules registered their callbacks)
@@ -275,6 +282,7 @@ const App = {
         `;
 
         container.appendChild(toast);
+        this.playSound(type);
 
         // Remove after 4 seconds
         setTimeout(() => {
@@ -429,6 +437,60 @@ const App = {
 
         } catch (e) {
             console.log('Audio not supported:', e);
+        }
+    },
+
+    toggleTheme() {
+        const isDark = document.body.classList.toggle('dark-theme');
+        const icon = document.getElementById('themeIcon');
+        if (icon) {
+            icon.textContent = isDark ? '☀️' : '🌙';
+        }
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    },
+
+    loadTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        const isDark = savedTheme === 'dark';
+        document.body.classList.toggle('dark-theme', isDark);
+        const icon = document.getElementById('themeIcon');
+        if (icon) {
+            icon.textContent = isDark ? '☀️' : '🌙';
+        }
+    },
+
+    playSound(type) {
+        try {
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = context.createOscillator();
+            const gain = context.createGain();
+
+            osc.connect(gain);
+            gain.connect(context.destination);
+
+            if (type === 'success') {
+                osc.frequency.setValueAtTime(880, context.currentTime); // A5
+                osc.frequency.exponentialRampToValueAtTime(1320, context.currentTime + 0.1); // E6
+                gain.gain.setValueAtTime(0.1, context.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.3);
+                osc.start();
+                osc.stop(context.currentTime + 0.3);
+            } else if (type === 'error') {
+                osc.frequency.setValueAtTime(220, context.currentTime); // A3
+                osc.frequency.linearRampToValueAtTime(110, context.currentTime + 0.2); // A2
+                gain.gain.setValueAtTime(0.2, context.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, context.currentTime + 0.5);
+                osc.start();
+                osc.stop(context.currentTime + 0.5);
+            } else if (type === 'warning') {
+                osc.frequency.setValueAtTime(440, context.currentTime);
+                gain.gain.setValueAtTime(0.1, context.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, context.currentTime + 0.2);
+                osc.start();
+                osc.stop(context.currentTime + 0.2);
+            }
+        } catch (e) {
+            console.warn('Som não suportado:', e);
         }
     },
 

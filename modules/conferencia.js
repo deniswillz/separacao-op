@@ -305,6 +305,12 @@ const Conferencia = {
         Separacao.save();
         this.save();
 
+        // Audit log
+        Auditoria.log('REVERTER_SITUACAO', {
+            nome: this.listaAtual.nome,
+            id: this.listaAtual.id
+        });
+
         this.voltarParaLista();
         App.showToast('Conferência revertida para Separação!', 'success');
         App.switchTab('separacao');
@@ -537,13 +543,101 @@ const Conferencia = {
             this.save();
         }
 
-        // Send to Histórico
-        Historico.adicionarRegistro(lista);
+        // REQUIRE DIGITAL SIGNATURE
+        this.showSignatureModal(lista);
+    },
 
-        // Remove from conferencia list
-        this.listas = this.listas.filter(l => l.id !== this.listaAtual.id);
+    showSignatureModal(lista) {
+        const body = `
+            <div style="text-align: center;">
+                <p style="margin-bottom: 1rem;">Confirme a conferência com sua assinatura digital:</p>
+                <div style="border: 2px dashed #ccc; background: #fff; position: relative; margin-bottom: 1rem;">
+                    <canvas id="signatureCanvas" width="500" height="200" style="touch-action: none; cursor: crosshair; max-width: 100%;"></canvas>
+                    <button class="btn-clear-sig" onclick="Conferencia.clearSignature()" style="position: absolute; top: 5px; right: 5px; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; padding: 2px 6px; font-size: 0.8rem; color: #333;">Limpar</button>
+                </div>
+                <small style="color: #666;">Use o mouse ou dispositivo touch para assinar.</small>
+            </div>
+        `;
+
+        App.showModal('✍️ Assinatura Digital', body, `
+            <button class="btn btn-outline" onclick="App.closeModal()">Cancelar</button>
+            <button class="btn btn-success" id="btnConfirmSignature">Confirmar e Finalizar</button>
+        `, 'medium');
+
+        setTimeout(() => {
+            this.initSignatureCanvas();
+            document.getElementById('btnConfirmSignature').addEventListener('click', () => {
+                const canvas = document.getElementById('signatureCanvas');
+                const sigData = canvas.toDataURL();
+                this.confirmFinalization(lista, sigData);
+            });
+        }, 200);
+    },
+
+    initSignatureCanvas() {
+        const canvas = document.getElementById('signatureCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        let painting = false;
+
+        function startPosition(e) {
+            painting = true;
+            draw(e);
+        }
+
+        function finishedPosition() {
+            painting = false;
+            ctx.beginPath();
+        }
+
+        function draw(e) {
+            if (!painting) return;
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#000';
+
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', finishedPosition);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPosition(e); });
+        canvas.addEventListener('touchend', finishedPosition);
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); });
+    },
+
+    clearSignature() {
+        const canvas = document.getElementById('signatureCanvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    },
+
+    confirmFinalization(lista, sigData) {
+        lista.assinatura = sigData;
+
+        Historico.adicionarRegistro(lista);
+        this.listas = this.listas.filter(l => l.id !== lista.id);
         this.save();
 
+        Auditoria.log('FINALIZAR_CONFERENCIA_ASSINADA', {
+            nome: lista.nome,
+            id: lista.id
+        });
+
+        App.closeModal();
         this.voltarParaLista();
         App.showToast('Conferência finalizada com sucesso!', 'success');
     },

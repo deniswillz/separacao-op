@@ -58,6 +58,62 @@
     --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* Dark Theme Variables */
+body.dark-theme {
+    --white: #1F2937;
+    --gray-50: #111827;
+    --gray-100: #0F172A;
+    --gray-200: #374151;
+    --gray-300: #4B5563;
+    --gray-400: #9CA3AF;
+    --gray-500: #D1D5DB;
+    --gray-600: #E5E7EB;
+    --gray-700: #F3F4F6;
+    --gray-800: #F9FAFB;
+    --gray-900: #FFFFFF;
+
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.5), 0 2px 4px -2px rgb(0 0 0 / 0.5);
+    background: #0F172A;
+}
+
+body.dark-theme .glass {
+    background: rgba(31, 41, 55, 0.9);
+}
+
+body.dark-theme .sidebar {
+    background: #111827;
+    border-right-color: #374151;
+}
+
+body.dark-theme .nav-item {
+    color: #D1D5DB;
+}
+
+body.dark-theme .nav-item:hover {
+    background: #374151;
+}
+
+body.dark-theme .data-table thead {
+    background: #374151;
+}
+
+body.dark-theme tr:hover {
+    background: #1E293B;
+}
+
+body.dark-theme .list-card {
+    background: #1F2937;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-theme input,
+body.dark-theme select,
+body.dark-theme textarea {
+    background: #111827;
+    color: white;
+    border-color: #4B5563;
+}
+
 /* ============================================
    RESET & BASE
    ============================================ */
@@ -1619,8 +1675,57 @@ body {
     border-color: rgba(0, 107, 71, 0.2);
 }
 
-.list-card:hover::before {
-    opacity: 1;
+.list-card.talvez-highlight {
+    background-color: #fffbeb !important;
+    /* Yellowish */
+    border-left: 4px solid var(--warning) !important;
+}
+
+/* Status Badge for Real-time tracking */
+.list-status-badge {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.list-status-badge.in-use {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+}
+
+body.dark-theme .list-status-badge.in-use {
+    background-color: #1e3a8a;
+    color: #dbeafe;
+    border-color: #3b82f6;
+}
+
+/* ABC Badges for BI */
+.abc-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 1.2rem;
+    color: white;
+    flex: 1;
+    text-align: center;
+}
+
+.abc-badge.a {
+    background: #ef4444;
+}
+
+.abc-badge.b {
+    background: #f59e0b;
+}
+
+.abc-badge.c {
+    background: #10b981;
 }
 
 .list-card.pending {

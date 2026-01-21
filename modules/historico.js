@@ -233,5 +233,51 @@ const Historico = {
         } catch (e) {
             return dateStr;
         }
+    },
+
+    /**
+     * BI: Get SKUs with frequent discrepancies (missing in conference)
+     */
+    getDiscrepancyReport() {
+        const counts = {};
+        this.registros.forEach(reg => {
+            reg.itens.forEach(item => {
+                if (item.falta) {
+                    counts[item.codigo] = (counts[item.codigo] || 0) + 1;
+                }
+            });
+        });
+
+        return Object.entries(counts)
+            .map(([codigo, qde]) => ({ codigo, qde }))
+            .sort((a, b) => b.qde - a.qde);
+    },
+
+    /**
+     * BI: Automatic ABC Classification based on movement frequency
+     */
+    calculateABC() {
+        const movement = {};
+        this.registros.forEach(reg => {
+            reg.itens.forEach(item => {
+                movement[item.codigo] = (movement[item.codigo] || 0) + 1;
+            });
+        });
+
+        const sorted = Object.entries(movement)
+            .sort((a, b) => b[1] - a[1]);
+
+        const total = sorted.length;
+        if (total === 0) return {};
+
+        const result = {};
+        sorted.forEach(([codigo, count], index) => {
+            const percentile = (index + 1) / total;
+            if (percentile <= 0.2) result[codigo] = 'A';
+            else if (percentile <= 0.5) result[codigo] = 'B';
+            else result[codigo] = 'C';
+        });
+
+        return result;
     }
 };

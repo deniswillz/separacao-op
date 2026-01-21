@@ -49,6 +49,23 @@ const Separacao = {
             });
         }
 
+        // Scanner Logic
+        const scannerInput = document.getElementById('scannerInputSeparacao');
+        if (scannerInput) {
+            scannerInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    this.handleScan(scannerInput.value);
+                    scannerInput.value = '';
+                }
+            });
+            // Keep focus
+            document.addEventListener('click', () => {
+                if (this.detailView.style.display === 'block') {
+                    scannerInput.focus();
+                }
+            });
+        }
+
         // Auto-save info fields
         ['docTransferencia', 'responsavelSeparacao'].forEach(id => {
             const el = document.getElementById(id);
@@ -102,6 +119,13 @@ const Separacao = {
         this.listas.push(lista);
         this.save();
         this.renderListas();
+
+        // Audit log
+        Auditoria.log('CRIAR_LISTA_SEPARACAO', {
+            nome: lista.nome,
+            armazem: lista.armazem,
+            qtdItens: lista.itens.length
+        });
     },
 
     save() {
@@ -134,10 +158,10 @@ const Separacao = {
         // Auto-fill responsável with current user name if empty
         const responsavel = lista.responsavel || Auth.currentUser?.nome || '';
         document.getElementById('responsavelSeparacao').value = responsavel;
-        if (!lista.responsavel && Auth.currentUser?.nome) {
-            lista.responsavel = Auth.currentUser.nome;
-            this.save();
-        }
+
+        // Mark as in use by current user
+        lista.usuarioAtual = Auth.currentUser?.nome || 'Anônimo';
+        this.save();
 
         this.listView.style.display = 'none';
         this.detailView.style.display = 'block';
@@ -147,6 +171,14 @@ const Separacao = {
     },
 
     voltarParaLista() {
+        if (this.listaAtual) {
+            // Clear in use status
+            const lista = this.listas.find(l => l.id === this.listaAtual.id);
+            if (lista) {
+                lista.usuarioAtual = null;
+                this.save();
+            }
+        }
         this.listaAtual = null;
         this.detailView.style.display = 'none';
         this.listView.style.display = 'block';
@@ -294,7 +326,13 @@ const Separacao = {
 
         this.emptyState.classList.remove('show');
 
-        this.cardsContainer.innerHTML = listasDisponiveis.map(lista => `
+        this.cardsContainer.innerHTML = listasDisponiveis.map(lista => {
+            const inUseBy = lista.usuarioAtual;
+            const inUseBadge = inUseBy && inUseBy !== Auth.currentUser?.nome
+                ? `<div class="list-status-badge in-use">👀 Aberto por: ${inUseBy}</div>`
+                : '';
+
+            return `
             <div class="list-card pending border-separacao" onclick="Separacao.abrirLista('${lista.id}')">
                 <div class="list-card-header">
                     <span class="list-card-title">${lista.nome}</span>
@@ -311,8 +349,9 @@ const Separacao = {
                     <span class="list-card-date">${lista.dataCriacao}</span>
                     <span class="list-card-count">${lista.itens.length} itens</span>
                 </div>
+                ${inUseBadge}
             </div>
-        `).join('');
+        `}).join('');
     },
 
     renderItens() {
@@ -334,8 +373,12 @@ const Separacao = {
             );
         }
 
-        // Sort A-Z by código
-        filtered = filtered.sort((a, b) => a.codigo.localeCompare(b.codigo));
+        // Picking Path Optimization: Sort by Address sequence
+        filtered = filtered.sort((a, b) => {
+            const addrA = Enderecos.getEndereco(a.codigo) || 'ZZZZ';
+            const addrB = Enderecos.getEndereco(b.codigo) || 'ZZZZ';
+            return addrA.localeCompare(addrB);
+        });
 
         if (filtered.length === 0) {
             this.tableBody.innerHTML = '';
@@ -609,5 +652,29 @@ const Separacao = {
             const sepInfo = item.separadoPorOP[op];
             return sepInfo && sepInfo.ok;
         });
+    },
+
+    handleScan(codigo) {
+        if (!this.listaAtual) return;
+        const cleanCode = codigo.trim().toUpperCase();
+        const item = this.listaAtual.itens.find(i => i.codigo.toUpperCase() === cleanCode);
+
+        if (item) {
+            // Highlight the row or open OP details
+            document.getElementById('searchSeparacao').value = cleanCode;
+            this.renderItens();
+            App.playSound('success');
+
+            // If item has only 1 OP and not separated, maybe auto-open?
+            if (item.ordens.length === 1) {
+                // For now just filter and notify
+                App.showToast(`Produto encontrado: ${item.descricao}`, 'success');
+            } else {
+                this.showOPInfo(item.codigo, JSON.stringify(item.qtdPorOP));
+            }
+        } else {
+            App.playSound('error');
+            App.showToast(`Produto ${cleanCode} não encontrado nesta lista!`, 'error');
+        }
     }
 };

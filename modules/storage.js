@@ -16,7 +16,8 @@ const Storage = {
         CONFERENCIA: 'separacao_conferencia',
         CONFERENCIA_INFO: 'separacao_conferencia_info',
         HISTORICO: 'separacao_historico',
-        USERS: 'separacao_users'
+        USERS: 'separacao_users',
+        AUDITORIA: 'separacao_auditoria'
     },
 
     // Map localStorage keys to Supabase table names
@@ -27,7 +28,8 @@ const Storage = {
         'separacao_lista': 'separacao',
         'separacao_conferencia': 'conferencia',
         'separacao_historico': 'historico',
-        'separacao_users': 'usuarios'
+        'separacao_users': 'usuarios',
+        'separacao_auditoria': 'auditoria'
     },
 
     // In-memory cache (replaces localStorage)

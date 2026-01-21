@@ -16,6 +16,11 @@ const Dashboard = {
             });
         }
 
+        const btnInsights = document.getElementById('btnShowInsights');
+        if (btnInsights) {
+            btnInsights.addEventListener('click', () => this.showInsights());
+        }
+
         this.render();
         this.checkUrgentItems();
     },
@@ -262,5 +267,115 @@ const Dashboard = {
             this.alertShown = true;
             App.showUrgencyAlert(urgencias);
         }
+    },
+
+    showInsights() {
+        const discrepancies = Historico.getDiscrepancyReport().slice(0, 10);
+        const abc = Historico.calculateABC();
+
+        const discrepancyRows = discrepancies.map(d => `
+            <tr>
+                <td>${d.codigo}</td>
+                <td class="center" style="color: var(--danger); font-weight: bold;">${d.qde}</td>
+            </tr>
+        `).join('') || '<tr><td colspan="2" class="center">Nenhuma divergência registrada</td></tr>';
+
+        // ABC distribution count
+        const abcCounts = { A: 0, B: 0, C: 0 };
+        Object.values(abc).forEach(grade => abcCounts[grade]++);
+
+        const body = `
+            <div class="insights-container">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                    <div>
+                        <h4 style="margin-bottom: 1rem; color: var(--danger);">🚨 Itens com mais Divergências</h4>
+                        <small>Faltas registradas na conferência (Top 10)</small>
+                        <table class="data-table" style="margin-top: 0.5rem;">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th class="center">Vezes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${discrepancyRows}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <h4 style="margin-bottom: 1rem; color: var(--primary);">📊 Classificação ABC (Frequência)</h4>
+                        <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                            <div class="abc-badge a">A: ${abcCounts.A}</div>
+                            <div class="abc-badge b">B: ${abcCounts.B}</div>
+                            <div class="abc-badge c">C: ${abcCounts.C}</div>
+                        </div>
+                        <p style="font-size: 0.85rem; color: #666;">
+                            <strong>A:</strong> Alta rotatividade (20% dos itens)<br>
+                            <strong>B:</strong> Rotatividade média (30% dos itens)<br>
+                            <strong>C:</strong> Baixa rotatividade (50% dos itens)
+                        </p>
+                        <div style="margin-top: 1rem; padding: 1rem; background: var(--gray-50); border-radius: 8px;">
+                            <p>💡 <em>Dica: Mantenha os itens <strong>A</strong> nos endereços mais acessíveis para acelerar a separação.</em></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        App.showModal('📊 Inteligência de Dados - Insights', body, `
+            <button class="btn btn-outline" onclick="App.closeModal()">Fechar</button>
+            <button class="btn btn-primary" onclick="Dashboard.showHeatmap()">🎯 Ver Mapa de Calor</button>
+        `, 'large');
+    },
+
+    showHeatmap() {
+        const movement = {};
+        const historico = Historico.registros;
+
+        historico.forEach(reg => {
+            reg.itens.forEach(item => {
+                const info = Enderecos.getEnderecoInfo(item.codigo);
+                if (info && info.endereco) {
+                    // Normalize address (take only the sector/aisle if it's long)
+                    const sector = info.endereco.split('-')[0] || info.endereco;
+                    movement[sector] = (movement[sector] || 0) + 1;
+                }
+            });
+        });
+
+        const sorted = Object.entries(movement).sort((a, b) => b[1] - a[1]);
+        const max = sorted[0]?.[1] || 1;
+
+        const heatmapHTML = sorted.map(([sector, count]) => {
+            const intensity = (count / max) * 100;
+            return `
+                <div class="heatmap-sector">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                        <strong>Setor ${sector}</strong>
+                        <span>${count} mov.</span>
+                    </div>
+                    <div class="heatmap-bar" style="width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden;">
+                        <div style="width: ${intensity}%; height: 100%; background: linear-gradient(to right, #fbbf24, #ef4444); border-radius: 4px;"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        const body = `
+            <div style="padding: 1rem;">
+                <p style="margin-bottom: 1.5rem;">Frequência de movimentação por setor (Baseado em endereços):</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    ${heatmapHTML || '<p class="empty-text">Sem dados de movimentação</p>'}
+                </div>
+                <div style="margin-top: 2rem; padding: 1rem; background: #f0f7ff; border-radius: 8px; font-size: 0.85rem;">
+                    💡 <strong>O que isso significa?</strong> Setores em vermelho têm maior fluxo. Considere mover itens pesados ou de alto giro (Classe A) para estas áreas ou para perto das bancadas de conferência.
+                </div>
+            </div>
+        `;
+
+        App.showModal('🔥 Mapa de Calor do Armazém', body, `
+            <button class="btn btn-outline" onclick="Dashboard.showInsights()">Voltar</button>
+            <button class="btn btn-primary" onclick="App.closeModal()">Fechar</button>
+        `, 'medium');
     }
 };
