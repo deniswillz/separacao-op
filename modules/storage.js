@@ -82,6 +82,29 @@ const Storage = {
     },
 
     /**
+     * Save data IMMEDIATELY to Supabase - bypasses debounce
+     * Use for critical locks or status updates
+     */
+    async saveImmediate(key, data) {
+        try {
+            // Update cache
+            this._cache[key] = JSON.parse(JSON.stringify(data));
+
+            // Clear any pending debounce
+            if (this.syncTimers[key]) {
+                clearTimeout(this.syncTimers[key]);
+            }
+
+            // Sync now
+            await this.syncToSupabase(key, data);
+            return true;
+        } catch (e) {
+            console.error('❌ Erro ao salvar imediato:', e);
+            return false;
+        }
+    },
+
+    /**
      * Sync data to Supabase
      * Uses UPSERT strategy to avoid race conditions where data appears empty during sync
      */

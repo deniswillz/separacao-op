@@ -229,17 +229,22 @@ const Conferencia = {
         }
     },
 
-    abrirLista(id) {
+    async abrirLista(id) {
         const lista = this.listas.find(l => String(l.id) === String(id));
         if (!lista) return;
 
+        // Force a reload to get the latest status from cloud before checking lock
+        await this.reload();
+        const updatedLista = this.listas.find(l => String(l.id) === String(id));
+        if (!updatedLista) return;
+
         // BLOQUEIO MULTI-USUÁRIO: Verificar se já está em uso por outro usuário
-        if (lista.usuarioAtual && lista.usuarioAtual !== (Auth.currentUser?.nome || 'Anônimo')) {
+        if (updatedLista.usuarioAtual && updatedLista.usuarioAtual !== (Auth.currentUser?.nome || 'Anônimo')) {
             const body = `
                 <div style="text-align: center; padding: 1rem;">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
                     <h3 style="color: #dc3545; margin-bottom: 1rem;">Lista em Uso!</h3>
-                    <p>Esta lista está sendo conferida por: <strong style="color: #0d6efd;">${lista.usuarioAtual}</strong></p>
+                    <p>Esta lista está sendo conferida por: <strong style="color: #0d6efd;">${updatedLista.usuarioAtual}</strong></p>
                     <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">Para evitar duplicidade de dados, aguarde o outro usuário terminar ou peça para ele fechar o card.</p>
                 </div>
             `;
@@ -247,24 +252,23 @@ const Conferencia = {
             return;
         }
 
-        this.listaAtual = lista;
+        this.listaAtual = updatedLista;
         this.filtroOP = '';
 
-        document.getElementById('conferenciaListaTitulo').textContent = lista.nome;
+        document.getElementById('conferenciaListaTitulo').textContent = updatedLista.nome;
         document.getElementById('conferenciaListaInfo').textContent =
-            `Armazém: ${lista.armazem} | Separação: ${lista.responsavelSeparacao || 'N/A'}`;
+            `Armazém: ${updatedLista.armazem} | Separação: ${updatedLista.responsavelSeparacao || 'N/A'}`;
 
         // Auto-fill responsável with current user name if empty
-        const responsavel = lista.responsavelConferencia || Auth.currentUser?.nome || '';
+        const responsavel = updatedLista.responsavelConferencia || Auth.currentUser?.nome || '';
         document.getElementById('responsavelConferencia').value = responsavel;
-        if (!lista.responsavelConferencia && Auth.currentUser?.nome) {
-            lista.responsavelConferencia = Auth.currentUser.nome;
-            // this.save(); // Not saving yet, only when edited or user confirms
+        if (!updatedLista.responsavelConferencia && Auth.currentUser?.nome) {
+            updatedLista.responsavelConferencia = Auth.currentUser.nome;
         }
 
-        // Mark as in use by current user
-        lista.usuarioAtual = Auth.currentUser?.nome || 'Anônimo';
-        this.save();
+        // Mark as in use by current user IMMEDIATELY
+        updatedLista.usuarioAtual = Auth.currentUser?.nome || 'Anônimo';
+        await Storage.saveImmediate(Storage.KEYS.CONFERENCIA, this.listas);
 
         document.getElementById('dataConferencia').value = lista.dataConferencia;
 
@@ -298,13 +302,13 @@ const Conferencia = {
         });
     },
 
-    voltarParaLista() {
+    async voltarParaLista() {
         if (this.listaAtual) {
-            // Limpar status de uso
+            // Limpar status de uso IMEDIATAMENTE
             const lista = this.listas.find(l => l.id === this.listaAtual.id);
             if (lista) {
                 lista.usuarioAtual = null;
-                this.save();
+                await Storage.saveImmediate(Storage.KEYS.CONFERENCIA, this.listas);
             }
         }
         this.listaAtual = null;
@@ -994,14 +998,10 @@ const Conferencia = {
     marcarTodosTransferencia(marcar) {
         if (!this.listaAtual) return;
 
-        const separacao = Separacao.listas.find(l => String(l.id) === String(this.listaAtual.separacaoId));
-        if (!separacao) return;
-
-        const itensTransferidos = separacao.itens.filter(i => i.transferido && !i.naoSeparado);
+        // Use codes instead of IDs for comparison
+        const codes = [...new Set(this.listaAtual.itens.map(i => i.codigo))];
 
         if (marcar) {
-            // Use codes instead of ids
-            const codes = [...new Set(this.listaAtual.itens.map(i => i.codigo))];
             this.listaAtual.itensTransferenciaVerificados = codes;
         } else {
             this.listaAtual.itensTransferenciaVerificados = [];
@@ -1014,8 +1014,10 @@ const Conferencia = {
 
         this.save();
         this.updateButtonStates();
-        App.closeModal();
-        App.showToast('Todos os itens da transferência foram verificados!', 'success');
+
+        // RE-RENDER MODAL CONTENT instead of closing it
+        this.mostrarListaTransferencia();
+        App.showToast(marcar ? 'Todos os itens conferidos!' : 'Seleção limpa!', 'success');
     },
 
     /**

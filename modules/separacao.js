@@ -176,17 +176,22 @@ const Separacao = {
         App.showToast('Progresso de separação salvo com sucesso!', 'success');
     },
 
-    abrirLista(id) {
+    async abrirLista(id) {
         const lista = this.listas.find(l => String(l.id) === String(id));
         if (!lista) return;
 
+        // Force a reload to get the latest status from cloud before checking lock
+        await this.reload();
+        const updatedLista = this.listas.find(l => String(l.id) === String(id));
+        if (!updatedLista) return;
+
         // BLOQUEIO MULTI-USUÁRIO: Verificar se já está em uso por outro usuário
-        if (lista.usuarioAtual && lista.usuarioAtual !== (Auth.currentUser?.nome || 'Anônimo')) {
+        if (updatedLista.usuarioAtual && updatedLista.usuarioAtual !== (Auth.currentUser?.nome || 'Anônimo')) {
             const body = `
                 <div style="text-align: center; padding: 1rem;">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
                     <h3 style="color: #dc3545; margin-bottom: 1rem;">Lista em Uso!</h3>
-                    <p>Esta lista está sendo editada por: <strong style="color: #0d6efd;">${lista.usuarioAtual}</strong></p>
+                    <p>Esta lista está sendo editada por: <strong style="color: #0d6efd;">${updatedLista.usuarioAtual}</strong></p>
                     <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">Para evitar duplicidade de dados, aguarde o outro usuário terminar ou peça para ele fechar o card.</p>
                 </div>
             `;
@@ -194,21 +199,21 @@ const Separacao = {
             return;
         }
 
-        this.listaAtual = lista;
+        this.listaAtual = updatedLista;
 
-        document.getElementById('separacaoListaTitulo').textContent = lista.nome;
+        document.getElementById('separacaoListaTitulo').textContent = updatedLista.nome;
         document.getElementById('separacaoListaInfo').textContent =
-            `Armazém: ${lista.armazem} | Criado em: ${lista.dataCriacao}`;
+            `Armazém: ${updatedLista.armazem} | Criado em: ${updatedLista.dataCriacao}`;
 
-        document.getElementById('docTransferencia').value = lista.documento || '';
+        document.getElementById('docTransferencia').value = updatedLista.documento || '';
 
         // Auto-fill responsável with current user name if empty
-        const responsavel = lista.responsavel || Auth.currentUser?.nome || '';
+        const responsavel = updatedLista.responsavel || Auth.currentUser?.nome || '';
         document.getElementById('responsavelSeparacao').value = responsavel;
 
-        // Mark as in use by current user
-        lista.usuarioAtual = Auth.currentUser?.nome || 'Anônimo';
-        this.save();
+        // Mark as in use by current user IMMEDIATELY
+        updatedLista.usuarioAtual = Auth.currentUser?.nome || 'Anônimo';
+        await Storage.saveImmediate(Storage.KEYS.SEPARACAO, this.listas);
 
         this.listView.style.display = 'none';
         this.detailView.style.display = 'block';
@@ -217,13 +222,13 @@ const Separacao = {
         this.updateStats();
     },
 
-    voltarParaLista() {
+    async voltarParaLista() {
         if (this.listaAtual) {
-            // Clear in use status
+            // Clear in use status IMEDIATELY
             const lista = this.listas.find(l => l.id === this.listaAtual.id);
             if (lista) {
                 lista.usuarioAtual = null;
-                this.save();
+                await Storage.saveImmediate(Storage.KEYS.SEPARACAO, this.listas);
             }
         }
         this.listaAtual = null;
