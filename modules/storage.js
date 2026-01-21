@@ -101,7 +101,7 @@ const Storage = {
         if (data.length === 0) {
             try {
                 console.log(`🗑️ Limpando ${table} na nuvem...`);
-                const uuidTables = ['usuarios', 'separacao', 'conferencia', 'historico'];
+                const uuidTables = ['usuarios', 'separacao', 'conferencia', 'historico', 'auditoria'];
                 if (uuidTables.includes(table)) {
                     await supabaseClient.from(table).delete().neq('id', '00000000-0000-0000-0000-000000000000');
                 } else {
