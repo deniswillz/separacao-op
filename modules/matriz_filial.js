@@ -118,7 +118,7 @@ const MatrizFilial = {
     },
 
     reverterStatus(id) {
-        if (Auth.currentUser?.tipo !== 'admin') {
+        if (!Auth.isAdmin()) {
             App.showToast('Apenas administradores podem reverter processos', 'error');
             return;
         }
@@ -151,7 +151,7 @@ const MatrizFilial = {
     },
 
     excluirCard(id) {
-        if (Auth.currentUser?.tipo !== 'admin') {
+        if (!Auth.isAdmin()) {
             App.showToast('Apenas administradores podem excluir registros', 'error');
             return;
         }
@@ -166,7 +166,7 @@ const MatrizFilial = {
     },
 
     excluirHistorico(id) {
-        if (Auth.currentUser?.tipo !== 'admin') {
+        if (!Auth.isAdmin()) {
             App.showToast('Apenas administradores podem excluir do histórico', 'error');
             return;
         }
@@ -188,7 +188,6 @@ const MatrizFilial = {
             container.innerHTML = `
                 <div class="empty-state">
                     <p class="empty-text">Nenhum produto acabado pendente</p>
-                    <button class="btn btn-outline" onclick="MatrizFilial.showHistorico()">📚 Ver Histórico de Movimentações</button>
                 </div>
             `;
             return;
@@ -208,12 +207,10 @@ const MatrizFilial = {
         });
 
         if (filtered.length === 0 && this.records.length > 0) {
-            container.innerHTML = `
-                <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
-                    <button class="btn btn-outline btn-sm" onclick="MatrizFilial.showHistorico()">📚 Histórico Completo</button>
-                </div>
+            contentHTML += `
                 <p class="empty-text">Nenhum resultado encontrado para sua pesquisa.</p>
             `;
+            container.innerHTML = contentHTML;
             return;
         }
 
@@ -238,7 +235,7 @@ const MatrizFilial = {
         `).join('');
 
         container.innerHTML = `
-            <div style="display: flex; justify-content: flex-end; margin-bottom: 1rem;">
+            <div style="display: flex; justify-content: flex-start; margin-bottom: 1rem;">
                 <button class="btn btn-outline btn-sm" onclick="MatrizFilial.showHistorico()">📚 Histórico Completo</button>
             </div>
             <div class="pa-cards-grid">${cardsHTML}</div>
@@ -258,7 +255,7 @@ const MatrizFilial = {
     },
 
     renderActions(r) {
-        const isAdmin = Auth.currentUser?.tipo === 'admin';
+        const isAdmin = Auth.isAdmin();
         const buttons = [];
 
         // Main Actions
@@ -289,7 +286,7 @@ const MatrizFilial = {
     },
 
     showHistorico() {
-        const isAdmin = Auth.currentUser?.tipo === 'admin';
+        const isAdmin = Auth.isAdmin();
         const rows = this.historico.map(r => `
             <tr>
                 <td>${r.op}</td>

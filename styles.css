@@ -3410,10 +3410,11 @@ tr.has-falta td {
 
 .pa-cards-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.5rem;
     margin-top: 1rem;
-    justify-content: flex-start;
+    justify-content: start;
+    align-items: start;
 }
 
 .pa-card {
@@ -3426,6 +3427,7 @@ tr.has-falta td {
     display: flex;
     flex-direction: column;
     width: 100%;
+    min-height: 250px;
 }
 
 .pa-card:hover {
