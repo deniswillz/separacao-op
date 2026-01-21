@@ -112,14 +112,6 @@
                     <span class="nav-icon">📦</span>
                     <span class="nav-text">Empenhos</span>
                 </li>
-                <li class="nav-item" data-tab="matriz-filial">
-                    <span class="nav-icon">🏢</span>
-                    <span class="nav-text">Matriz x Filial</span>
-                </li>
-                <li class="nav-item" data-tab="blacklist">
-                    <span class="nav-icon">❌</span>
-                    <span class="nav-text">BlackList</span>
-                </li>
                 <li class="nav-item" data-tab="separacao">
                     <span class="nav-icon">✅</span>
                     <span class="nav-text">Separação</span>
@@ -127,6 +119,14 @@
                 <li class="nav-item" data-tab="conferencia">
                     <span class="nav-icon">🔍</span>
                     <span class="nav-text">Conferência</span>
+                </li>
+                <li class="nav-item" data-tab="matriz-filial">
+                    <span class="nav-icon">🏢</span>
+                    <span class="nav-text">Matriz x Filial</span>
+                </li>
+                <li class="nav-item" data-tab="blacklist">
+                    <span class="nav-icon">❌</span>
+                    <span class="nav-text">BlackList</span>
                 </li>
                 <li class="nav-item" data-tab="historico">
                     <span class="nav-icon">📚</span>
@@ -698,31 +698,33 @@
                         </tbody>
                     </table>
                 </div>
-                <!-- Tab: Matriz x Filial -->
-                <section class="tab-content" id="tab-matriz-filial">
-                    <div class="content-header">
-                        <div
-                            style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 1rem;">
-                            <div>
-                                <h1>Matriz x Filial</h1>
-                                <p>Controle de produtos acabados para a Filial</p>
-                            </div>
-                            <div class="search-box"
-                                style="flex: 1; max-width: 400px; display: flex; align-items: center; background: var(--gray-100); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--gray-200);">
-                                <span style="margin-right: 8px;">🔍</span>
-                                <input type="text" id="matrizFilialSearch"
-                                    placeholder="Pesquisar por OP, produto ou descrição..."
-                                    style="border: none; outline: none; background: transparent; width: 100%; font-size: 0.95rem;">
-                            </div>
-                        </div>
-                    </div>
+            </section>
 
-                    <div class="pa-container">
-                        <div id="matrizFilialCards" class="pa-cards-grid">
-                            <p class="empty-text">Carregando...</p>
+            <!-- Tab: Matriz x Filial -->
+            <section class="tab-content" id="tab-matriz-filial">
+                <div class="content-header">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 1rem;">
+                        <div>
+                            <h1>Matriz x Filial</h1>
+                            <p>Controle de produtos acabados para a Filial</p>
+                        </div>
+                        <div class="search-box"
+                            style="flex: 1; max-width: 400px; display: flex; align-items: center; background: var(--gray-100); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--gray-200);">
+                            <span style="margin-right: 8px;">🔍</span>
+                            <input type="text" id="matrizFilialSearch"
+                                placeholder="Pesquisar por OP, produto ou descrição..."
+                                style="border: none; outline: none; background: transparent; width: 100%; font-size: 0.95rem;">
                         </div>
                     </div>
-                </section>
+                </div>
+
+                <div class="pa-container">
+                    <div id="matrizFilialCards" class="pa-cards-grid">
+                        <p class="empty-text">Carregando...</p>
+                    </div>
+                </div>
+            </section>
         </main>
     </div>
 
