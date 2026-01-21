@@ -22,10 +22,18 @@ const App = {
         // Initialize Auth (will use users loaded from cloud)
         Auth.init();
 
-        // Setup login form
-        const loginForm = document.getElementById('loginForm');
+        const btnLogin = document.getElementById('btnLogin');
         if (btnLogin) {
             btnLogin.addEventListener('click', () => {
+                this.handleLogin();
+            });
+        }
+
+        // Setup login form
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
                 this.handleLogin();
             });
         }
@@ -36,13 +44,6 @@ const App = {
             btnToggleTheme.addEventListener('click', () => this.toggleTheme());
         }
         this.loadTheme();
-
-        const btnLogin = document.getElementById('btnLogin');
-        if (btnLogin) {
-            btnLogin.addEventListener('click', () => {
-                this.handleLogin();
-            });
-        }
 
         // Update date/time
         this.updateDateTime();
