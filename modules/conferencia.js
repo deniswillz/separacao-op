@@ -57,6 +57,13 @@ const Conferencia = {
             });
         }
 
+        const btnReverter = document.getElementById('btnReverterSituacao');
+        if (btnReverter) {
+            btnReverter.addEventListener('click', () => {
+                this.reverterSituacao();
+            });
+        }
+
         const responsavelInput = document.getElementById('responsavelConferencia');
         if (responsavelInput) {
             responsavelInput.addEventListener('change', () => {
@@ -242,6 +249,12 @@ const Conferencia = {
         this.listView.style.display = 'none';
         this.detailView.style.display = 'block';
 
+        // Show "Voltar Situação" button if it's an admin or if needed
+        const btnReverter = document.getElementById('btnReverterSituacao');
+        if (btnReverter) {
+            btnReverter.style.display = 'block';
+        }
+
         this.renderItens();
         this.updateStats();
         this.updateButtonStates();
@@ -265,7 +278,36 @@ const Conferencia = {
         this.filtroOP = '';
         this.detailView.style.display = 'none';
         this.listView.style.display = 'block';
+
+        const btnReverter = document.getElementById('btnReverterSituacao');
+        if (btnReverter) btnReverter.style.display = 'none';
+
         this.renderListas();
+    },
+
+    reverterSituacao() {
+        if (!this.listaAtual) return;
+
+        if (!confirm('Deseja realmente voltar esta conferência para a etapa de SEPARAÇÃO?')) {
+            return;
+        }
+
+        // Find original separação list
+        const separacao = Separacao.listas.find(l => String(l.id) === String(this.listaAtual.separacaoId));
+        if (separacao) {
+            separacao.status = 'pendente';
+        }
+
+        // Remove from conferencia
+        this.listas = this.listas.filter(l => String(l.id) !== String(this.listaAtual.id));
+
+        // Save both
+        Separacao.save();
+        this.save();
+
+        this.voltarParaLista();
+        App.showToast('Conferência revertida para Separação!', 'success');
+        App.switchTab('separacao');
     },
 
     excluirLista(id) {
@@ -654,11 +696,34 @@ const Conferencia = {
             this.listaAtual.itensTransferenciaVerificados = [];
         }
 
-        // Sort A-Z by código
-        const itensSorted = [...itensConferencia].sort((a, b) => a.codigo.localeCompare(b.codigo));
+        // GROUP ITEMS BY CODE
+        const itensAgrupados = {};
+        this.listaAtual.itens.forEach(item => {
+            if (!itensAgrupados[item.codigo]) {
+                itensAgrupados[item.codigo] = {
+                    codigo: item.codigo,
+                    descricao: item.descricao,
+                    quantidade: 0,
+                    qtdSeparada: 0,
+                    ordens: []
+                };
+            }
+            itensAgrupados[item.codigo].quantidade += item.quantidade || 0;
+            itensAgrupados[item.codigo].qtdSeparada += item.qtdSeparada || 0;
+            if (item.ordens) {
+                item.ordens.forEach(op => {
+                    if (!itensAgrupados[item.codigo].ordens.includes(op)) {
+                        itensAgrupados[item.codigo].ordens.push(op);
+                    }
+                });
+            }
+        });
+
+        // Convert to array and sort A-Z by código
+        const itensSorted = Object.values(itensAgrupados).sort((a, b) => a.codigo.localeCompare(b.codigo));
 
         const itensHTML = itensSorted.map(item => {
-            const isVerificado = this.listaAtual.itensTransferenciaVerificados.includes(item.id);
+            const isVerificado = this.listaAtual.itensTransferenciaVerificados.includes(item.codigo);
 
             // quantidade = Qtd Solicitada (original), qtdSeparada = Qtd Separada (from Lupa)
             const qtdSolicitada = item.quantidade || 0;
@@ -676,7 +741,7 @@ const Conferencia = {
                 <td style="text-align: center; vertical-align: middle;">
                     <input type="checkbox" 
                            ${isVerificado ? 'checked' : ''} 
-                           onchange="Conferencia.toggleTransferenciaItem(${item.id}, this.checked)">
+                           onchange="Conferencia.toggleTransferenciaItem('${item.codigo}', this.checked)">
                 </td>
                 <td style="vertical-align: middle;">
                     <div>${item.codigo}</div>
@@ -785,7 +850,9 @@ const Conferencia = {
         const itensTransferidos = separacao.itens.filter(i => i.transferido && !i.naoSeparado);
 
         if (marcar) {
-            this.listaAtual.itensTransferenciaVerificados = itensTransferidos.map(i => i.id);
+            // Use codes instead of ids
+            const codes = [...new Set(this.listaAtual.itens.map(i => i.codigo))];
+            this.listaAtual.itensTransferenciaVerificados = codes;
         } else {
             this.listaAtual.itensTransferenciaVerificados = [];
         }
@@ -818,10 +885,12 @@ const Conferencia = {
         let transferenciaOk = false;
 
         if (separacao) {
-            const itensTransferidos = separacao.itens.filter(i => i.transferido && !i.naoSeparado);
+            const itensAteConferencia = this.listaAtual.itens || [];
+            const codesToVerify = [...new Set(itensAteConferencia.map(i => i.codigo))];
             const verificados = this.listaAtual.itensTransferenciaVerificados || [];
-            transferenciaOk = itensTransferidos.length > 0 &&
-                itensTransferidos.every(i => verificados.includes(i.id));
+
+            transferenciaOk = codesToVerify.length > 0 &&
+                codesToVerify.every(code => verificados.includes(code));
         }
 
         // Enable/disable finalize button

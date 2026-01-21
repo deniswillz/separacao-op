@@ -322,7 +322,8 @@ const Separacao = {
         }
 
         const searchTerm = document.getElementById('searchSeparacao').value.toLowerCase();
-        const blacklistCodes = Blacklist.getBlacklistedCodes();
+        const blacklistData = Blacklist.getBlacklistedData();
+        const blacklistCodes = blacklistData.map(item => item.codigo);
 
         let filtered = this.listaAtual.itens;
 
@@ -345,9 +346,18 @@ const Separacao = {
         document.getElementById('emptySeparacao').classList.remove('show');
 
         this.tableBody.innerHTML = filtered.map(item => {
-            const isBlacklisted = blacklistCodes.includes(item.codigo);
-            const rowClass = isBlacklisted ? 'blacklist-item' : '';
-            const isDisabled = item.naoSeparado ? 'disabled' : '';
+            const blItem = blacklistData.find(bl => bl.codigo === item.codigo);
+            const isBlacklisted = !!blItem;
+            const isTalvez = blItem?.talvez;
+            const isNaoSepBlacklist = blItem?.naoSep;
+
+            let rowClass = '';
+            if (item.naoSeparado) rowClass += ' has-nao-sep';
+            if (isTalvez) rowClass += ' talvez-highlight';
+            else if (isBlacklisted && isNaoSepBlacklist) rowClass += ' blacklist-item';
+
+            const isDisabled = (isBlacklisted && isNaoSepBlacklist && !isTalvez) || item.naoSeparado ? 'disabled' : '';
+            const isNaoSepCheckboxDisabled = isBlacklisted && isNaoSepBlacklist && !isTalvez ? 'disabled' : '';
 
             // Lookup description from Cadastro (prioritize Cadastro, fallback to imported)
             const descricaoCadastro = Cadastro.getDescricao(item.codigo);
@@ -406,6 +416,7 @@ const Separacao = {
                     <td class="center">
                         <input type="checkbox" 
                                ${item.naoSeparado ? 'checked' : ''} 
+                               ${isNaoSepCheckboxDisabled}
                                onchange="Separacao.updateItem(${item.id}, 'naoSeparado', this.checked)">
                     </td>
                     <td>

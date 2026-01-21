@@ -362,6 +362,8 @@
                             <tr>
                                 <th>Código</th>
                                 <th>Descrição</th>
+                                <th>Não Sep</th>
+                                <th>Talvez</th>
                                 <th>Data Inclusão</th>
                                 <th>Ações</th>
                             </tr>
@@ -495,9 +497,14 @@
                 <!-- View: Detalhes da Conferência -->
                 <div id="conferenciaDetailView" style="display: none;">
                     <div class="content-header">
-                        <button class="btn btn-outline" id="btnVoltarConferencia">
-                            <span>←</span> Voltar
-                        </button>
+                        <div style="display: flex; gap: 0.5rem; align-items: center;">
+                            <button class="btn btn-outline" id="btnVoltarConferencia">
+                                <span>←</span> Voltar
+                            </button>
+                            <button class="btn btn-warning" id="btnReverterSituacao" style="display: none;">
+                                <span>🔄</span> Voltar Situação
+                            </button>
+                        </div>
                         <h1 id="conferenciaListaTitulo">Conferência</h1>
                         <p id="conferenciaListaInfo"></p>
                     </div>

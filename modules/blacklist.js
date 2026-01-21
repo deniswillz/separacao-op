@@ -95,6 +95,8 @@ const Blacklist = {
                     id: Date.now() + Math.random(),
                     codigo: codigo,
                     descricao: row.Descricao || row.descricao || row.DESCRICAO || row['Descrição'] || '',
+                    naoSep: true, // Default to true if only in list
+                    talvez: false,
                     dataInclusao: new Date().toLocaleDateString('pt-BR')
                 });
 
@@ -151,6 +153,8 @@ const Blacklist = {
             id: Date.now(),
             codigo: codigo,
             descricao: descricao,
+            naoSep: true, // Default for new items
+            talvez: false,
             dataInclusao: new Date().toLocaleDateString('pt-BR')
         });
 
@@ -179,8 +183,27 @@ const Blacklist = {
         return this.data.some(item => item.codigo === codigo.toUpperCase());
     },
 
+    getBlacklistedData() {
+        return this.data;
+    },
+
     getBlacklistedCodes() {
-        return this.data.map(item => item.codigo);
+        return this.data.filter(item => item.naoSep).map(item => item.codigo);
+    },
+
+    toggleField(id, field) {
+        const item = this.data.find(i => i.id === id);
+        if (item) {
+            item[field] = !item[field];
+
+            // If marking as Talvez, also mark as Não Sep by default
+            if (field === 'talvez' && item.talvez) {
+                item.naoSep = true;
+            }
+
+            this.save();
+            this.render();
+        }
     },
 
     render() {
@@ -196,6 +219,14 @@ const Blacklist = {
             <tr>
                 <td>${item.codigo}</td>
                 <td>${item.descricao || '-'}</td>
+                <td class="center">
+                    <input type="checkbox" ${item.naoSep ? 'checked' : ''} 
+                           onchange="Blacklist.toggleField(${item.id}, 'naoSep')">
+                </td>
+                <td class="center">
+                    <input type="checkbox" ${item.talvez ? 'checked' : ''} 
+                           onchange="Blacklist.toggleField(${item.id}, 'talvez')">
+                </td>
                 <td>${item.dataInclusao}</td>
                 <td>
                     <button class="btn-delete" onclick="Blacklist.removeItem(${item.id})">
