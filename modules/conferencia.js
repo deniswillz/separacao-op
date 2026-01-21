@@ -243,19 +243,16 @@ const Conferencia = {
         const updatedLista = this.listas.find(l => String(l.id) === String(id));
         if (!updatedLista) return;
 
-        // BLOQUEIO MULTI-USUÁRIO: Verificar se já está em uso por outro terminal
-        // O formato é "Nome | TerminalId"
-        const lockValue = updatedLista.usuarioAtual || '';
-        const [lockedUser, lockedTerminal] = lockValue.split(' | ');
+        // BLOQUEIO MULTI-USUÁRIO: Verificar se já está em uso por outro usuário
+        const currentUser = Auth.currentUser?.nome || 'Anônimo';
 
-        if (lockValue && lockedTerminal !== App.terminalId) {
+        if (updatedLista.usuarioAtual && updatedLista.usuarioAtual !== currentUser) {
             const body = `
                 <div style="text-align: center; padding: 1rem;">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
                     <h3 style="color: #dc3545; margin-bottom: 1rem;">Lista em Uso!</h3>
-                    <p>Esta lista está sendo conferida por: <strong style="color: #0d6efd;">${lockedUser}</strong></p>
-                    <p style="margin-top: 0.5rem; font-size: 0.8rem; color: #888;">Terminal: ${lockedTerminal || 'N/A'}</p>
-                    <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">Para evitar duplicidade de dados, aguarde o outro terminal terminar ou peça para ele fechar o card.</p>
+                    <p>Esta lista está sendo conferida por: <strong style="color: #0d6efd;">${updatedLista.usuarioAtual}</strong></p>
+                    <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">Para evitar duplicidade de dados, aguarde o outro usuário terminar ou peça para ele fechar o card.</p>
                 </div>
             `;
             App.showModal('Acesso Bloqueado', body, `<button class="btn btn-primary" onclick="App.closeModal()">Entendi</button>`);
@@ -276,10 +273,10 @@ const Conferencia = {
             updatedLista.responsavelConferencia = Auth.currentUser.nome;
         }
 
-        // Mark as in use by current user IMMEDIATELY (Atomic update with Terminal ID)
-        const lockString = (Auth.currentUser?.nome || 'Anônimo') + ' | ' + App.terminalId;
-        updatedLista.usuarioAtual = lockString;
-        await Storage.updateSingleRecord(Storage.KEYS.CONFERENCIA, updatedLista.id, { usuarioAtual: lockString });
+        // Mark as in use by current user IMMEDIATELY (Atomic update)
+        const userLock = Auth.currentUser?.nome || 'Anônimo';
+        updatedLista.usuarioAtual = userLock;
+        await Storage.updateSingleRecord(Storage.KEYS.CONFERENCIA, updatedLista.id, { usuarioAtual: userLock });
 
         document.getElementById('dataConferencia').value = updatedLista.dataConferencia;
 
@@ -289,7 +286,7 @@ const Conferencia = {
         this.listView.style.display = 'none';
         this.detailView.style.display = 'block';
 
-        // Show "Voltar Situação" button if it's an admin or if needed
+        // Show "Voltar Situacao" button if it's an admin or if needed
         const btnReverter = document.getElementById('btnReverterSituacao');
         if (btnReverter) {
             btnReverter.style.display = 'block';
@@ -333,7 +330,7 @@ const Conferencia = {
         this.renderListas();
     },
 
-    reverterSituacao() {
+    async reverterSituacao() {
         if (!this.listaAtual) return;
 
         if (!confirm('Deseja realmente voltar esta conferência para a etapa de SEPARAÇÃO?')) {
@@ -350,8 +347,9 @@ const Conferencia = {
         this.listas = this.listas.filter(l => String(l.id) !== String(this.listaAtual.id));
 
         // Save both
-        Separacao.save();
-        this.save();
+        // Save both IMMEDIATELY to avoid sync loss on tab switch/reload
+        await Storage.saveImmediate(Storage.KEYS.SEPARACAO, Separacao.listas);
+        await Storage.saveImmediate(Storage.KEYS.CONFERENCIA, this.listas);
 
         // Audit log
         Auditoria.log('REVERTER_SITUACAO', {
@@ -527,21 +525,35 @@ const Conferencia = {
         App.showToast('Conferência salva com pendências', 'success');
     },
 
-    finalizarConferencia() {
+    async finalizarConferencia() {
         if (!this.listaAtual) return;
 
         const responsavel = document.getElementById('responsavelConferencia').value;
-
         if (!responsavel) {
             App.showToast('Informe o responsável pela conferência', 'warning');
             document.getElementById('responsavelConferencia').focus();
             return;
         }
 
-        // Check if ALL items have been verified (OK or FALTA)
-        const itensPendentes = this.listaAtual.itens.filter(i => !i.ok && !i.falta);
+        // Check if ALL items have been verified locally (OK or FALTA)
+        const items = this.listaAtual.itens || [];
+        const itensPendentes = items.filter(i => !i.ok && !i.falta);
         if (itensPendentes.length > 0) {
-            App.showToast(`Ainda existem ${itensPendentes.length} itens não verificados. Marque todos como OK ou FALTA.`, 'warning');
+            App.showToast(`Ainda existem ${itensPendentes.length} itens não verificados.`, 'warning');
+            return;
+        }
+
+        // Check transfer list
+        const separacao = Separacao.listas.find(l => String(l.id) === String(this.listaAtual.separacaoId));
+        let transferenciaOk = true;
+        if (separacao) {
+            const codesToVerify = [...new Set(items.map(i => i.codigo))];
+            const verificados = this.listaAtual.itensTransferenciaVerificados || [];
+            transferenciaOk = codesToVerify.every(code => verificados.includes(code));
+        }
+
+        if (!transferenciaOk) {
+            App.showToast('Verifique todos os itens na Lista de Transferência antes de finalizar.', 'warning');
             return;
         }
 
@@ -592,20 +604,13 @@ const Conferencia = {
             }
         }
 
-        // Update lista status
-        const lista = this.listas.find(l => l.id === this.listaAtual.id);
-        if (lista) {
-            lista.status = 'finalizado';
-            lista.responsavelConferencia = responsavel;
-            lista.dataFinalizacao = new Date().toISOString();
-            this.save();
-        }
+        if (!confirm('Deseja realmente FINALIZAR esta conferência?')) return;
 
-        // REQUIRE DIGITAL SIGNATURE
-        this.showSignatureModal(lista);
+        // Digitial Signature
+        this.showSignatureModal();
     },
 
-    showSignatureModal(lista) {
+    showSignatureModal() {
         const body = `
             <div style="text-align: center;">
                 <p style="margin-bottom: 1rem;">Confirme a conferência com sua assinatura digital:</p>
@@ -627,7 +632,7 @@ const Conferencia = {
             document.getElementById('btnConfirmSignature').addEventListener('click', () => {
                 const canvas = document.getElementById('signatureCanvas');
                 const sigData = canvas.toDataURL();
-                this.confirmFinalization(lista, sigData);
+                this.confirmFinalization(sigData);
             });
         }, 200);
     },
@@ -683,26 +688,43 @@ const Conferencia = {
         }
     },
 
-    confirmFinalization(lista, sigData) {
+    async confirmFinalization(sigData) {
+        if (!this.listaAtual) return;
+
+        const responsavel = document.getElementById('responsavelConferencia').value;
+        const lista = this.listas.find(l => l.id === this.listaAtual.id);
+        if (!lista) return;
+
+        lista.status = 'finalizado';
+        lista.responsavelConferencia = responsavel;
+        lista.dataFinalizacao = new Date().toISOString();
         lista.assinatura = sigData;
+        lista.usuarioAtual = null;
 
         Historico.adicionarRegistro(lista);
 
-        // NOVO: Avançar status no Matriz x Filial para "Qualidade"
+        // Avançar status no Matriz x Filial para "Qualidade"
         if (typeof MatrizFilial !== 'undefined') {
             MatrizFilial.updateStatusByOPs(lista.ordens, 'qualidade');
         }
 
         this.listas = this.listas.filter(l => l.id !== lista.id);
-        this.save();
+
+        // Save everything immediately
+        await Storage.saveImmediate(Storage.KEYS.CONFERENCIA, this.listas);
 
         Auditoria.log('FINALIZAR_CONFERENCIA_ASSINADA', {
             nome: lista.nome,
-            id: lista.id
+            id: lista.id,
+            responsavel: responsavel
         });
 
         App.closeModal();
-        this.voltarParaLista();
+        this.listaAtual = null;
+        this.listView.style.display = 'block';
+        this.detailView.style.display = 'none';
+        this.renderListas();
+
         App.showToast('Conferência finalizada com sucesso!', 'success');
     },
 
@@ -890,7 +912,7 @@ const Conferencia = {
         const itensSorted = Object.values(itensAgrupados).sort((a, b) => a.codigo.localeCompare(b.codigo));
 
         const itensHTML = itensSorted.map(item => {
-            const isVerificado = this.listaAtual.itensTransferenciaVerificados.includes(item.codigo);
+            const isVerificado = this.listaAtual.itensTransferenciaVerificados?.includes(item.codigo);
 
             // quantidade = Qtd Solicitada (original), qtdSeparada = Qtd Separada (from Lupa)
             const qtdSolicitada = item.quantidade || 0;
@@ -971,20 +993,19 @@ const Conferencia = {
     /**
      * Toggle individual transfer item verification
      */
-    toggleTransferenciaItem(itemId, checked) {
+    toggleTransferenciaItem(codigo, checked) {
         if (!this.listaAtual) return;
-
         if (!this.listaAtual.itensTransferenciaVerificados) {
             this.listaAtual.itensTransferenciaVerificados = [];
         }
 
         if (checked) {
-            if (!this.listaAtual.itensTransferenciaVerificados.includes(itemId)) {
-                this.listaAtual.itensTransferenciaVerificados.push(itemId);
+            if (!this.listaAtual.itensTransferenciaVerificados.includes(codigo)) {
+                this.listaAtual.itensTransferenciaVerificados.push(codigo);
             }
         } else {
             this.listaAtual.itensTransferenciaVerificados =
-                this.listaAtual.itensTransferenciaVerificados.filter(id => id !== itemId);
+                this.listaAtual.itensTransferenciaVerificados.filter(c => c !== codigo);
         }
 
         // Update the list in main array

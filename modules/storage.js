@@ -138,12 +138,22 @@ const Storage = {
             if (error) {
                 console.error(`❌ Erro ao atualizar registro único em ${table}:`, error);
 
-                // Fallback: if it's a column error, try cleaning
-                if (error.status === 400 || error.code === 'P0000') {
+                // Fallback: if it's a column error, try cleaning EVERYTHING that's non-standard
+                if (error.status === 400 || error.code === 'P0000' || error.code === '42703') {
                     const cleaned = { ...prepared };
-                    const risky = ['usuario_atual', 'responsavel_separacao', 'responsavel_conferencia'];
+                    const risky = [
+                        'usuario_atual', 'responsavel_separacao', 'responsavel_conferencia',
+                        'itens_transferencia_verificados', 'ordens_conferidas'
+                    ];
                     risky.forEach(c => delete cleaned[c]);
-                    await supabaseClient.from(table).update(cleaned).eq('id', id);
+
+                    if (Object.keys(cleaned).length > 0) {
+                        const { error: retryError } = await supabaseClient.from(table).update(cleaned).eq('id', id);
+                        if (!retryError) {
+                            console.log(`✅ Registro ${id} em ${table} atualizado após limpeza`);
+                            return true;
+                        }
+                    }
                 }
                 return false;
             }
@@ -433,6 +443,22 @@ const Storage = {
                     }
                     return converted;
                 });
+
+                // Smart merge: preserve local-only fields that might not be in cloud schema
+                if (this._cache[key]) {
+                    const localData = this._cache[key];
+                    convertedData.forEach(cloudItem => {
+                        const localItem = localData.find(l => String(l.id) === String(cloudItem.id));
+                        if (localItem) {
+                            // Keep local fields that aren't present in cloud item (schema mismatches)
+                            for (const [lk, lv] of Object.entries(localItem)) {
+                                if (cloudItem[lk] === undefined) {
+                                    cloudItem[lk] = lv;
+                                }
+                            }
+                        }
+                    });
+                }
 
                 // Save to in-memory cache
                 this._cache[key] = convertedData;

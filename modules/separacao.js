@@ -185,19 +185,16 @@ const Separacao = {
         const updatedLista = this.listas.find(l => String(l.id) === String(id));
         if (!updatedLista) return;
 
-        // BLOQUEIO MULTI-USUÁRIO: Verificar se já está em uso por outro terminal
-        // O formato é "Nome | TerminalId"
-        const lockValue = updatedLista.usuarioAtual || '';
-        const [lockedUser, lockedTerminal] = lockValue.split(' | ');
+        // BLOQUEIO MULTI-USUÁRIO: Verificar se já está em uso por outro usuário
+        const currentUser = Auth.currentUser?.nome || 'Anônimo';
 
-        if (lockValue && lockedTerminal !== App.terminalId) {
+        if (updatedLista.usuarioAtual && updatedLista.usuarioAtual !== currentUser) {
             const body = `
                 <div style="text-align: center; padding: 1rem;">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
                     <h3 style="color: #dc3545; margin-bottom: 1rem;">Lista em Uso!</h3>
-                    <p>Esta lista está sendo editada por: <strong style="color: #0d6efd;">${lockedUser}</strong></p>
-                    <p style="margin-top: 0.5rem; font-size: 0.8rem; color: #888;">Terminal: ${lockedTerminal || 'N/A'}</p>
-                    <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">Para evitar duplicidade de dados, aguarde o outro terminal terminar ou peça para ele fechar o card.</p>
+                    <p>Esta lista está sendo editada por: <strong style="color: #0d6efd;">${updatedLista.usuarioAtual}</strong></p>
+                    <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">Para evitar duplicidade de dados, aguarde o outro usuário terminar ou peça para ele fechar o card.</p>
                 </div>
             `;
             App.showModal('Acesso Bloqueado', body, `<button class="btn btn-primary" onclick="App.closeModal()">Entendi</button>`);
@@ -216,11 +213,10 @@ const Separacao = {
         const responsavel = updatedLista.responsavel || Auth.currentUser?.nome || '';
         document.getElementById('responsavelSeparacao').value = responsavel;
 
-        // Mark as in use by current user IMMEDIATELY (Atomic update with Terminal ID)
-        const lockString = (Auth.currentUser?.nome || 'Anônimo') + ' | ' + App.terminalId;
-        updatedLista.usuarioAtual = lockString;
-        await Storage.updateSingleRecord(Storage.KEYS.SEPARACAO, updatedLista.id, { usuarioAtual: lockString });
-
+        // Mark as in use by current user IMMEDIATELY (Atomic update)
+        const userLock = Auth.currentUser?.nome || 'Anônimo';
+        updatedLista.usuarioAtual = userLock;
+        await Storage.updateSingleRecord(Storage.KEYS.SEPARACAO, updatedLista.id, { usuarioAtual: userLock });
         this.listView.style.display = 'none';
         this.detailView.style.display = 'block';
 
@@ -296,7 +292,7 @@ const Separacao = {
         document.getElementById('totalNaoSeparados').textContent = naoSeparados;
     },
 
-    enviarParaConferencia() {
+    async enviarParaConferencia() {
         if (!this.listaAtual) return;
 
         const responsavel = document.getElementById('responsavelSeparacao').value;
@@ -349,7 +345,7 @@ const Separacao = {
                 MatrizFilial.updateStatusByOPs(lista.ordens, 'conferencia');
             }
 
-            this.save();
+            await Storage.saveImmediate(Storage.KEYS.SEPARACAO, this.listas);
         }
 
         // Send list to Conferência (only items that were separated, not blacklist)
@@ -360,7 +356,7 @@ const Separacao = {
         App.showToast(`Lista enviada para conferência`, 'success');
     },
 
-    deletarLista(id) {
+    async deletarLista(id) {
         const lista = this.listas.find(l => String(l.id) === String(id));
         if (!lista) return;
 
@@ -382,7 +378,7 @@ const Separacao = {
 
         // 3. Remover a lista de separação
         this.listas = this.listas.filter(l => String(l.id) !== String(id));
-        this.save();
+        await Storage.saveImmediate(Storage.KEYS.SEPARACAO, this.listas);
         this.renderListas();
 
         // Update dashboard stats
