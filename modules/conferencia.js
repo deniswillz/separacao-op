@@ -116,7 +116,10 @@ const Conferencia = {
 
     receberLista(listaSeparacao) {
         // VERIFICAR DUPLICIDADE: Evitar receber a mesma lista de separação mais de uma vez
-        const existe = this.listas.find(l => String(l.separacaoId) === String(listaSeparacao.id));
+        const existe = this.listas.find(l =>
+            String(l.separacaoId) === String(listaSeparacao.id) ||
+            (l.nome === listaSeparacao.nome && l.armazem === listaSeparacao.armazem && l.status === 'pendente')
+        );
         if (existe) {
             console.warn('⚠️ Lista de conferência já existe para esta separação, ignorando');
             return;
@@ -145,33 +148,35 @@ const Conferencia = {
             const allOPs = [...new Set([...opsFromSeparado, ...opsFromOriginal])];
 
             if (allOPs.length > 0) {
-                allOPs.forEach(op => {
-                    // Get ORIGINAL quantity from order (qtdPorOP)
-                    const qtdSolicitada = qtdPorOP[op] || 0;
+                // Determine how to distribute qtdSeparada
+                const hasDetailedLupa = Object.values(separadoPorOP).some(v => v.qtdSeparada > 0 || v.ok);
+                const totalItemSeparado = item.qtdSeparada || 0;
+                const totalItemSolicitado = item.quantidade || 0;
 
-                    // Get SEPARATED quantity from Lupa (separadoPorOP)
+                allOPs.forEach(op => {
+                    const qtdSolicitada = qtdPorOP[op] || 0;
                     const sepInfo = separadoPorOP[op];
                     let qtdSeparada = 0;
 
-                    if (sepInfo && sepInfo.ok) {
-                        // If this OP was marked OK in Lupa, use the separated quantity
-                        qtdSeparada = sepInfo.qtdSeparada || 0;
-                    } else if (sepInfo) {
-                        // Has separadoPorOP but not marked OK - use what was entered
-                        qtdSeparada = sepInfo.qtdSeparada || 0;
-                    } else {
-                        // Fallback: old data without separadoPorOP - use original
-                        qtdSeparada = qtdSolicitada;
+                    if (hasDetailedLupa) {
+                        // Use detailed Lupa info
+                        qtdSeparada = sepInfo?.qtdSeparada || 0;
+                    } else if (item.separado) {
+                        // Proportional distribution if no detailed Lupa but marked as separated
+                        if (totalItemSolicitado > 0) {
+                            qtdSeparada = (qtdSolicitada / totalItemSolicitado) * totalItemSeparado;
+                        } else {
+                            qtdSeparada = 0;
+                        }
                     }
 
-                    // Only add if there's quantity to check (either original or separated)
                     if (qtdSolicitada > 0 || qtdSeparada > 0) {
                         itensExpandidos.push({
                             id: itemId++,
                             codigo: item.codigo,
                             descricao: item.descricao,
-                            quantidade: qtdSolicitada, // ORIGINAL from order
-                            qtdSeparada: qtdSeparada, // From Lupa
+                            quantidade: qtdSolicitada,
+                            qtdSeparada: qtdSeparada,
                             ordens: [op],
                             ok: false,
                             falta: false,
@@ -238,14 +243,19 @@ const Conferencia = {
         const updatedLista = this.listas.find(l => String(l.id) === String(id));
         if (!updatedLista) return;
 
-        // BLOQUEIO MULTI-USUÁRIO: Verificar se já está em uso por outro usuário
-        if (updatedLista.usuarioAtual && updatedLista.usuarioAtual !== (Auth.currentUser?.nome || 'Anônimo')) {
+        // BLOQUEIO MULTI-USUÁRIO: Verificar se já está em uso por outro terminal
+        // O formato é "Nome | TerminalId"
+        const lockValue = updatedLista.usuarioAtual || '';
+        const [lockedUser, lockedTerminal] = lockValue.split(' | ');
+
+        if (lockValue && lockedTerminal !== App.terminalId) {
             const body = `
                 <div style="text-align: center; padding: 1rem;">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
                     <h3 style="color: #dc3545; margin-bottom: 1rem;">Lista em Uso!</h3>
-                    <p>Esta lista está sendo conferida por: <strong style="color: #0d6efd;">${updatedLista.usuarioAtual}</strong></p>
-                    <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">Para evitar duplicidade de dados, aguarde o outro usuário terminar ou peça para ele fechar o card.</p>
+                    <p>Esta lista está sendo conferida por: <strong style="color: #0d6efd;">${lockedUser}</strong></p>
+                    <p style="margin-top: 0.5rem; font-size: 0.8rem; color: #888;">Terminal: ${lockedTerminal || 'N/A'}</p>
+                    <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">Para evitar duplicidade de dados, aguarde o outro terminal terminar ou peça para ele fechar o card.</p>
                 </div>
             `;
             App.showModal('Acesso Bloqueado', body, `<button class="btn btn-primary" onclick="App.closeModal()">Entendi</button>`);
@@ -266,11 +276,12 @@ const Conferencia = {
             updatedLista.responsavelConferencia = Auth.currentUser.nome;
         }
 
-        // Mark as in use by current user IMMEDIATELY
-        updatedLista.usuarioAtual = Auth.currentUser?.nome || 'Anônimo';
-        await Storage.saveImmediate(Storage.KEYS.CONFERENCIA, this.listas);
+        // Mark as in use by current user IMMEDIATELY (Atomic update with Terminal ID)
+        const lockString = (Auth.currentUser?.nome || 'Anônimo') + ' | ' + App.terminalId;
+        updatedLista.usuarioAtual = lockString;
+        await Storage.updateSingleRecord(Storage.KEYS.CONFERENCIA, updatedLista.id, { usuarioAtual: lockString });
 
-        document.getElementById('dataConferencia').value = lista.dataConferencia;
+        document.getElementById('dataConferencia').value = updatedLista.dataConferencia;
 
         this.populateOPFilter();
         this.renderOrdens();
@@ -308,7 +319,7 @@ const Conferencia = {
             const lista = this.listas.find(l => l.id === this.listaAtual.id);
             if (lista) {
                 lista.usuarioAtual = null;
-                await Storage.saveImmediate(Storage.KEYS.CONFERENCIA, this.listas);
+                await Storage.updateSingleRecord(Storage.KEYS.CONFERENCIA, lista.id, { usuarioAtual: null });
             }
         }
         this.listaAtual = null;
@@ -709,6 +720,8 @@ const Conferencia = {
     },
 
     renderListas() {
+        if (!this.cardsContainer) return;
+
         let listasPendentes = this.listas.filter(l => l.status === 'pendente');
 
         // Sort A-Z by name

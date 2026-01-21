@@ -105,6 +105,58 @@ const Storage = {
     },
 
     /**
+     * Update a single record attribute in Supabase and cache
+     * Much faster than syncing the whole table, avoids most race conditions
+     */
+    async updateSingleRecord(key, id, attributes) {
+        try {
+            const table = this.TABLE_MAP[key];
+            if (!table || !SupabaseClient?.isOnline) return false;
+
+            // 1. Update memory cache first
+            if (this._cache[key]) {
+                const index = this._cache[key].findIndex(item => String(item.id) === String(id));
+                if (index !== -1) {
+                    Object.assign(this._cache[key][index], attributes);
+                }
+            }
+
+            // 2. Prepare snake_case attributes for Supabase
+            const prepared = {};
+            for (const [k, v] of Object.entries(attributes)) {
+                const snakeKey = k.replace(/([A-Z])/g, '_$1').toLowerCase();
+                prepared[snakeKey] = v;
+            }
+
+            // 3. Perform atomic update in Supabase
+            console.log(`📡 Atualizando registro ${id} em ${table}...`);
+            const { error } = await supabaseClient
+                .from(table)
+                .update(prepared)
+                .eq('id', id);
+
+            if (error) {
+                console.error(`❌ Erro ao atualizar registro único em ${table}:`, error);
+
+                // Fallback: if it's a column error, try cleaning
+                if (error.status === 400 || error.code === 'P0000') {
+                    const cleaned = { ...prepared };
+                    const risky = ['usuario_atual', 'responsavel_separacao', 'responsavel_conferencia'];
+                    risky.forEach(c => delete cleaned[c]);
+                    await supabaseClient.from(table).update(cleaned).eq('id', id);
+                }
+                return false;
+            }
+
+            console.log(`✅ Registro ${id} em ${table} atualizado`);
+            return true;
+        } catch (e) {
+            console.error('❌ Erro no updateSingleRecord:', e);
+            return false;
+        }
+    },
+
+    /**
      * Sync data to Supabase
      * Uses UPSERT strategy to avoid race conditions where data appears empty during sync
      */
@@ -172,8 +224,8 @@ const Storage = {
                     // Skip fields that don't exist in Supabase tables
                     const skipFields = [
                         'total_itens', 'itens_ok', 'itens_o_k', 'totalItens', 'itensOk', 'itensOK',
-                        'itensTransferenciaVerificados', 'itens_transferencia_verificados',
-                        'naoSep', 'nao_sep', 'talvez'
+                        'naoSep', 'nao_sep', 'talvez',
+                        // These might be causing 400 if not in DB, adding to sync fallback logic instead
                     ];
                     if (skipFields.includes(k)) continue;
 
@@ -214,21 +266,42 @@ const Storage = {
 
                 if (result.error) {
                     console.error(`❌ Erro upsert batch ${batchNum} de ${table}:`, result.error);
-                    // Try individual inserts as fallback
+
+                    // Fallback cleanup: If it's a 400, it's likely a column mismatch
+                    // We'll try to identify and skip the problematic columns in individual inserts
                     let individualSuccess = 0;
                     for (const record of batch) {
                         try {
-                            await supabaseClient.from(table).upsert([record], {
+                            const singleResult = await supabaseClient.from(table).upsert([record], {
                                 onConflict: conflictKey,
                                 ignoreDuplicates: false
                             });
-                            individualSuccess++;
+
+                            if (singleResult.error) {
+                                // If individual upsert fails with 400, try removing non-critical columns
+                                if (singleResult.error.code === 'P0000' || singleResult.error.status === 400) {
+                                    const cleanedRecord = { ...record };
+                                    // Remove columns that were likely added recently and might be missing
+                                    const riskyColumns = [
+                                        'usuario_atual', 'responsavel_separacao',
+                                        'itens_transferencia_verificados', 'responsavel_conferencia'
+                                    ];
+                                    riskyColumns.forEach(col => delete cleanedRecord[col]);
+
+                                    const retryResult = await supabaseClient.from(table).upsert([cleanedRecord], {
+                                        onConflict: conflictKey
+                                    });
+                                    if (!retryResult.error) individualSuccess++;
+                                }
+                            } else {
+                                individualSuccess++;
+                            }
                         } catch (e) {
                             console.warn(`⚠️ Falha ao sincronizar registro:`, e);
                         }
                     }
                     upserted += individualSuccess;
-                    console.log(`🔄 Lote ${batchNum}: ${individualSuccess}/${batch.length} salvos individualmente`);
+                    console.log(`🔄 Lote ${batchNum}: ${individualSuccess}/${batch.length} salvos com limpeza de colunas`);
                 } else {
                     upserted += batch.length;
                     console.log(`✅ Lote ${batchNum}: ${batch.length} registros enviados (total: ${upserted})`);

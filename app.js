@@ -5,8 +5,16 @@
 
 const App = {
     currentTab: 'dashboard',
+    terminalId: null,
 
     async init() {
+        // Initialize Terminal ID (unique for this session/tab)
+        this.terminalId = sessionStorage.getItem('terminalId');
+        if (!this.terminalId) {
+            this.terminalId = 'T' + Math.random().toString(36).substr(2, 9).toUpperCase();
+            sessionStorage.setItem('terminalId', this.terminalId);
+        }
+        console.log('💻 Terminal ID:', this.terminalId);
         // Initialize Supabase first
         if (typeof SupabaseClient !== 'undefined') {
             await SupabaseClient.init();
@@ -203,7 +211,7 @@ const App = {
         this.currentTab = tabName;
 
         // Modules that need real-time data sync
-        const syncModules = ['dashboard', 'separacao', 'conferencia', 'historico'];
+        const syncModules = ['dashboard', 'separacao', 'conferencia', 'historico', 'matriz_filial', 'empenhos', 'blacklist'];
 
         // Reload from cloud before rendering for critical modules
         if (syncModules.includes(tabName) && SupabaseClient?.isOnline) {
@@ -224,6 +232,15 @@ const App = {
             }
             if (tabName === 'historico') {
                 await Storage.loadFromCloud(Storage.KEYS.HISTORICO);
+            }
+            if (tabName === 'matriz_filial') {
+                await Storage.loadFromCloud(Storage.KEYS.MATRIZ_FILIAL);
+            }
+            if (tabName === 'empenhos') {
+                await Storage.loadFromCloud(Storage.KEYS.EMPENHOS);
+            }
+            if (tabName === 'blacklist') {
+                await Storage.loadFromCloud(Storage.KEYS.BLACKLIST);
             }
         } catch (e) {
             console.warn('⚠️ Erro ao atualizar dados:', e);

@@ -185,14 +185,19 @@ const Separacao = {
         const updatedLista = this.listas.find(l => String(l.id) === String(id));
         if (!updatedLista) return;
 
-        // BLOQUEIO MULTI-USUÁRIO: Verificar se já está em uso por outro usuário
-        if (updatedLista.usuarioAtual && updatedLista.usuarioAtual !== (Auth.currentUser?.nome || 'Anônimo')) {
+        // BLOQUEIO MULTI-USUÁRIO: Verificar se já está em uso por outro terminal
+        // O formato é "Nome | TerminalId"
+        const lockValue = updatedLista.usuarioAtual || '';
+        const [lockedUser, lockedTerminal] = lockValue.split(' | ');
+
+        if (lockValue && lockedTerminal !== App.terminalId) {
             const body = `
                 <div style="text-align: center; padding: 1rem;">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
                     <h3 style="color: #dc3545; margin-bottom: 1rem;">Lista em Uso!</h3>
-                    <p>Esta lista está sendo editada por: <strong style="color: #0d6efd;">${updatedLista.usuarioAtual}</strong></p>
-                    <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">Para evitar duplicidade de dados, aguarde o outro usuário terminar ou peça para ele fechar o card.</p>
+                    <p>Esta lista está sendo editada por: <strong style="color: #0d6efd;">${lockedUser}</strong></p>
+                    <p style="margin-top: 0.5rem; font-size: 0.8rem; color: #888;">Terminal: ${lockedTerminal || 'N/A'}</p>
+                    <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">Para evitar duplicidade de dados, aguarde o outro terminal terminar ou peça para ele fechar o card.</p>
                 </div>
             `;
             App.showModal('Acesso Bloqueado', body, `<button class="btn btn-primary" onclick="App.closeModal()">Entendi</button>`);
@@ -211,9 +216,10 @@ const Separacao = {
         const responsavel = updatedLista.responsavel || Auth.currentUser?.nome || '';
         document.getElementById('responsavelSeparacao').value = responsavel;
 
-        // Mark as in use by current user IMMEDIATELY
-        updatedLista.usuarioAtual = Auth.currentUser?.nome || 'Anônimo';
-        await Storage.saveImmediate(Storage.KEYS.SEPARACAO, this.listas);
+        // Mark as in use by current user IMMEDIATELY (Atomic update with Terminal ID)
+        const lockString = (Auth.currentUser?.nome || 'Anônimo') + ' | ' + App.terminalId;
+        updatedLista.usuarioAtual = lockString;
+        await Storage.updateSingleRecord(Storage.KEYS.SEPARACAO, updatedLista.id, { usuarioAtual: lockString });
 
         this.listView.style.display = 'none';
         this.detailView.style.display = 'block';
@@ -228,7 +234,7 @@ const Separacao = {
             const lista = this.listas.find(l => l.id === this.listaAtual.id);
             if (lista) {
                 lista.usuarioAtual = null;
-                await Storage.saveImmediate(Storage.KEYS.SEPARACAO, this.listas);
+                await Storage.updateSingleRecord(Storage.KEYS.SEPARACAO, lista.id, { usuarioAtual: null });
             }
         }
         this.listaAtual = null;
@@ -390,6 +396,8 @@ const Separacao = {
     },
 
     renderListas() {
+        if (!this.cardsContainer) return;
+
         let listasDisponiveis = this.listas.filter(l => l.status === 'pendente');
 
         // Sort A-Z by name
