@@ -46,6 +46,13 @@ const Configuracoes = {
                 this.showRestoreBackupModal();
             });
         }
+
+        const btnLogoutTodos = document.getElementById('btnLogoutTodos');
+        if (btnLogoutTodos) {
+            btnLogoutTodos.addEventListener('click', () => {
+                this.logoutTodosUsuarios();
+            });
+        }
     },
 
     resetAllData() {
@@ -503,6 +510,38 @@ const Configuracoes = {
             }, 2000);
         } else {
             App.showToast(result.message, 'error');
+        }
+    },
+
+    async logoutTodosUsuarios() {
+        if (!confirm('Deseja realmente limpar as travas de TODOS os usuários em todos os cards? Use isso apenas se houver usuários "presos" indevidamente.')) {
+            return;
+        }
+
+        App.showToast('Limpando travas de usuários...', 'info');
+
+        try {
+            // 1. Limpar na Separação
+            const separacaoData = Storage.load(Storage.KEYS.SEPARACAO) || [];
+            separacaoData.forEach(l => l.usuarioAtual = null);
+            await Storage.saveImmediate(Storage.KEYS.SEPARACAO, separacaoData);
+            if (typeof Separacao !== 'undefined') Separacao.listas = separacaoData;
+
+            // 2. Limpar na Conferência
+            const conferenciaData = Storage.load(Storage.KEYS.CONFERENCIA) || [];
+            conferenciaData.forEach(l => l.usuarioAtual = null);
+            await Storage.saveImmediate(Storage.KEYS.CONFERENCIA, conferenciaData);
+            if (typeof Conferencia !== 'undefined') Conferencia.listas = conferenciaData;
+
+            App.showToast('Todos os cards foram liberados com sucesso!', 'success');
+
+            // Render updates if on the same tabs
+            if (typeof Separacao !== 'undefined') Separacao.renderListas();
+            if (typeof Conferencia !== 'undefined') Conferencia.renderListas();
+
+        } catch (error) {
+            console.error('Erro ao liberar cards:', error);
+            App.showToast('Erro ao liberar cards. Tente novamente.', 'error');
         }
     },
 

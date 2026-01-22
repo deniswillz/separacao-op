@@ -333,18 +333,22 @@ const Conferencia = {
     async reverterSituacao() {
         if (!this.listaAtual) return;
 
-        if (!confirm('Deseja realmente voltar esta conferência para a etapa de SEPARAÇÃO?')) {
+        const listaId = this.listaAtual.id;
+        const listaNome = this.listaAtual.nome;
+        const separacaoId = this.listaAtual.separacaoId;
+
+        if (!confirm(`Deseja realmente voltar a conferência "${listaNome}" para a etapa de SEPARAÇÃO?`)) {
             return;
         }
 
         // Find original separação list
-        const separacao = Separacao.listas.find(l => String(l.id) === String(this.listaAtual.separacaoId));
+        const separacao = Separacao.listas.find(l => String(l.id) === String(separacaoId));
         if (separacao) {
             separacao.status = 'pendente';
         }
 
         // Remove from conferencia
-        this.listas = this.listas.filter(l => String(l.id) !== String(this.listaAtual.id));
+        this.listas = this.listas.filter(l => String(l.id) !== String(listaId));
 
         // Save both
         // Save both IMMEDIATELY to avoid sync loss on tab switch/reload
@@ -353,8 +357,8 @@ const Conferencia = {
 
         // Audit log
         Auditoria.log('REVERTER_SITUACAO', {
-            nome: this.listaAtual.nome,
-            id: this.listaAtual.id
+            nome: listaNome,
+            id: listaId
         });
 
         this.voltarParaLista();

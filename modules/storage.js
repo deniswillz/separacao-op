@@ -143,14 +143,15 @@ const Storage = {
                     const cleaned = { ...prepared };
                     const risky = [
                         'usuario_atual', 'responsavel_separacao', 'responsavel_conferencia',
-                        'itens_transferencia_verificados', 'ordens_conferidas'
+                        'itens_transferencia_verificados', 'ordens_conferidas', 'documento',
+                        'assinatura', 'data_finalizacao'
                     ];
                     risky.forEach(c => delete cleaned[c]);
 
                     if (Object.keys(cleaned).length > 0) {
                         const { error: retryError } = await supabaseClient.from(table).update(cleaned).eq('id', id);
                         if (!retryError) {
-                            console.log(`✅ Registro ${id} em ${table} atualizado após limpeza`);
+                            console.log(`✅ Registro ${id} em ${table} atualizado após limpeza (colunas ignoradas)`);
                             return true;
                         }
                     }
@@ -294,10 +295,10 @@ const Storage = {
                                     // Remove columns that were likely added recently and might be missing
                                     const riskyColumns = [
                                         'usuario_atual', 'responsavel_separacao',
-                                        'itens_transferencia_verificados', 'responsavel_conferencia'
+                                        'itens_transferencia_verificados', 'responsavel_conferencia',
+                                        'ordens_conferidas', 'documento', 'assinatura', 'data_finalizacao'
                                     ];
                                     riskyColumns.forEach(col => delete cleanedRecord[col]);
-
                                     const retryResult = await supabaseClient.from(table).upsert([cleanedRecord], {
                                         onConflict: conflictKey
                                     });
