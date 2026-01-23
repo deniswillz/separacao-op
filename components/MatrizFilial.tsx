@@ -1,6 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
+import { supabase } from '../services/supabaseClient';
 
 interface ShipmentHistory {
   id: string;
@@ -12,11 +12,11 @@ interface ShipmentHistory {
 }
 
 const mockHistory: ShipmentHistory[] = [
-  { 
-    id: '1', 
-    op: '00661601001', 
-    produto: 'PA090200001263', 
-    qtd: 1, 
+  {
+    id: '1',
+    op: '00661601001',
+    produto: 'PA090200001263',
+    qtd: 1,
     data: '21/01/2026',
     fluxo: [
       { status: 'Em Separação', icon: '📦', data: '21/01/2026' },
@@ -32,15 +32,49 @@ const mockHistory: ShipmentHistory[] = [
 const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [isSyncing, setIsSyncing] = useState(true);
+  const [history, setHistory] = useState<ShipmentHistory[]>([]);
 
   useEffect(() => {
-    const sync = async () => {
+    const fetchHistory = async () => {
       setIsSyncing(true);
-      await new Promise(r => setTimeout(r, 600));
+      const { data, error } = await supabase
+        .from('historico')
+        .select('*')
+        .order('data', { ascending: false });
+
+      if (data) {
+        setHistory(data.map((item: any) => ({
+          ...item,
+          fluxo: item.fluxo || []
+        })));
+      }
       setIsSyncing(false);
     };
-    sync();
+
+    if (showHistory) {
+      fetchHistory();
+    }
   }, [showHistory]);
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (user.role !== 'admin') {
+      alert('Acesso Negado: Somente administradores podem excluir registros.');
+      return;
+    }
+    if (confirm('Deseja realmente excluir esta movimentação?')) {
+      const { error } = await supabase
+        .from('historico')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        alert('Erro ao excluir: ' + error.message);
+      } else {
+        setHistory(prev => prev.filter(h => h.id !== id));
+      }
+    }
+  };
 
   if (isSyncing) {
     return (
@@ -55,11 +89,11 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
     return (
       <div className="space-y-6 animate-fadeIn pb-16">
         <div className="flex justify-between items-center bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
-           <div className="flex items-center gap-5">
-              <span className="text-3xl bg-emerald-50 p-3 rounded-2xl">📚</span>
-              <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Histórico de Movimentações Matriz x Filial</h2>
-           </div>
-           <button onClick={() => setShowHistory(false)} className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">✕</button>
+          <div className="flex items-center gap-5">
+            <span className="text-3xl bg-emerald-50 p-3 rounded-2xl">📚</span>
+            <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Histórico de Movimentações Matriz x Filial</h2>
+          </div>
+          <button onClick={() => setShowHistory(false)} className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">✕</button>
         </div>
 
         <div className="bg-white rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden">
@@ -75,7 +109,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {mockHistory.map(h => (
+              {history.map(h => (
                 <tr key={h.id} className="hover:bg-gray-50/50 transition-colors group">
                   <td className="px-10 py-8 font-black text-gray-800 uppercase tracking-tighter">{h.op}</td>
                   <td className="px-8 py-8 font-mono text-xs text-gray-400 uppercase">{h.produto}</td>
@@ -95,16 +129,22 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                     </div>
                   </td>
                   <td className="px-10 py-8 text-right">
-                    <button className="p-4 bg-red-50 text-red-500 rounded-[1.25rem] hover:bg-red-500 hover:text-white transition-all shadow-sm opacity-0 group-hover:opacity-100">
-                       🗑️ Excluir
-                    </button>
+                    {user.role === 'admin' && (
+                      <button
+                        onClick={(e) => handleDelete(h.id, e)}
+                        className="inline-flex items-center justify-center w-8 h-8 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 border border-red-100 shadow-sm"
+                        title="Excluir Registro"
+                      >
+                        <span className="text-[14px] font-black italic">✕</span>
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
           <div className="bg-gray-50/50 p-10 flex justify-end border-t border-gray-100">
-             <button onClick={() => setShowHistory(false)} className="px-12 py-4 bg-white border border-gray-200 text-gray-500 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">Fechar</button>
+            <button onClick={() => setShowHistory(false)} className="px-12 py-4 bg-white border border-gray-200 text-gray-500 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">Fechar</button>
           </div>
         </div>
       </div>
@@ -119,7 +159,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
         <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Painel de controle e auditoria de transferências</p>
       </div>
       <button onClick={() => setShowHistory(true)} className="px-12 py-5 bg-gray-900 text-white rounded-[1.75rem] text-[11px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-2xl shadow-gray-200 hover:scale-105 active:scale-95">
-         Abrir Histórico Completo
+        Abrir Histórico Completo
       </button>
     </div>
   );

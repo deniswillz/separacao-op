@@ -1,6 +1,6 @@
-
-import React, { useState, useMemo } from 'react';
-import { Product } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Product, User } from '../types';
+import { supabase } from '../services/supabaseClient';
 
 const initialItems: Product[] = [
   { id: 1, codigo: 'MP0210000000013', descricao: 'RESISTOR FILME ESP 220 K OHMS 5% 1/8W SMD 0805', endereco: 'A0010', armazem: '20', unidade: 'PC' },
@@ -8,25 +8,69 @@ const initialItems: Product[] = [
   { id: 3, codigo: 'MP0101000000164', descricao: 'CAPA DE PLASTICO PA66HS IN', endereco: 'C0200', armazem: '15', unidade: 'PC' },
 ];
 
-const Enderecos: React.FC = () => {
+const Enderecos: React.FC<{ user: User }> = ({ user }) => {
   const [items, setItems] = useState<Product[]>(initialItems);
   const [searchTerm, setSearchTerm] = useState('');
 
+  useEffect(() => {
+    const fetchEnderecos = async () => {
+      const { data, error } = await supabase
+        .from('enderecos')
+        .select('*')
+        .order('codigo', { ascending: true });
+
+      if (error) {
+        console.error('Erro ao buscar endereços:', error);
+      } else if (data) {
+        setItems(data);
+      }
+    };
+
+    fetchEnderecos();
+
+    const channel = supabase
+      .channel('enderecos-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'enderecos' }, fetchEnderecos)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const filteredItems = useMemo(() => {
-    return items.filter(item => 
-      item.codigo.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    return items.filter(item =>
+      item.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.descricao.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.endereco?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [items, searchTerm]);
 
-  const handleDelete = (id: string | number) => {
-    setItems(prev => prev.filter(item => item.id !== id));
+  const handleDelete = async (id: string | number) => {
+    const { error } = await supabase
+      .from('enderecos')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      alert('Erro ao excluir endereço: ' + error.message);
+    } else {
+      setItems(prev => prev.filter(item => item.id !== id));
+    }
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     if (confirm('Tem certeza que deseja limpar todos os endereços?')) {
-      setItems([]);
+      const { error } = await supabase
+        .from('enderecos')
+        .delete()
+        .neq('id', 0); // Delete all
+
+      if (error) {
+        alert('Erro ao limpar endereços: ' + error.message);
+      } else {
+        setItems([]);
+      }
     }
   };
 
@@ -48,12 +92,12 @@ const Enderecos: React.FC = () => {
       <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100 flex flex-wrap items-center justify-between gap-6">
         <div className="flex items-center gap-6 flex-1 min-w-[300px]">
           <div className="relative flex-1">
-            <input 
-              type="text" 
-              placeholder="Buscar endereço ou produto..." 
+            <input
+              type="text"
+              placeholder="Buscar endereço ou produto..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-14 pr-6 py-4 bg-gray-50 border border-transparent rounded-[1.5rem] focus:ring-4 focus:ring-emerald-50 outline-none transition-all text-sm font-bold shadow-inner" 
+              className="w-full pl-14 pr-6 py-4 bg-gray-50 border border-transparent rounded-[1.5rem] focus:ring-4 focus:ring-emerald-50 outline-none transition-all text-sm font-bold shadow-inner"
             />
             <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300 text-xl">🔍</span>
           </div>
@@ -63,13 +107,13 @@ const Enderecos: React.FC = () => {
         </div>
 
         <div className="flex gap-4">
-          <button 
+          <button
             onClick={handleImportExcel}
             className="flex items-center gap-3 px-8 py-4 bg-[#006B47] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-[#004D33] transition-all shadow-xl shadow-emerald-100"
           >
             <span className="text-lg">📥</span> Importar Excel
           </button>
-          <button 
+          <button
             onClick={handleClearAll}
             className="flex items-center gap-3 px-8 py-4 bg-[#EF4444] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-[#DC2626] transition-all shadow-xl shadow-red-100"
           >
@@ -108,12 +152,15 @@ const Enderecos: React.FC = () => {
                     <span className="font-black text-sm text-gray-800">{item.armazem}</span>
                   </td>
                   <td className="px-10 py-6 text-right">
-                    <button 
-                      onClick={() => handleDelete(item.id)}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-500 rounded-xl text-[10px] font-black uppercase hover:bg-red-100 transition-all opacity-0 group-hover:opacity-100"
-                    >
-                      🗑️ Excluir
-                    </button>
+                    {user.role === 'admin' && (
+                      <button
+                        onClick={() => handleDelete(item.id)}
+                        className="inline-flex items-center justify-center w-8 h-8 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 border border-red-100 shadow-sm"
+                        title="Excluir Endereço"
+                      >
+                        <span className="text-[14px] font-black italic">✕</span>
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

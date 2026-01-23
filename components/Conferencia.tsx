@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { User } from '../types';
 import { supabase } from '../services/supabaseClient';
 
 interface ConferenceItem {
@@ -25,7 +26,7 @@ interface ConferenceMock {
 }
 
 
-const Conferencia: React.FC = () => {
+const Conferencia: React.FC<{ user: User }> = ({ user }) => {
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [isSyncing, setIsSyncing] = useState(true);
   const [conferences, setConferences] = useState<ConferenceMock[]>([]);
@@ -43,7 +44,7 @@ const Conferencia: React.FC = () => {
     const fetchConferences = async () => {
       setIsSyncing(true);
       const { data, error } = await supabase
-        .from('conferencia_list')
+        .from('conferencia')
         .select('*')
         .order('data_criacao', { ascending: false });
 
@@ -59,7 +60,7 @@ const Conferencia: React.FC = () => {
           status: item.status,
           opsConferidas: item.ops_conferidas || '0/0',
           itensOk: item.itens_ok || '0/0',
-          usuarioAtual: item.usuario_atual,
+          usuarioAtual: item.responsavel_conferencia,
           itens: item.itens || [],
         }));
         setConferences(formattedConfs);
@@ -73,7 +74,7 @@ const Conferencia: React.FC = () => {
       .channel('schema-db-changes-conf')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'conferencia_list' },
+        { event: '*', schema: 'public', table: 'conferencia' },
         (payload) => {
           fetchConferences();
         }
@@ -92,8 +93,8 @@ const Conferencia: React.FC = () => {
     }
 
     const { error } = await supabase
-      .from('conferencia_list')
-      .update({ usuario_atual: currentResponsavel })
+      .from('conferencia')
+      .update({ responsavel_conferencia: currentResponsavel })
       .eq('id', conf.id);
 
     if (error) {
@@ -108,12 +109,32 @@ const Conferencia: React.FC = () => {
   const handleBack = async () => {
     if (selectedConf) {
       await supabase
-        .from('conferencia_list')
-        .update({ usuario_atual: null })
+        .from('conferencia')
+        .update({ responsavel_conferencia: null })
         .eq('id', selectedConf.id);
     }
     setViewMode('list');
     setSelectedConf(null);
+  };
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (user.role !== 'admin') {
+      alert('Acesso Negado: Somente administradores podem excluir registros.');
+      return;
+    }
+    if (confirm('Deseja realmente excluir esta conferência?')) {
+      const { error } = await supabase
+        .from('conferencia')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        alert('Erro ao excluir: ' + error.message);
+      } else {
+        setConferences(prev => prev.filter(c => c.id !== id));
+      }
+    }
   };
 
   const getStatusBorder = (status: string) => {
@@ -205,6 +226,16 @@ const Conferencia: React.FC = () => {
             <span className={`text-[10px] font-black px-4 py-1.5 rounded-full border uppercase tracking-widest ${conf.status === 'Aguardando' ? 'bg-orange-50 text-orange-600 border-orange-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
               {conf.status}
             </span>
+
+            {user.role === 'admin' && (
+              <button
+                onClick={(e) => handleDelete(conf.id, e)}
+                className="absolute top-6 right-6 w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition-all z-20"
+                title="Excluir Registro"
+              >
+                <span className="text-sm font-black">✕</span>
+              </button>
+            )}
 
             <div className="space-y-4">
               <h4 className="text-[24px] font-black text-gray-900 uppercase leading-none tracking-tight">OP {conf.id.toString().slice(0, 6)}</h4>

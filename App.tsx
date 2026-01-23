@@ -11,6 +11,7 @@ import Blacklist from './components/Blacklist';
 import Historico from './components/Historico';
 import Configuracoes from './components/Configuracoes';
 import { User } from './types';
+import { supabase } from './services/supabaseClient';
 
 // Interface compartilhada para a BlackList
 export interface BlacklistItem {
@@ -29,15 +30,25 @@ const App: React.FC = () => {
   const [error, setError] = useState('');
 
   // Estado global da BlackList para compartilhamento entre módulos
-  const [blacklist, setBlacklist] = useState<BlacklistItem[]>([
-    {
-      id: '1',
-      codigo: 'MP0101000000164', // Código que existe no mock de separação para teste
-      naoSep: false,
-      talvez: true,
-      dataInclusao: '2026-01-13'
-    }
-  ]);
+  const [blacklist, setBlacklist] = useState<BlacklistItem[]>([]);
+
+  useEffect(() => {
+    const fetchBlacklist = async () => {
+      const { data, error } = await supabase
+        .from('blacklist')
+        .select('*');
+      if (data) setBlacklist(data);
+    };
+    fetchBlacklist();
+
+    const channel = supabase.channel('blacklist-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'blacklist' }, fetchBlacklist)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem('nano_user');
@@ -173,13 +184,13 @@ const App: React.FC = () => {
 
     switch (activeTab) {
       case 'dashboard': return <Dashboard />;
-      case 'enderecos': return <Enderecos />;
+      case 'enderecos': return <Enderecos user={user!} />;
       case 'empenhos': return <Empenhos />;
-      case 'separacao': return <Separacao blacklist={blacklist} />;
-      case 'conferencia': return <Conferencia />;
+      case 'separacao': return <Separacao blacklist={blacklist} user={user!} />;
+      case 'conferencia': return <Conferencia user={user!} />;
       case 'transferencia': return <MatrizFilial user={user!} />;
-      case 'blacklist': return <Blacklist items={blacklist} setItems={setBlacklist} />;
-      case 'historico': return <Historico />;
+      case 'blacklist': return <Blacklist items={blacklist} setItems={setBlacklist} user={user!} />;
+      case 'historico': return <Historico user={user!} />;
       case 'configuracoes': return user?.role === 'admin' ? <Configuracoes /> : <Dashboard />;
       default: return (
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-white rounded-3xl shadow-sm border border-gray-100">

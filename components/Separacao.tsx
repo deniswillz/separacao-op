@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { UrgencyLevel } from '../types';
+import { UrgencyLevel, User } from '../types';
 import { BlacklistItem } from '../App';
 import { supabase } from '../services/supabaseClient';
 
@@ -21,7 +21,7 @@ interface OPMock {
   naoSeparados: number;
 }
 
-const Separacao: React.FC<{ blacklist: BlacklistItem[] }> = ({ blacklist }) => {
+const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ blacklist, user }) => {
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [isSyncing, setIsSyncing] = useState(true);
   const [ops, setOps] = useState<OPMock[]>([]);
@@ -38,7 +38,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[] }> = ({ blacklist }) => {
     const fetchOps = async () => {
       setIsSyncing(true);
       const { data, error } = await supabase
-        .from('separaca_list') // Note: assuming the table name from previous context or types
+        .from('separacao') // Note: assuming the table name from previous context or types
         .select('*')
         .order('data_criacao', { ascending: false });
 
@@ -73,7 +73,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[] }> = ({ blacklist }) => {
       .channel('schema-db-changes')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'separaca_list' },
+        { event: '*', schema: 'public', table: 'separacao' },
         (payload) => {
           fetchOps();
         }
@@ -99,7 +99,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[] }> = ({ blacklist }) => {
 
     // Set lock in Supabase
     const { error } = await supabase
-      .from('separaca_list')
+      .from('separacao')
       .update({ usuario_atual: currentResponsavel })
       .eq('id', op.id);
 
@@ -116,12 +116,32 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[] }> = ({ blacklist }) => {
     if (selectedOP) {
       // Clear lock in Supabase
       await supabase
-        .from('separaca_list')
+        .from('separacao')
         .update({ usuario_atual: null })
         .eq('id', selectedOP.id);
     }
     setViewMode('list');
     setSelectedOP(null);
+  };
+
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (user.role !== 'admin') {
+      alert('Acesso Negado: Somente administradores podem excluir registros.');
+      return;
+    }
+    if (confirm('Deseja realmente excluir esta OP?')) {
+      const { error } = await supabase
+        .from('separacao')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        alert('Erro ao excluir: ' + error.message);
+      } else {
+        setOps(prev => prev.filter(op => op.id !== id));
+      }
+    }
   };
 
   const getStatusBorder = (op: OPMock) => {
@@ -207,6 +227,16 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[] }> = ({ blacklist }) => {
                   {op.urgencia}
                 </span>
               </div>
+
+              {user.role === 'admin' && (
+                <button
+                  onClick={(e) => handleDelete(op.id, e)}
+                  className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition-all z-20 group-hover:scale-110"
+                  title="Excluir Registro"
+                >
+                  <span className="text-sm font-black">✕</span>
+                </button>
+              )}
 
               <div>
                 <h4 className="text-[22px] font-black text-gray-900 uppercase leading-none tracking-tight">OP {op.opCode}</h4>

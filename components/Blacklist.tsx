@@ -1,58 +1,68 @@
-
 import React, { useState, useMemo } from 'react';
 import { BlacklistItem } from '../App';
+import { User } from '../types';
+import { supabase } from '../services/supabaseClient';
 
 interface BlacklistProps {
   items: BlacklistItem[];
   setItems: React.Dispatch<React.SetStateAction<BlacklistItem[]>>;
 }
 
-const Blacklist: React.FC<BlacklistProps> = ({ items, setItems }) => {
+const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems, user }) => {
   const [search, setSearch] = useState('');
   const [newCode, setNewCode] = useState('');
 
   const filteredItems = useMemo(() => {
-    return items.filter(item => 
+    return items.filter(item =>
       item.codigo.toLowerCase().includes(search.toLowerCase())
     );
   }, [items, search]);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newCode) return;
-    const newItem: BlacklistItem = {
-      id: Math.random().toString(36).substr(2, 9),
+    const newItem = {
       codigo: newCode.toUpperCase().trim(),
       naoSep: true,
       talvez: false,
       dataInclusao: new Date().toLocaleDateString('pt-BR')
     };
-    setItems([newItem, ...items]);
+
+    const { error } = await supabase.from('blacklist').insert(newItem);
+    if (error) alert('Erro ao adicionar à BlackList: ' + error.message);
     setNewCode('');
   };
 
-  const toggleStatus = (id: string, field: 'naoSep' | 'talvez') => {
-    setItems(items.map(item => 
-      item.id === id ? { ...item, [field]: !item[field] } : item
-    ));
+  const toggleStatus = async (id: string, field: 'naoSep' | 'talvez') => {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+
+    const { error } = await supabase
+      .from('blacklist')
+      .update({ [field]: !item[field] })
+      .eq('id', id);
+
+    if (error) alert('Erro ao atualizar status: ' + error.message);
   };
 
   const markAll = (field: 'naoSep' | 'talvez') => {
     const allChecked = filteredItems.every(item => item[field]);
     const targetIds = new Set(filteredItems.map(i => i.id));
-    setItems(items.map(item => 
+    setItems(items.map(item =>
       targetIds.has(item.id) ? { ...item, [field]: !allChecked } : item
     ));
   };
 
-  const handleRemove = (id: string) => {
+  const handleRemove = async (id: string) => {
     if (confirm('Deseja remover este item da BlackList?')) {
-      setItems(items.filter(item => item.id !== id));
+      const { error } = await supabase.from('blacklist').delete().eq('id', id);
+      if (error) alert('Erro ao remover: ' + error.message);
     }
   };
 
-  const handleClearAll = () => {
+  const handleClearAll = async () => {
     if (confirm('Deseja limpar toda a BlackList?')) {
-      setItems([]);
+      const { error } = await supabase.from('blacklist').delete().neq('id', '0');
+      if (error) alert('Erro ao limpar: ' + error.message);
     }
   };
 
@@ -66,15 +76,15 @@ const Blacklist: React.FC<BlacklistProps> = ({ items, setItems }) => {
       {/* Toolbar Ajustada */}
       <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col lg:flex-row items-center gap-6">
         <div className="flex items-center gap-3 w-full lg:w-auto flex-1">
-          <input 
-            type="text" 
-            placeholder="CÓDIGO DO PRODUTO" 
+          <input
+            type="text"
+            placeholder="CÓDIGO DO PRODUTO"
             value={newCode}
             onChange={(e) => setNewCode(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
             className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl outline-none focus:ring-2 focus:ring-red-500 focus:bg-white font-bold text-sm transition-all shadow-inner uppercase placeholder-gray-300"
           />
-          <button 
+          <button
             onClick={handleAdd}
             className="px-8 py-4 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-100 flex items-center gap-2 active:scale-95 shrink-0"
           >
@@ -91,7 +101,7 @@ const Blacklist: React.FC<BlacklistProps> = ({ items, setItems }) => {
           <button className="flex items-center gap-2 px-5 py-3 bg-emerald-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-800 transition-all shadow-lg shadow-emerald-50">
             Importar
           </button>
-          <button 
+          <button
             onClick={handleClearAll}
             className="flex items-center gap-2 px-5 py-3 bg-gray-50 border border-gray-100 text-gray-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all"
           >
@@ -100,12 +110,12 @@ const Blacklist: React.FC<BlacklistProps> = ({ items, setItems }) => {
         </div>
 
         <div className="relative w-full lg:w-64">
-          <input 
-            type="text" 
-            placeholder="PESQUISAR..." 
+          <input
+            type="text"
+            placeholder="PESQUISAR..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-6 py-4 bg-gray-100 border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-gray-200 outline-none text-[11px] font-bold shadow-inner uppercase tracking-wider" 
+            className="w-full pl-12 pr-6 py-4 bg-gray-100 border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-gray-200 outline-none text-[11px] font-bold shadow-inner uppercase tracking-wider"
           />
           <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 text-xl">🔍</span>
         </div>
@@ -120,8 +130,8 @@ const Blacklist: React.FC<BlacklistProps> = ({ items, setItems }) => {
                 <th className="px-10 py-8 w-[35%]">CÓDIGO</th>
                 <th className="px-6 py-8 text-center">
                   <div className="flex flex-col items-center gap-3">
-                    <button 
-                      onClick={() => markAll('naoSep')} 
+                    <button
+                      onClick={() => markAll('naoSep')}
                       className="text-[8px] bg-red-50 text-red-600 px-3 py-1.5 rounded-lg border border-red-100 hover:bg-red-600 hover:text-white transition-all font-black uppercase tracking-widest shadow-sm"
                     >
                       Todos
@@ -131,8 +141,8 @@ const Blacklist: React.FC<BlacklistProps> = ({ items, setItems }) => {
                 </th>
                 <th className="px-6 py-8 text-center">
                   <div className="flex flex-col items-center gap-3">
-                    <button 
-                      onClick={() => markAll('talvez')} 
+                    <button
+                      onClick={() => markAll('talvez')}
                       className="text-[8px] bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg border border-blue-100 hover:bg-blue-600 hover:text-white transition-all font-black uppercase tracking-widest shadow-sm"
                     >
                       Todos
@@ -154,31 +164,34 @@ const Blacklist: React.FC<BlacklistProps> = ({ items, setItems }) => {
                     </div>
                   </td>
                   <td className="px-6 py-6 text-center">
-                    <input 
-                      type="checkbox" 
-                      checked={item.naoSep} 
-                      onChange={() => toggleStatus(item.id, 'naoSep')} 
-                      className="w-8 h-8 rounded-lg border-2 border-gray-200 text-red-600 focus:ring-red-500 cursor-pointer transition-all hover:scale-110" 
+                    <input
+                      type="checkbox"
+                      checked={item.naoSep}
+                      onChange={() => toggleStatus(item.id, 'naoSep')}
+                      className="w-8 h-8 rounded-lg border-2 border-gray-200 text-red-600 focus:ring-red-500 cursor-pointer transition-all hover:scale-110"
                     />
                   </td>
                   <td className="px-6 py-6 text-center">
-                    <input 
-                      type="checkbox" 
-                      checked={item.talvez} 
-                      onChange={() => toggleStatus(item.id, 'talvez')} 
-                      className="w-8 h-8 rounded-lg border-2 border-gray-200 text-blue-600 focus:ring-blue-500 cursor-pointer transition-all hover:scale-110" 
+                    <input
+                      type="checkbox"
+                      checked={item.talvez}
+                      onChange={() => toggleStatus(item.id, 'talvez')}
+                      className="w-8 h-8 rounded-lg border-2 border-gray-200 text-blue-600 focus:ring-blue-500 cursor-pointer transition-all hover:scale-110"
                     />
                   </td>
                   <td className="px-6 py-6 text-center">
                     <span className="text-[10px] font-bold text-gray-400 font-mono tracking-widest bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">{item.dataInclusao}</span>
                   </td>
                   <td className="px-10 py-6 text-right">
-                    <button 
-                      onClick={() => handleRemove(item.id)} 
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all border border-red-100 active:scale-95"
-                    >
-                      Remover
-                    </button>
+                    {user.role === 'admin' && (
+                      <button
+                        onClick={() => handleRemove(item.id)}
+                        className="inline-flex items-center justify-center w-8 h-8 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 border border-red-100 shadow-sm"
+                        title="Remover da Blacklist"
+                      >
+                        <span className="text-[14px] font-black italic">✕</span>
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

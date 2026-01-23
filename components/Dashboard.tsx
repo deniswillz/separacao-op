@@ -16,14 +16,14 @@ const Dashboard: React.FC = () => {
     const fetchDashboardData = async () => {
       setIsSyncing(true);
 
-      const { data: sepData } = await supabase.from('separaca_list').select('id, status, usuario_atual');
-      const { data: confData } = await supabase.from('conferencia_list').select('id, status, usuario_atual');
+      const { data: sepData } = await supabase.from('separacao').select('id, status, usuario_atual');
+      const { data: confData } = await supabase.from('conferencia').select('id, status, responsavel_conferencia');
 
-      const pending = (sepData?.filter(d => d.status === 'Pendente').length || 0) +
-        (confData?.filter(d => d.status === 'Aguardando').length || 0);
+      const pending = (sepData?.filter(d => d.status?.toLowerCase() === 'pendente' || d.status?.toLowerCase() === 'em_separacao').length || 0) +
+        (confData?.filter(d => d.status?.toLowerCase() === 'pendente' || d.status?.toLowerCase() === 'aguardando' || d.status?.toLowerCase() === 'em_conferencia').length || 0);
 
-      const finalized = (sepData?.filter(d => d.status === 'Finalizado').length || 0) +
-        (confData?.filter(d => d.status === 'Finalizado').length || 0);
+      const finalized = (sepData?.filter(d => d.status?.toLowerCase() === 'finalizado' || d.status?.toLowerCase() === 'concluido').length || 0) +
+        (confData?.filter(d => d.status?.toLowerCase() === 'finalizado' || d.status?.toLowerCase() === 'concluido').length || 0);
 
       setKpiData({
         pendingOps: pending,
@@ -34,7 +34,7 @@ const Dashboard: React.FC = () => {
       // Transformar para o formato dos mini cards
       const combined = [
         ...(sepData || []).map(d => ({ id: d.id, type: 'Separação' as const, status: d.status, usuario: d.usuario_atual })),
-        ...(confData || []).map(d => ({ id: d.id, type: 'Conferência' as const, status: d.status, usuario: d.usuario_atual }))
+        ...(confData || []).map(d => ({ id: d.id, type: 'Conferência' as const, status: d.status, usuario: d.responsavel_conferencia }))
       ].slice(0, 12); // Limitar aos mais recentes
 
       setOpStatusList(combined);
@@ -45,8 +45,8 @@ const Dashboard: React.FC = () => {
 
     // Sincronização em tempo real
     const channel = supabase.channel('dashboard-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'separaca_list' }, fetchDashboardData)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conferencia_list' }, fetchDashboardData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'separacao' }, fetchDashboardData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conferencia' }, fetchDashboardData)
       .subscribe();
 
     audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
