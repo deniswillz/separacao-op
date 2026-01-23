@@ -3,7 +3,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { SeparationList, OPItem } from "../types";
 
 // Initialize the Google GenAI client with the API key from environment variables.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
 export const analyzeLogisticsEfficiency = async (history: any[]) => {
   const prompt = `
@@ -32,15 +32,15 @@ export const analyzeLogisticsEfficiency = async (history: any[]) => {
             resumo: { type: Type.STRING },
             alertas: { type: Type.ARRAY, items: { type: Type.STRING } },
             recomendacoes: { type: Type.ARRAY, items: { type: Type.STRING } },
-            rankingFaltas: { 
-              type: Type.ARRAY, 
-              items: { 
+            rankingFaltas: {
+              type: Type.ARRAY,
+              items: {
                 type: Type.OBJECT,
                 properties: {
                   codigo: { type: Type.STRING },
                   frequencia: { type: Type.NUMBER }
                 }
-              } 
+              }
             }
           }
         }
@@ -52,7 +52,7 @@ export const analyzeLogisticsEfficiency = async (history: any[]) => {
     if (!resultText) {
       throw new Error("No text response received from Gemini API");
     }
-    
+
     return JSON.parse(resultText.trim());
   } catch (error) {
     console.error("AI Analysis Error:", error);
