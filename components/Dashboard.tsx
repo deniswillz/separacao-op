@@ -1,0 +1,134 @@
+
+import React, { useState, useEffect, useRef } from 'react';
+import { analyzeLogisticsEfficiency } from '../services/geminiService';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+
+const Dashboard: React.FC = () => {
+  const [insights, setInsights] = useState<any>(null);
+  const [loadingAI, setLoadingAI] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(true);
+  const [alerts, setAlerts] = useState<{id: string, op: string, produto: string, timestamp: string}[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Simular sincronização com Supabase ao entrar
+    const sync = async () => {
+      await new Promise(r => setTimeout(r, 800));
+      setIsSyncing(false);
+    };
+    sync();
+
+    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+    
+    const handleFaltaAlert = (e: any) => {
+      const { op, produto } = e.detail;
+      const newAlert = {
+        id: Math.random().toString(36).substr(2, 9),
+        op,
+        produto,
+        timestamp: new Date().toLocaleTimeString('pt-BR')
+      };
+      setAlerts(prev => [newAlert, ...prev].slice(0, 5));
+      if (audioRef.current) audioRef.current.play().catch(() => {});
+    };
+
+    window.addEventListener('falta-detectada', handleFaltaAlert);
+    
+    const fetchAI = async () => {
+      setLoadingAI(true);
+      const mockHistory = [{ item: 'PARAF-01', falta: true, data: '2023-10-01' }];
+      const data = await analyzeLogisticsEfficiency(mockHistory);
+      setInsights(data);
+      setLoadingAI(false);
+    };
+    fetchAI();
+
+    return () => window.removeEventListener('falta-detectada', handleFaltaAlert);
+  }, []);
+
+  if (isSyncing) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
+        <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest animate-pulse">Sincronizando Dashboard com Supabase...</p>
+      </div>
+    );
+  }
+
+  const kpis = [
+    { label: 'OPs Pendentes', value: '14', color: 'bg-orange-500', icon: '⏳' },
+    { label: 'Finalizadas (Mês)', value: '128', color: 'bg-emerald-600', icon: '✅' },
+    { label: 'Itens em Trânsito', value: '42', color: 'bg-blue-600', icon: '🚚' },
+    { label: 'Faltas Críticas', value: alerts.length.toString().padStart(2, '0'), color: 'bg-red-600', icon: '🚨' },
+  ];
+
+  const chartData = [
+    { name: 'Seg', valor: 45 }, { name: 'Ter', valor: 52 }, { name: 'Qua', valor: 38 },
+    { name: 'Qui', valor: 65 }, { name: 'Sex', valor: 48 }, { name: 'Sáb', valor: 20 },
+  ];
+
+  return (
+    <div className="space-y-8 animate-fadeIn">
+      {alerts.length > 0 && (
+        <div className="fixed top-20 right-8 z-50 w-80 space-y-2 pointer-events-none">
+          {alerts.map((alert) => (
+            <div key={alert.id} className="bg-red-600 text-white p-4 rounded-2xl shadow-2xl animate-scaleIn pointer-events-auto border-2 border-white">
+              <p className="text-xs font-black uppercase">PRODUTO EM FALTA!</p>
+              <p className="text-[10px] font-bold opacity-90 truncate">OP: {alert.op} - {alert.produto}</p>
+              <button onClick={() => setAlerts(prev => prev.filter(a => a.id !== alert.id))} className="mt-2 w-full py-2 bg-white/20 rounded-lg text-[9px] font-black uppercase">Ciente</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {kpis.map((kpi, idx) => (
+          <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{kpi.label}</p>
+              <p className="text-3xl font-extrabold text-gray-900 mt-1">{kpi.value}</p>
+            </div>
+            <div className={`w-12 h-12 ${kpi.color} rounded-xl flex items-center justify-center text-xl shadow-lg shadow-gray-200`}>{kpi.icon}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+          <h3 className="text-lg font-bold text-gray-800 mb-8">Volume de Separação Semanal</h3>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
+                <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none' }} />
+                <Bar dataKey="valor" radius={[6, 6, 0, 0]} barSize={40}>
+                  {chartData.map((_, index) => <Cell key={`cell-${index}`} fill={index === 3 ? '#059669' : '#10b981'} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-emerald-900 text-white p-8 rounded-2xl shadow-xl">
+          <h3 className="text-xl font-bold flex items-center gap-2 mb-6"><span className="animate-pulse">✨</span> IA Insights</h3>
+          {loadingAI ? (
+            <div className="flex-1 flex flex-col items-center justify-center space-y-4 py-20">
+              <div className="w-10 h-10 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : insights && (
+            <div className="space-y-6 overflow-y-auto max-h-[400px] custom-scrollbar">
+              <p className="text-sm leading-relaxed text-emerald-50">{insights.resumo}</p>
+              {insights.alertas?.map((alerta: string, idx: number) => (
+                <div key={idx} className="bg-emerald-800/50 p-3 rounded-lg text-xs border border-emerald-700/50 flex gap-3">⚠️ {alerta}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;

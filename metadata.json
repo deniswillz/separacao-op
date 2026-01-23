@@ -1,0 +1,7 @@
+{
+  "name": "NANO PRO Logistics Intelligence",
+  "description": "Uma plataforma avançada de gestão logística para separação de ordens de produção, conferência e rastreamento entre matriz e filial, com insights inteligentes via Gemini API.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
