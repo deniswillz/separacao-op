@@ -213,10 +213,10 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
       {conferences.map(conf => (
-        <div key={conf.id} className={`bg-white p-8 rounded-[2.5rem] border-2 transition-all flex flex-col justify-between h-[32rem] ${getStatusBorder(conf.status)} hover:shadow-2xl`}>
-          <div className="space-y-6">
+        <div key={conf.id} className={`bg-white p-6 rounded-[2rem] border-2 transition-all flex flex-col justify-between h-[26rem] ${getStatusBorder(conf.status)} hover:shadow-2xl relative overflow-hidden`}>
+          <div className="space-y-4">
             <span className={`text-[10px] font-black px-4 py-1.5 rounded-full border uppercase tracking-widest ${conf.status === 'Aguardando' ? 'bg-orange-50 text-orange-600 border-orange-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
               {conf.status}
             </span>
@@ -231,8 +231,8 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
               </button>
             )}
 
-            <div className="space-y-4">
-              <h4 className="text-[24px] font-black text-gray-900 uppercase leading-none tracking-tight">OP {conf.id.toString().slice(0, 6)}</h4>
+            <div className="space-y-3">
+              <h4 className="text-[20px] font-black text-gray-900 uppercase leading-none tracking-tight">OP {conf.id.toString().slice(0, 6)}</h4>
               <div className="space-y-2 text-[10px] font-bold text-gray-500 uppercase">
                 <p className="flex items-center gap-2">📍 Armazém: <span className="text-gray-900 font-black">{conf.armazem}</span></p>
                 <p className="flex items-center gap-2">📄 Doc: <span className="text-blue-600 font-mono font-black">{conf.documento}</span></p>
@@ -246,7 +246,7 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
             </div>
           </div>
 
-          <div className="mt-8 flex flex-col gap-4">
+          <div className="mt-4 flex flex-col gap-3">
             <p className="text-[8px] font-mono font-black text-gray-300 uppercase tracking-widest">{new Date(conf.data).toLocaleString('pt-BR')}</p>
             <button
               onClick={() => handleStart(conf)}

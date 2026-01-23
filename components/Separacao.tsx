@@ -206,13 +206,13 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 animate-fadeIn">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 animate-fadeIn">
       {ops.map((op) => {
         const isLocked = op.usuarioAtual && op.usuarioAtual !== currentResponsavel;
         return (
           <div
             key={op.id}
-            className={`bg-white p-6 rounded-[2.5rem] border-2 transition-all flex flex-col justify-between h-[36rem] relative overflow-hidden ${isLocked ? 'grayscale opacity-60 border-gray-200' : `hover:shadow-2xl ${getStatusBorder(op)}`}`}
+            className={`bg-white p-5 rounded-[2rem] border-2 transition-all flex flex-col justify-between h-[28rem] relative overflow-hidden ${isLocked ? 'grayscale opacity-60 border-gray-200' : `hover:shadow-2xl ${getStatusBorder(op)}`}`}
           >
             <div className="space-y-4">
               <div className="flex justify-between items-center">
