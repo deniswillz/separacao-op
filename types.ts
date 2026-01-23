@@ -55,7 +55,7 @@ export interface User {
   id: string | number;
   username: string;
   nome: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'visitor';
   permissions: string[];
   foto?: string;
 }

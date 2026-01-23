@@ -60,6 +60,20 @@ const App: React.FC = () => {
     }
   };
 
+  const handleVisitorLogin = () => {
+    const visitorUser: User = {
+      id: 'guest',
+      username: 'visitor',
+      nome: 'Visitante Nano',
+      role: 'visitor',
+      permissions: ['read']
+    };
+    setUser(visitorUser);
+    setIsAuthenticated(true);
+    localStorage.setItem('nano_user', JSON.stringify(visitorUser));
+    setActiveTab('dashboard');
+  };
+
   const handleLogout = () => {
     setIsAuthenticated(false);
     setUser(null);
@@ -68,55 +82,95 @@ const App: React.FC = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-emerald-900 p-6 relative overflow-hidden text-gray-900">
-        <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-          <div className="absolute -top-24 -left-24 w-96 h-96 bg-emerald-400 rounded-full blur-3xl"></div>
-          <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-emerald-300 rounded-full blur-3xl"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#004D33] p-6 relative overflow-hidden text-gray-900">
+        <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
+          <div className="absolute -top-24 -left-24 w-96 h-96 bg-white rounded-full blur-3xl"></div>
+          <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white rounded-full blur-3xl"></div>
         </div>
 
-        <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden relative z-10 animate-scaleIn">
-          <div className="bg-emerald-700 p-8 text-center">
-            <div className="w-20 h-20 bg-white/20 rounded-2xl mx-auto flex items-center justify-center text-white text-3xl font-bold mb-4 backdrop-blur-md">NP</div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">NANO PRO</h1>
-            <p className="text-emerald-100 text-xs font-semibold tracking-widest uppercase mt-1">Logística Inteligente</p>
+        <div className="flex flex-col items-center mb-12 relative z-10 animate-fadeIn">
+          <div className="flex items-center gap-4 mb-4">
+            <img src="/logo.png" alt="Nano Pro Icon" className="w-24 h-24 object-contain brightness-0 invert" />
+            <img src="/logo_text.png" alt="Nano Pro Text" className="h-10 object-contain brightness-0 invert" />
           </div>
-          
-          <form onSubmit={handleLogin} className="p-10 space-y-6">
+          <p className="text-white text-sm font-black tracking-[0.3em] uppercase opacity-90 mt-2">Logística Industrial Inteligente</p>
+        </div>
+
+        <div className="w-full max-w-[420px] bg-white rounded-[2.5rem] shadow-2xl overflow-hidden relative z-10 animate-scaleIn p-10">
+          <form onSubmit={handleLogin} className="space-y-8">
             {error && <div className="bg-red-50 text-red-600 text-xs font-bold p-4 rounded-xl border border-red-100 text-center">{error}</div>}
-            <div className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500 uppercase ml-1">Usuário</label>
+
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-[#8E9EAD] uppercase flex items-center gap-2 ml-1">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                  Login
+                </label>
                 <input
                   type="text"
                   required
                   value={loginData.username}
                   onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
-                  placeholder="Seu login"
-                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-sm font-medium"
+                  placeholder="admin"
+                  className="w-full px-6 py-5 bg-[#F0F4F8] border-none rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#006B47]/20 focus:bg-white transition-all text-sm font-bold text-gray-700 placeholder-[#8E9EAD]"
                 />
               </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-gray-500 uppercase ml-1">Senha</label>
+
+              <div className="space-y-3">
+                <label className="text-[10px] font-black text-[#8E9EAD] uppercase flex items-center gap-2 ml-1">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+                  Senha
+                </label>
                 <input
                   type="password"
                   required
                   value={loginData.password}
                   onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-                  placeholder="••••••••"
-                  className="w-full px-5 py-4 bg-gray-50 border border-gray-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all text-sm font-medium"
+                  placeholder="••••••••••"
+                  className="w-full px-6 py-5 bg-[#F0F4F8] border-none rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#006B47]/20 focus:bg-white transition-all text-sm font-bold text-gray-700 placeholder-[#8E9EAD]"
                 />
               </div>
             </div>
-            <button type="submit" className="w-full py-4 bg-emerald-700 text-white rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-emerald-800 transition-colors shadow-lg shadow-emerald-100 active:scale-95 duration-150">
-              Entrar no Sistema
+
+            <button type="submit" className="w-full py-5 bg-[#006B47] text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-emerald-900/10 hover:bg-[#005538] transition-all active:scale-95 duration-150">
+              Entrar
             </button>
+
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={handleVisitorLogin}
+                className="text-[11px] font-black text-[#8E9EAD] uppercase tracking-wider hover:text-[#006B47] transition-colors"
+              >
+                Modo Consulta (Visitante)
+              </button>
+            </div>
           </form>
         </div>
+
+        <footer className="mt-20 relative z-10 animate-fadeIn text-center">
+          <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">
+            Nano Pro © 2026 - Gestão Industrial de Alta Performance
+          </p>
+        </footer>
       </div>
     );
   }
 
   const renderContent = () => {
+    const isVisitor = user?.role === 'visitor';
+
+    // Lista de módulos permitidos para visitantes
+    const visitorModules = ['dashboard', 'transferencia', 'historico'];
+
+    if (isVisitor && !visitorModules.includes(activeTab)) {
+      return (
+        <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-white rounded-3xl shadow-sm border border-gray-100 italic font-medium text-gray-400">
+          Acesso restrito ao Modo Consulta.
+        </div>
+      );
+    }
+
     switch (activeTab) {
       case 'dashboard': return <Dashboard />;
       case 'enderecos': return <Enderecos />;

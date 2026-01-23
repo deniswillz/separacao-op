@@ -9,14 +9,15 @@ const Dashboard: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(true);
   const [alerts, setAlerts] = useState<{ id: string, op: string, produto: string, timestamp: string }[]>([]);
   const [kpiData, setKpiData] = useState({ pendingOps: 0, finalizedMonth: 0, inTransit: 0 });
+  const [opStatusList, setOpStatusList] = useState<{ id: string, type: 'Separação' | 'Conferência', status: string, usuario: string | null }[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       setIsSyncing(true);
 
-      const { data: sepData } = await supabase.from('separaca_list').select('status');
-      const { data: confData } = await supabase.from('conferencia_list').select('status');
+      const { data: sepData } = await supabase.from('separaca_list').select('id, status, usuario_atual');
+      const { data: confData } = await supabase.from('conferencia_list').select('id, status, usuario_atual');
 
       const pending = (sepData?.filter(d => d.status === 'Pendente').length || 0) +
         (confData?.filter(d => d.status === 'Aguardando').length || 0);
@@ -27,9 +28,16 @@ const Dashboard: React.FC = () => {
       setKpiData({
         pendingOps: pending,
         finalizedMonth: finalized,
-        inTransit: 0 // Placeholder as transit logic might be elsewhere
+        inTransit: 0
       });
 
+      // Transformar para o formato dos mini cards
+      const combined = [
+        ...(sepData || []).map(d => ({ id: d.id, type: 'Separação' as const, status: d.status, usuario: d.usuario_atual })),
+        ...(confData || []).map(d => ({ id: d.id, type: 'Conferência' as const, status: d.status, usuario: d.usuario_atual }))
+      ].slice(0, 12); // Limitar aos mais recentes
+
+      setOpStatusList(combined);
       setIsSyncing(false);
     };
 
@@ -149,6 +157,48 @@ const Dashboard: React.FC = () => {
               {insights.alertas?.map((alerta: string, idx: number) => (
                 <div key={idx} className="bg-emerald-800/50 p-3 rounded-lg text-xs border border-emerald-700/50 flex gap-3">⚠️ {alerta}</div>
               ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Mini Cards de Status de OPs */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+            Status das OPs em Tempo Real
+          </h3>
+          <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full uppercase tracking-tighter">Live Sync</span>
+        </div>
+
+        <div className="flex gap-4 overflow-x-auto pb-4 custom-scrollbar no-scrollbar-hidden">
+          {opStatusList.map((op, idx) => (
+            <div key={`${op.id}-${idx}`} className="flex-shrink-0 w-48 bg-white border border-gray-100 p-4 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex justify-between items-start mb-3">
+                <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase ${op.type === 'Separação' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
+                  {op.type}
+                </span>
+                <span className="text-[10px] font-black text-gray-300">#{op.id.toString().slice(-4)}</span>
+              </div>
+              <p className="text-xs font-black text-gray-900 mb-1 truncate">OP {op.id.toString().slice(0, 6)}</p>
+              <div className="flex items-center gap-2">
+                <div className={`w-1.5 h-1.5 rounded-full ${op.status === 'Finalizado' ? 'bg-emerald-500' : 'bg-orange-500 animation-pulse'}`}></div>
+                <p className="text-[10px] font-bold text-gray-500 uppercase">{op.status}</p>
+              </div>
+              {op.usuario && (
+                <div className="mt-2 pt-2 border-t border-gray-50 flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center text-[8px] font-black text-emerald-700">
+                    {op.usuario.charAt(0)}
+                  </div>
+                  <span className="text-[9px] font-bold text-gray-400 truncate">{op.usuario}</span>
+                </div>
+              )}
+            </div>
+          ))}
+          {opStatusList.length === 0 && (
+            <div className="w-full py-8 text-center text-[10px] font-black text-gray-300 uppercase tracking-widest">
+              Nenhuma OP ativa no momento
             </div>
           )}
         </div>
