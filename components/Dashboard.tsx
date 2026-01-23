@@ -1,25 +1,48 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { analyzeLogisticsEfficiency } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { supabase } from '../services/supabaseClient';
 
 const Dashboard: React.FC = () => {
   const [insights, setInsights] = useState<any>(null);
   const [loadingAI, setLoadingAI] = useState(false);
   const [isSyncing, setIsSyncing] = useState(true);
-  const [alerts, setAlerts] = useState<{id: string, op: string, produto: string, timestamp: string}[]>([]);
+  const [alerts, setAlerts] = useState<{ id: string, op: string, produto: string, timestamp: string }[]>([]);
+  const [kpiData, setKpiData] = useState({ pendingOps: 0, finalizedMonth: 0, inTransit: 0 });
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Simular sincronização com Supabase ao entrar
-    const sync = async () => {
-      await new Promise(r => setTimeout(r, 800));
+    const fetchDashboardData = async () => {
+      setIsSyncing(true);
+
+      const { data: sepData } = await supabase.from('separaca_list').select('status');
+      const { data: confData } = await supabase.from('conferencia_list').select('status');
+
+      const pending = (sepData?.filter(d => d.status === 'Pendente').length || 0) +
+        (confData?.filter(d => d.status === 'Aguardando').length || 0);
+
+      const finalized = (sepData?.filter(d => d.status === 'Finalizado').length || 0) +
+        (confData?.filter(d => d.status === 'Finalizado').length || 0);
+
+      setKpiData({
+        pendingOps: pending,
+        finalizedMonth: finalized,
+        inTransit: 0 // Placeholder as transit logic might be elsewhere
+      });
+
       setIsSyncing(false);
     };
-    sync();
+
+    fetchDashboardData();
+
+    // Sincronização em tempo real
+    const channel = supabase.channel('dashboard-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'separaca_list' }, fetchDashboardData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conferencia_list' }, fetchDashboardData)
+      .subscribe();
 
     audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-    
+
     const handleFaltaAlert = (e: any) => {
       const { op, produto } = e.detail;
       const newAlert = {
@@ -29,11 +52,11 @@ const Dashboard: React.FC = () => {
         timestamp: new Date().toLocaleTimeString('pt-BR')
       };
       setAlerts(prev => [newAlert, ...prev].slice(0, 5));
-      if (audioRef.current) audioRef.current.play().catch(() => {});
+      if (audioRef.current) audioRef.current.play().catch(() => { });
     };
 
     window.addEventListener('falta-detectada', handleFaltaAlert);
-    
+
     const fetchAI = async () => {
       setLoadingAI(true);
       const mockHistory = [{ item: 'PARAF-01', falta: true, data: '2023-10-01' }];
@@ -43,7 +66,10 @@ const Dashboard: React.FC = () => {
     };
     fetchAI();
 
-    return () => window.removeEventListener('falta-detectada', handleFaltaAlert);
+    return () => {
+      window.removeEventListener('falta-detectada', handleFaltaAlert);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   if (isSyncing) {
@@ -56,9 +82,9 @@ const Dashboard: React.FC = () => {
   }
 
   const kpis = [
-    { label: 'OPs Pendentes', value: '14', color: 'bg-orange-500', icon: '⏳' },
-    { label: 'Finalizadas (Mês)', value: '128', color: 'bg-emerald-600', icon: '✅' },
-    { label: 'Itens em Trânsito', value: '42', color: 'bg-blue-600', icon: '🚚' },
+    { label: 'OPs Pendentes', value: kpiData.pendingOps.toString().padStart(2, '0'), color: 'bg-orange-500', icon: '⏳' },
+    { label: 'Finalizadas (Mês)', value: kpiData.finalizedMonth.toString().padStart(2, '0'), color: 'bg-emerald-600', icon: '✅' },
+    { label: 'Itens em Trânsito', value: kpiData.inTransit.toString().padStart(2, '0'), color: 'bg-blue-600', icon: '🚚' },
     { label: 'Faltas Críticas', value: alerts.length.toString().padStart(2, '0'), color: 'bg-red-600', icon: '🚨' },
   ];
 

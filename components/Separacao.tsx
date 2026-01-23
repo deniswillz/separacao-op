@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { UrgencyLevel } from '../types';
 import { BlacklistItem } from '../App';
+import { supabase } from '../services/supabaseClient';
 
 interface OPMock {
   id: string;
@@ -20,63 +21,107 @@ interface OPMock {
   naoSeparados: number;
 }
 
-const mockOPs: OPMock[] = [
-  { 
-    id: '01', 
-    opCode: '00659801001', 
-    armazem: 'ELETRONICA', 
-    ordens: 1, 
-    totalItens: 12, 
-    data: '2026-01-16T14:00:34.49', 
-    progresso: 45, 
-    urgencia: 'alta', 
-    status: 'Em conferencia',
-    usuarioAtual: 'Daniel',
-    observacao: 'Urgente para linha de montagem 04',
-    separados: 6,
-    transferidos: 2,
-    naoSeparados: 4
-  },
-  { 
-    id: '02', 
-    opCode: '00661201002', 
-    armazem: 'CHICOTE', 
-    ordens: 3, 
-    totalItens: 28, 
-    data: '2026-01-17T09:15:00.00', 
-    progresso: 10, 
-    urgencia: 'urgencia', 
-    status: 'Pendente',
-    usuarioAtual: null,
-    observacao: 'Faltando componentes no setor',
-    separados: 2,
-    transferidos: 0,
-    naoSeparados: 26
-  }
-];
-
 const Separacao: React.FC<{ blacklist: BlacklistItem[] }> = ({ blacklist }) => {
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [isSyncing, setIsSyncing] = useState(true);
+  const [ops, setOps] = useState<OPMock[]>([]);
   const [selectedOP, setSelectedOP] = useState<OPMock | null>(null);
-  const currentResponsavel = 'Daniel';
+  const [currentResponsavel, setCurrentResponsavel] = useState<string>('');
 
   useEffect(() => {
-    const syncData = async () => {
+    const savedUser = localStorage.getItem('nano_user');
+    if (savedUser) {
+      const user = JSON.parse(savedUser);
+      setCurrentResponsavel(user.nome);
+    }
+
+    const fetchOps = async () => {
       setIsSyncing(true);
-      await new Promise(r => setTimeout(r, 700));
+      const { data, error } = await supabase
+        .from('separaca_list') // Note: assuming the table name from previous context or types
+        .select('*')
+        .order('data_criacao', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar OPs:', error);
+      } else if (data) {
+        const formattedOps: OPMock[] = data.map((item: any) => ({
+          id: item.id,
+          opCode: item.documento,
+          armazem: item.armazem,
+          ordens: item.ordens?.length || 0,
+          totalItens: item.itens?.length || 0,
+          data: item.data_criacao,
+          progresso: calculateProgress(item.itens),
+          urgencia: item.urgencia,
+          status: item.status,
+          usuarioAtual: item.usuario_atual,
+          observacao: item.observacao,
+          separados: item.itens?.filter((i: any) => i.separado).length || 0,
+          transferidos: item.itens?.filter((i: any) => i.transferido).length || 0,
+          naoSeparados: item.itens?.filter((i: any) => !i.separado).length || 0,
+        }));
+        setOps(formattedOps);
+      }
       setIsSyncing(false);
     };
-    syncData();
-  }, [viewMode]);
 
-  const handleStart = (op: OPMock) => {
+    fetchOps();
+
+    // Realtime subscription
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'separaca_list' },
+        (payload) => {
+          fetchOps();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const calculateProgress = (itens: any[]) => {
+    if (!itens || itens.length === 0) return 0;
+    const separados = itens.filter(i => i.separado).length;
+    return Math.round((separados / itens.length) * 100);
+  };
+
+  const handleStart = async (op: OPMock) => {
     if (op.usuarioAtual && op.usuarioAtual !== currentResponsavel) {
       alert(`Bloqueio de Segurança: O usuário "${op.usuarioAtual}" já está trabalhando nesta OP.`);
       return;
     }
-    setSelectedOP(op);
+
+    // Set lock in Supabase
+    const { error } = await supabase
+      .from('separaca_list')
+      .update({ usuario_atual: currentResponsavel })
+      .eq('id', op.id);
+
+    if (error) {
+      alert('Erro ao iniciar separação: ' + error.message);
+      return;
+    }
+
+    setSelectedOP({ ...op, usuarioAtual: currentResponsavel });
     setViewMode('detail');
+  };
+
+  const handleBack = async () => {
+    if (selectedOP) {
+      // Clear lock in Supabase
+      await supabase
+        .from('separaca_list')
+        .update({ usuario_atual: null })
+        .eq('id', selectedOP.id);
+    }
+    setViewMode('list');
+    setSelectedOP(null);
   };
 
   const getStatusBorder = (op: OPMock) => {
@@ -85,7 +130,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[] }> = ({ blacklist }) => {
     return 'border-emerald-500 ring-4 ring-emerald-50';
   };
 
-  if (isSyncing) {
+  if (isSyncing && ops.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
         <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
@@ -98,49 +143,49 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[] }> = ({ blacklist }) => {
     return (
       <div className="space-y-6 animate-fadeIn pb-10">
         <div className="flex flex-col gap-4">
-          <button onClick={() => setViewMode('list')} className="w-fit px-6 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-bold text-gray-500 uppercase flex items-center gap-2 hover:bg-gray-50 transition-all">
+          <button onClick={handleBack} className="w-fit px-6 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-bold text-gray-500 uppercase flex items-center gap-2 hover:bg-gray-50 transition-all">
             ← Voltar
           </button>
           <div className="space-y-1">
             <h2 className="text-2xl font-black text-gray-900 uppercase">OP {selectedOP.opCode}</h2>
-            <p className="text-[11px] font-bold text-gray-400 uppercase">Armazém: {selectedOP.armazem} | Criado em: {selectedOP.data}</p>
+            <p className="text-[11px] font-bold text-gray-400 uppercase">Armazém: {selectedOP.armazem} | Criado em: {new Date(selectedOP.data).toLocaleString('pt-BR')}</p>
           </div>
         </div>
 
         <div className="bg-white p-8 rounded-[1.5rem] border border-gray-100 shadow-sm flex flex-col md:flex-row gap-6">
-           <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
-             <div className="bg-white border border-gray-100 rounded-2xl p-6 flex flex-col justify-center">
-               <p className="text-3xl font-black text-gray-900 leading-none mb-2">{selectedOP.totalItens}</p>
-               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total de Itens</p>
-             </div>
-             <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 flex flex-col justify-center">
-               <p className="text-3xl font-black text-emerald-600 leading-none mb-2">{selectedOP.separados}</p>
-               <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Separados</p>
-             </div>
-             <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 flex flex-col justify-center">
-               <p className="text-3xl font-black text-blue-600 leading-none mb-2">{selectedOP.transferidos}</p>
-               <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Transferidos</p>
-             </div>
-             <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6 flex flex-col justify-center">
-               <p className="text-3xl font-black text-amber-600 leading-none mb-2">{selectedOP.naoSeparados}</p>
-               <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Não Separados</p>
-             </div>
-           </div>
+          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white border border-gray-100 rounded-2xl p-6 flex flex-col justify-center">
+              <p className="text-3xl font-black text-gray-900 leading-none mb-2">{selectedOP.totalItens}</p>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total de Itens</p>
+            </div>
+            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 flex flex-col justify-center">
+              <p className="text-3xl font-black text-emerald-600 leading-none mb-2">{selectedOP.separados}</p>
+              <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Separados</p>
+            </div>
+            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 flex flex-col justify-center">
+              <p className="text-3xl font-black text-blue-600 leading-none mb-2">{selectedOP.transferidos}</p>
+              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Transferidos</p>
+            </div>
+            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6 flex flex-col justify-center">
+              <p className="text-3xl font-black text-amber-600 leading-none mb-2">{selectedOP.naoSeparados}</p>
+              <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Não Separados</p>
+            </div>
+          </div>
 
-           <div className="flex flex-col gap-4 w-full md:w-auto min-w-[320px]">
-              <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-                 <p className="text-[10px] font-black text-gray-400 uppercase mb-2 ml-1 tracking-widest">Documento (Transferência)</p>
-                 <input type="text" placeholder="Nº do documento" className="w-full text-sm font-bold bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none uppercase placeholder-gray-300 focus:bg-white focus:ring-2 focus:ring-emerald-500/10" />
-              </div>
-              <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-                 <p className="text-[10px] font-black text-gray-400 uppercase mb-2 ml-1 tracking-widest">Responsável (Separação)</p>
-                 <div className="w-full text-sm font-black text-gray-800 uppercase bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">{currentResponsavel}</div>
-              </div>
-           </div>
+          <div className="flex flex-col gap-4 w-full md:w-auto min-w-[320px]">
+            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+              <p className="text-[10px] font-black text-gray-400 uppercase mb-2 ml-1 tracking-widest">Documento (Transferência)</p>
+              <input type="text" placeholder="Nº do documento" className="w-full text-sm font-bold bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none uppercase placeholder-gray-300 focus:bg-white focus:ring-2 focus:ring-emerald-500/10" />
+            </div>
+            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+              <p className="text-[10px] font-black text-gray-400 uppercase mb-2 ml-1 tracking-widest">Responsável (Separação)</p>
+              <div className="w-full text-sm font-black text-gray-800 uppercase bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">{currentResponsavel}</div>
+            </div>
+          </div>
         </div>
 
         <div className="bg-white p-32 rounded-[3.5rem] text-center border-2 border-dashed border-gray-100 font-black text-gray-200 uppercase tracking-widest text-sm shadow-inner">
-           Lista de Produtos Ativa
+          Lista de Produtos Ativa
         </div>
       </div>
     );
@@ -148,16 +193,16 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[] }> = ({ blacklist }) => {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 animate-fadeIn">
-      {mockOPs.map((op) => {
+      {ops.map((op) => {
         const isLocked = op.usuarioAtual && op.usuarioAtual !== currentResponsavel;
         return (
-          <div 
-            key={op.id} 
+          <div
+            key={op.id}
             className={`bg-white p-6 rounded-[2.5rem] border-2 transition-all flex flex-col justify-between h-[36rem] relative overflow-hidden ${isLocked ? 'grayscale opacity-60 border-gray-200' : `hover:shadow-2xl ${getStatusBorder(op)}`}`}
           >
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-xl font-black text-gray-300 tracking-tighter">ID {op.id}</span>
+                <span className="text-xl font-black text-gray-300 tracking-tighter">ID {op.id.toString().slice(0, 4)}</span>
                 <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${op.urgencia === 'urgencia' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
                   {op.urgencia}
                 </span>
@@ -208,10 +253,10 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[] }> = ({ blacklist }) => {
             <div className="mt-6 space-y-4">
               <div className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
                 <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{op.status}</span>
-                <span className="text-[8px] font-mono font-bold text-gray-300">{op.data.split('T')[0]}</span>
+                <span className="text-[8px] font-mono font-bold text-gray-300">{new Date(op.data).toLocaleDateString('pt-BR')}</span>
               </div>
-              <button 
-                onClick={() => handleStart(op)} 
+              <button
+                onClick={() => handleStart(op)}
                 className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl active:scale-95 ${isLocked ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-gray-900 text-white hover:bg-emerald-600 shadow-gray-100'}`}
               >
                 {isLocked ? `EM USO: ${op.usuarioAtual}` : 'Iniciar Separação'}
