@@ -50,13 +50,7 @@ const App: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('nano_user');
-    if (saved) {
-      setUser(JSON.parse(saved));
-      setIsAuthenticated(true);
-    }
-  }, []);
+  // Session is now in-memory only (Supabase-only persistence for data)
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +58,6 @@ const App: React.FC = () => {
       const newUser: User = { id: 1, username: 'admin', nome: 'Administrador', role: 'admin', permissions: ['all'] };
       setUser(newUser);
       setIsAuthenticated(true);
-      localStorage.setItem('nano_user', JSON.stringify(newUser));
       setError('');
     } else {
       setError('Credenciais inválidas. Tente novamente.');
@@ -81,14 +74,12 @@ const App: React.FC = () => {
     };
     setUser(visitorUser);
     setIsAuthenticated(true);
-    localStorage.setItem('nano_user', JSON.stringify(visitorUser));
     setActiveTab('dashboard');
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
     setUser(null);
-    localStorage.removeItem('nano_user');
   };
 
   if (!isAuthenticated) {

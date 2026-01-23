@@ -32,21 +32,13 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
   const [conferences, setConferences] = useState<ConferenceMock[]>([]);
   const [selectedConf, setSelectedConf] = useState<ConferenceMock | null>(null);
   const [showTransferList, setShowTransferList] = useState(false);
-  const [currentResponsavel, setCurrentResponsavel] = useState<string>('');
-
   useEffect(() => {
-    const savedUser = localStorage.getItem('nano_user');
-    if (savedUser) {
-      const user = JSON.parse(savedUser);
-      setCurrentResponsavel(user.nome);
-    }
-
     const fetchConferences = async () => {
       setIsSyncing(true);
       const { data, error } = await supabase
         .from('conferencia')
         .select('*')
-        .order('data_criacao', { ascending: false });
+        .order('data_conferencia', { ascending: false });
 
       if (error) {
         console.error('Erro ao buscar conferências:', error);
@@ -56,7 +48,7 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
           armazem: item.armazem,
           documento: item.documento,
           totalItens: item.itens?.length || 0,
-          data: item.data_criacao,
+          data: item.data_conferencia,
           status: item.status,
           opsConferidas: item.ops_conferidas || '0/0',
           itensOk: item.itens_ok || '0/0',
@@ -85,6 +77,8 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const currentResponsavel = user.nome;
 
   const handleStart = async (conf: ConferenceMock) => {
     if (conf.usuarioAtual && conf.usuarioAtual !== currentResponsavel) {

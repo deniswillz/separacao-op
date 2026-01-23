@@ -26,15 +26,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
   const [isSyncing, setIsSyncing] = useState(true);
   const [ops, setOps] = useState<OPMock[]>([]);
   const [selectedOP, setSelectedOP] = useState<OPMock | null>(null);
-  const [currentResponsavel, setCurrentResponsavel] = useState<string>('');
-
   useEffect(() => {
-    const savedUser = localStorage.getItem('nano_user');
-    if (savedUser) {
-      const user = JSON.parse(savedUser);
-      setCurrentResponsavel(user.nome);
-    }
-
     const fetchOps = async () => {
       setIsSyncing(true);
       const { data, error } = await supabase
@@ -84,6 +76,8 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const currentResponsavel = user.nome;
 
   const calculateProgress = (itens: any[]) => {
     if (!itens || itens.length === 0) return 0;
