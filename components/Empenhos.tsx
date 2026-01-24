@@ -138,7 +138,18 @@ const Empenhos: React.FC = () => {
 
     try {
       await upsertBatched('separacao', lotData, 500);
-      alert(`Lote ${lotId} gerado com ${selectedOps.length} OPs e ${consolidatedItens.length} itens únicos!`);
+
+      // TEA INTEGRATION: Create tracking history for each OP
+      const teaRecords = selectedIds.map(opId => ({
+        op: opId,
+        fluxo: [
+          { status: 'Logística', icon: '🏢', data: new Date().toLocaleDateString('pt-BR') },
+          { status: 'Separação', icon: '✅', data: new Date().toLocaleDateString('pt-BR') }
+        ]
+      }));
+      await upsertBatched('historico', teaRecords, 500);
+
+      alert(`Lote ${lotId} gerado com ${selectedOps.length} OPs e ${consolidatedItens.length} itens únicos! TEA atualizado.`);
       // Clear selected ops after generation
       setOps(prev => prev.filter(op => !selectedIds.includes(op.id)));
       setSelectedIds([]);

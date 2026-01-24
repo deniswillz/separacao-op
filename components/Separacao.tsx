@@ -295,8 +295,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       status: 'Aguardando',
       data_conferencia: new Date().toISOString(),
       responsavel_conferencia: null,
-      // Voltando para o nome mais simples se o cache falhou
-      transferencia: docTransferencia
+      numero_transferencia: docTransferencia
     };
 
     try {
@@ -563,8 +562,8 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                             </div>
                             <button
                               onClick={() => setSelectedItemForBreakdown(item)}
-                              disabled={isBlocked || isMaybe}
-                              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all border shadow-sm ${item.separado ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : (isBlocked || isMaybe) ? 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed' : 'bg-white text-gray-400 border-gray-100 hover:bg-gray-50'}`}
+                              disabled={isBlocked}
+                              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all border shadow-sm ${item.separado ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : isBlocked ? 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed' : 'bg-white text-gray-400 border-gray-100 hover:bg-gray-50'}`}
                             >
                               <span className="text-base font-black">🔍</span>
                             </button>
@@ -585,33 +584,33 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                         <td className="px-6 py-5 text-center">
                           <input
                             type="number"
-                            disabled={isBlocked || isMaybe}
+                            disabled={isBlocked}
                             value={item.qtd_separada || ''}
                             onChange={(e) => handleUpdateQtd(item.codigo, e.target.value)}
-                            className={`w-16 h-10 text-center rounded-xl font-black text-sm border-2 transition-all outline-none ${(isBlocked || isMaybe) ? 'bg-gray-100 border-gray-100 text-gray-300' : tooMuch ? 'bg-red-50 border-red-500 text-red-600 animate-pulse' : 'bg-gray-50 border-gray-100 text-gray-800 focus:bg-white focus:border-emerald-500'}`}
+                            className={`w-16 h-10 text-center rounded-xl font-black text-sm border-2 transition-all outline-none ${isBlocked ? 'bg-gray-100 border-gray-100 text-gray-300' : tooMuch ? 'bg-red-50 border-red-500 text-red-600 animate-pulse' : 'bg-gray-50 border-gray-100 text-gray-800 focus:bg-white focus:border-emerald-500'}`}
                             placeholder="0"
                           />
                         </td>
                         <td className="px-6 py-5">
                           <div className="flex items-center justify-center gap-2">
                             <button
-                              disabled={isBlocked || isMaybe}
+                              disabled={isBlocked}
                               onClick={() => updateItemStatus(item.codigo, 'separado', !item.separado)}
-                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${item.separado ? 'bg-emerald-600 text-white border-emerald-500' : (isBlocked || isMaybe) ? 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed' : 'bg-white text-emerald-600 border-emerald-100 hover:bg-emerald-50'}`}
+                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${item.separado ? 'bg-emerald-600 text-white border-emerald-500' : isBlocked ? 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed' : 'bg-white text-emerald-600 border-emerald-100 hover:bg-emerald-50'}`}
                             >
                               PICK
                             </button>
                             <button
-                              disabled={isBlocked || isMaybe}
+                              disabled={isBlocked}
                               onClick={() => updateItemStatus(item.codigo, 'transferido', !item.transferido)}
-                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${item.transferido ? 'bg-blue-600 text-white border-blue-500' : (isBlocked || isMaybe) ? 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed' : 'bg-white text-blue-600 border-blue-100 hover:bg-blue-50'}`}
+                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${item.transferido ? 'bg-blue-600 text-white border-blue-500' : isBlocked ? 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed' : 'bg-white text-blue-600 border-blue-100 hover:bg-blue-50'}`}
                             >
                               TRA
                             </button>
                             <button
-                              disabled={isBlocked || isMaybe}
+                              disabled={isBlocked}
                               onClick={() => updateItemStatus(item.codigo, 'falta', !item.falta)}
-                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${item.falta ? 'bg-amber-500 text-white border-amber-400' : (isBlocked || isMaybe) ? 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed' : 'bg-white text-amber-500 border-amber-100 hover:bg-amber-50'}`}
+                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${item.falta ? 'bg-amber-500 text-white border-amber-400' : isBlocked ? 'bg-gray-100 text-gray-300 border-gray-100 cursor-not-allowed' : 'bg-white text-amber-500 border-amber-100 hover:bg-amber-50'}`}
                             >
                               OUT
                             </button>

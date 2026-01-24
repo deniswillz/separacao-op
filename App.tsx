@@ -57,7 +57,7 @@ const App: React.FC = () => {
     setError('');
 
     // Admin check - allowing both common variant typos
-    if (loginData.username === 'admin' && (loginData.password === '12dfe13dfe' || loginData.password === '12dfe1d3fe')) {
+    if (loginData.username.toLowerCase() === 'admin' && (loginData.password === '12dfe13dfe' || loginData.password === '12dfe1d3fe')) {
       const adminUser: User = { id: 1, username: 'admin', nome: 'Administrador', role: 'admin', permissions: ['all'] };
       setUser(adminUser);
       setIsAuthenticated(true);
@@ -70,7 +70,7 @@ const App: React.FC = () => {
         .from('usuarios')
         .select('*')
         .eq('username', loginData.username)
-        .eq('senha', loginData.password)
+        .eq('password', loginData.password)
         .maybeSingle();
 
       if (sbError) {
