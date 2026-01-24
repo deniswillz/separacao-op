@@ -76,9 +76,10 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
     if (!selectedItem) return;
 
     if (field === 'falta') {
-      const item = selectedItem.itens.find(i => i.codigo === sku && i.op === op);
-      if (item && !item.falta) {
-        setDivItem(item);
+      const item = selectedItem.itens.find(i => i.codigo === sku);
+      const comp = item?.composicao?.find((c: any) => c.op === op);
+      if (comp && !comp.falta_conf) {
+        setDivItem({ ...item, op }); // Pass OP context
         setDivReason('');
         setShowDivModal(true);
         return;
@@ -86,13 +87,15 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
     }
 
     const newItens = selectedItem.itens.map(item => {
-      if (item.codigo === sku && item.op === op) {
-        return {
-          ...item,
-          ok: field === 'ok' ? !item.ok : item.ok,
-          ok2: field === 'ok2' ? !item.ok2 : item.ok2,
-          falta: field === 'falta' ? !item.falta : false
-        };
+      if (item.codigo === sku) {
+        const newComp = (item.composicao || []).map((c: any) => {
+          if (c.op === op) {
+            const f = field === 'ok' ? 'ok_conf' : field === 'ok2' ? 'ok2_conf' : 'falta_conf';
+            return { ...c, [f]: !c[f], ok_conf: field === 'falta' ? false : c.ok_conf, ok2_conf: field === 'falta' ? false : c.ok2_conf };
+          }
+          return c;
+        });
+        return { ...item, composicao: newComp };
       }
       return item;
     });
@@ -103,23 +106,27 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
     if (!selectedItem || !divItem) return;
 
     const newItens = selectedItem.itens.map(item => {
-      if (item.codigo === divItem.codigo && item.op === divItem.op) {
-        // Dispatch custom event for Dashboard with REASON
-        window.dispatchEvent(new CustomEvent('falta-detectada', {
-          detail: {
-            op: item.op,
-            produto: `${item.codigo} - ${item.descricao}`,
-            motivo: divReason || 'Não especificado'
+      if (item.codigo === divItem.codigo) {
+        const newComp = (item.composicao || []).map((c: any) => {
+          if (c.op === divItem.op) {
+            window.dispatchEvent(new CustomEvent('falta-detectada', {
+              detail: {
+                op: c.op,
+                produto: `${item.codigo} - ${item.descricao}`,
+                motivo: divReason || 'Não especificado'
+              }
+            }));
+            return {
+              ...c,
+              falta_conf: true,
+              ok_conf: false,
+              ok2_conf: false,
+              motivo_divergencia: divReason || 'Não especificado'
+            };
           }
-        }));
-
-        return {
-          ...item,
-          falta: true,
-          ok: false,
-          ok2: false,
-          motivo_divergencia: divReason || 'Não especificado'
-        };
+          return c;
+        });
+        return { ...item, composicao: newComp };
       }
       return item;
     });
@@ -157,11 +164,14 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
       return;
     }
 
-    const allChecked = selectedItem.itens.every(i => {
-      if (i.falta) return true; // Handled divergence
-      const blacklistItem = blacklist.find(b => b.codigo === i.codigo);
+    const allChecked = selectedItem.itens.every(item => {
+      const blacklistItem = blacklist.find(b => b.codigo === item.codigo);
       if (blacklistItem?.nao_sep) return true;
-      return i.ok && i.ok2;
+
+      return (item.composicao || []).every((c: any) => {
+        if (c.falta_conf) return true;
+        return c.ok_conf && c.ok2_conf;
+      });
     });
 
     if (!allChecked) {
@@ -207,6 +217,21 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
     }
   };
 
+  const handleSaveObs = async (sku: string, op: string, text: string) => {
+    if (!selectedItem) return;
+    const newItens = selectedItem.itens.map(item => {
+      if (item.codigo === sku) {
+        const newComp = (item.composicao || []).map((c: any) => c.op === op ? { ...c, observacao: text } : c);
+        return { ...item, composicao: newComp };
+      }
+      return item;
+    });
+
+    const { error } = await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
+    if (error) alert('Erro ao salvar observação: ' + error.message);
+    else setSelectedItem({ ...selectedItem, itens: newItens });
+  };
+
   if (isLoading && items.length === 0) {
     return <Loading message="Sincronizando Conferência..." />;
   }
@@ -242,9 +267,9 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
               <span>📋</span> Ordens de Produção - Status
             </div>
             <div className="flex flex-wrap gap-2">
-              {[...new Set(selectedItem.itens.map(i => i.op))].map(opCode => {
-                const opItens = selectedItem.itens.filter(i => i.op === opCode);
-                const isDone = opItens.every(i => i.ok);
+              {[...new Set(selectedItem.itens.flatMap(i => (i.composicao || []).map((c: any) => c.op)))].map(opCode => {
+                const opItensComps = selectedItem.itens.flatMap(i => (i.composicao || []).filter((c: any) => c.op === opCode));
+                const isDone = opItensComps.every(c => c.ok_conf);
                 const isSelected = selectedOpForDetail === opCode;
                 return (
                   <button
@@ -269,7 +294,7 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                 <table className="w-full text-left">
                   <thead className="bg-gray-50 text-[10px] font-black uppercase tracking-widest text-gray-400">
                     <tr>
-                      <th className="px-8 py-5 text-center">OBS 👁️🗨️</th>
+                      <th className="px-8 py-5 text-center">OBS 🗨️</th>
                       <th className="px-8 py-5">PRODUTO / OP</th>
                       <th className="px-6 py-5 text-center">SOLICITADO</th>
                       <th className="px-6 py-5 text-center">SEPARADO</th>
@@ -280,47 +305,50 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                     {selectedItem.itens
                       .filter(item => {
                         const blacklistItem = blacklist.find(b => b.codigo === item.codigo);
-                        return !blacklistItem?.nao_sep;
+                        if (blacklistItem?.nao_sep) return false;
+                        return true;
                       })
-                      .map((item, idx) => {
-                        const isOut = !!item.falta;
+                      .flatMap(item => (item.composicao || []).map((comp: any) => ({ ...item, ...comp })))
+                      .filter(row => !selectedOpForDetail || row.op === selectedOpForDetail)
+                      .map((row, idx) => {
+                        const isOut = !!row.falta_conf;
                         const rowClass = isOut ? 'bg-red-50 border-l-4 border-red-500' :
-                          (item.ok && item.ok2) ? 'bg-emerald-50/30' : '';
+                          (row.ok_conf && row.ok2_conf) ? 'bg-emerald-50/30 font-bold' : '';
 
                         return (
-                          <tr key={idx} className={`group ${rowClass} transition-all`}>
+                          <tr key={`${row.codigo}-${row.op}-${idx}`} className={`group ${rowClass} transition-all`}>
                             <td className="px-8 py-6 text-center">
                               <button
                                 disabled={isOut}
-                                onClick={() => { setObsItem(item); setShowObsModal(true); }}
+                                onClick={() => { setObsItem(row); setShowObsModal(true); }}
                                 className={`w-12 h-12 rounded-xl text-lg transition-all flex items-center justify-center border ${isOut ? 'opacity-20 cursor-not-allowed bg-gray-100' :
-                                  'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'
-                                  }`}
-                                title="VER OBSERVAÇÕES / COMPOSIÇÃO"
+                                  'bg-white border-gray-200 hover:bg-gray-50'
+                                  } ${row.observacao ? 'text-blue-500' : 'text-gray-300'}`}
+                                title="OBSERVAÇÕES / NOTAS (🗨️)"
                               >
-                                👁️🗨️
+                                🗨️
                               </button>
                             </td>
                             <td className="px-8 py-6">
                               <div className="flex items-center gap-2">
-                                <p className="text-xs font-black text-gray-900 font-mono">{item.codigo}</p>
-                                {item.composicao?.some((c: any) => c.observacao) && <span title="Possui Observações">📝</span>}
+                                <p className="text-xs font-black text-gray-900 font-mono">{row.codigo}</p>
+                                {row.observacao && <span title="Possui Observações">🗨️</span>}
                               </div>
-                              <p className="text-[10px] font-bold text-gray-400 uppercase truncate max-w-xs">{item.descricao}</p>
-                              <p className="text-[9px] font-black text-blue-600 mt-1 uppercase">OP: {item.op}</p>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase truncate max-w-xs">{row.descricao}</p>
+                              <p className="text-[9px] font-black text-blue-600 mt-1 uppercase">OP: {row.op}</p>
                             </td>
                             <td className="px-6 py-6 text-center text-sm font-black text-gray-400">
-                              {item.quantidade}
+                              {row.quantidade}
                             </td>
                             <td className="px-6 py-6 text-center text-sm font-black text-gray-900">
-                              {item.qtd_separada || item.quantidade}
+                              {row.qtd_separada || row.quantidade}
                             </td>
                             <td className="px-10 py-6">
                               <div className="flex justify-center gap-2">
                                 <button
                                   disabled={isOut}
-                                  onClick={() => handleToggleCheck(item.codigo, item.op, 'ok')}
-                                  className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : item.ok ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50'}`}
+                                  onClick={() => handleToggleCheck(row.codigo, row.op, 'ok')}
+                                  className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : row.ok_conf ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50'}`}
                                   title="1º Check: Conferência Visual"
                                 >
                                   OK
@@ -328,14 +356,14 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                                 <button
                                   disabled={isOut}
                                   onClick={() => setShowTransferList(true)}
-                                  className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : item.ok2 ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-gray-200 text-blue-600 hover:bg-blue-50'}`}
+                                  className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : row.ok2_conf ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-gray-200 text-blue-600 hover:bg-blue-50'}`}
                                   title="2º Check: Lista de Transferência"
                                 >
                                   TR
                                 </button>
                                 <button
-                                  onClick={() => handleToggleCheck(item.codigo, item.op, 'falta')}
-                                  className={`px-6 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${item.falta ? 'bg-red-600 text-white shadow-lg shadow-red-100' : 'bg-white border border-gray-200 text-red-600 hover:bg-red-50'}`}
+                                  onClick={() => handleToggleCheck(row.codigo, row.op, 'falta')}
+                                  className={`px-6 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${row.falta_conf ? 'bg-red-600 text-white shadow-lg shadow-red-100' : 'bg-white border border-gray-200 text-red-600 hover:bg-red-50'}`}
                                   title="Divergência / Falta (🚨)"
                                 >
                                   🚨 FALTA
@@ -354,26 +382,36 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
               <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
                 <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Resumo da Conferência</h3>
 
-                <div className="space-y-4">
-                  <div className="flex justify-between items-end">
-                    <p className="text-[9px] font-black text-emerald-600 uppercase">Progresso Geral</p>
-                    <p className="text-2xl font-black text-gray-900">{Math.round((selectedItem.itens.filter(i => i.ok).length / selectedItem.itens.length) * 100)}%</p>
-                  </div>
-                  <div className="w-full h-2 bg-gray-50 rounded-full overflow-hidden">
-                    <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(selectedItem.itens.filter(i => i.ok).length / selectedItem.itens.length) * 100}%` }}></div>
-                  </div>
-                </div>
+                {(() => {
+                  const allComps = selectedItem.itens.flatMap(i => i.composicao || []);
+                  const doneComps = allComps.filter((c: any) => c.ok_conf).length;
+                  const divComps = allComps.filter((c: any) => c.falta_conf).length;
+                  const perc = allComps.length > 0 ? Math.round((doneComps / allComps.length) * 100) : 0;
+                  return (
+                    <>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-end">
+                          <p className="text-[9px] font-black text-emerald-600 uppercase">Progresso Geral</p>
+                          <p className="text-2xl font-black text-gray-900">{perc}%</p>
+                        </div>
+                        <div className="w-full h-2 bg-gray-50 rounded-full overflow-hidden">
+                          <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${perc}%` }}></div>
+                        </div>
+                      </div>
 
-                <div className="grid grid-cols-1 gap-4 pt-4 border-t">
-                  <div className="bg-emerald-50 p-4 rounded-2xl flex justify-between items-center">
-                    <p className="text-[10px] font-black text-emerald-600 uppercase">Itens OK</p>
-                    <p className="text-xl font-black text-emerald-700">{selectedItem.itens.filter(i => i.ok).length}</p>
-                  </div>
-                  <div className="bg-amber-50 p-4 rounded-2xl flex justify-between items-center">
-                    <p className="text-[10px] font-black text-amber-600 uppercase">Divergências</p>
-                    <p className="text-xl font-black text-amber-700">{selectedItem.itens.filter(i => i.falta).length}</p>
-                  </div>
-                </div>
+                      <div className="grid grid-cols-1 gap-4 pt-4 border-t">
+                        <div className="bg-emerald-50 p-4 rounded-2xl flex justify-between items-center">
+                          <p className="text-[10px] font-black text-emerald-600 uppercase">Itens OK</p>
+                          <p className="text-xl font-black text-emerald-700">{doneComps}</p>
+                        </div>
+                        <div className="bg-amber-50 p-4 rounded-2xl flex justify-between items-center">
+                          <p className="text-[10px] font-black text-amber-600 uppercase">Divergências</p>
+                          <p className="text-xl font-black text-amber-700">{divComps}</p>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
 
                 <button
                   onClick={handleFinalize}
@@ -572,21 +610,25 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
               <button onClick={() => setShowObsModal(false)} className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-xs font-black text-gray-300 hover:bg-gray-100 hover:text-gray-900 transition-all">✕</button>
             </div>
 
-            <div className="max-h-96 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-              {obsItem.composicao?.filter((c: any) => c.observacao).map((comp: any, i: number) => (
-                <div key={i} className="p-4 bg-blue-50 border border-blue-100 rounded-2xl space-y-1">
-                  <div className="flex justify-between items-center text-[8px] font-black text-blue-600 uppercase">
-                    <span>OP: {comp.op}</span>
-                  </div>
-                  <p className="text-xs font-bold text-blue-800 leading-relaxed">{comp.observacao}</p>
+            <div className="max-h-96 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
+              <div className="space-y-3 p-6 bg-gray-50 rounded-3xl border border-gray-100">
+                <div className="flex justify-between items-center text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                  <span>OP: {obsItem.op}</span>
                 </div>
-              ))}
+                <textarea
+                  className="w-full h-32 bg-white border border-gray-100 rounded-2xl p-4 text-xs font-bold text-gray-800 outline-none focus:ring-4 focus:ring-blue-50 transition-all resize-none"
+                  placeholder="Digite sua observação aqui..."
+                  defaultValue={obsItem.observacao || ''}
+                  onBlur={(e) => handleSaveObs(obsItem.codigo, obsItem.op, e.target.value)}
+                />
+              </div>
+
               {obsItem.composicao?.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-gray-100">
-                  <p className="text-[10px] font-black text-gray-400 uppercase mb-3">Composição Separada</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase mb-3">Histórico de Composição</p>
                   <div className="space-y-2">
                     {obsItem.composicao.map((comp: any, i: number) => (
-                      <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-600">
+                      <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-400">
                         <span>OP {comp.op}</span>
                         <span>{comp.qtd_separada || comp.quantidade} {obsItem.unidade}</span>
                       </div>
@@ -598,9 +640,9 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
 
             <button
               onClick={() => setShowObsModal(false)}
-              className="w-full py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+              className="w-full py-5 bg-[#111827] text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black active:scale-95 transition-all"
             >
-              Entendido
+              Confirmar e Fechar
             </button>
           </div>
         </div>

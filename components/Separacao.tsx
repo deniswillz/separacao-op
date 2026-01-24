@@ -182,6 +182,21 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
     } finally { setIsSaving(false); }
   };
 
+  const handleSaveObs = async (sku: string, op: string, text: string) => {
+    if (!selectedOP) return;
+    const newItens = selectedOP.rawItens.map(item => {
+      if (item.codigo === sku) {
+        const newComp = (item.composicao || []).map((c: any) => c.op === op ? { ...c, observacao: text } : c);
+        return { ...item, composicao: newComp };
+      }
+      return item;
+    });
+
+    const { error } = await supabase.from('separacao').update({ itens: newItens }).eq('id', selectedOP.id);
+    if (error) alert('Erro ao salvar observação: ' + error.message);
+    else setSelectedOP({ ...selectedOP, rawItens: newItens });
+  };
+
   const getUrgencyStyles = (urg: string) => {
     if (urg === 'urgencia' || urg === 'URGENCIA') return { border: 'border-red-500', text: 'text-red-500', bg: 'bg-red-50' };
     if (urg === 'alta' || urg === 'ALTA') return { border: 'border-orange-500', text: 'text-orange-500', bg: 'bg-orange-50' };
@@ -279,15 +294,13 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                                 {item.codigo}
                               </p>
                               {isTalvez && <span className="px-2 py-0.5 bg-amber-500 text-white text-[8px] rounded-full uppercase">TALVEZ</span>}
-                              {item.composicao?.some((c: any) => c.observacao) && (
-                                <button
-                                  onClick={() => { setObsItem(item); setShowObsModal(true); }}
-                                  className="text-xs hover:scale-125 transition-transform"
-                                  title="Ver Observações"
-                                >
-                                  📝
-                                </button>
-                              )}
+                              <button
+                                onClick={() => { setObsItem(item); setShowObsModal(true); }}
+                                className={`text-xs hover:scale-125 transition-transform ${item.composicao?.some((c: any) => c.observacao) ? 'text-blue-500' : 'text-gray-300'}`}
+                                title="Observações / Notas (🗨️)"
+                              >
+                                🗨️
+                              </button>
                             </div>
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight mb-2">{item.descricao}</p>
                             <div className="flex items-center gap-4 text-[9px] font-black uppercase text-gray-400">
@@ -615,22 +628,27 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
               <button onClick={() => setShowObsModal(false)} className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-xs font-black text-gray-300 hover:bg-gray-100 hover:text-gray-900 transition-all">✕</button>
             </div>
 
-            <div className="max-h-96 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-              {obsItem.composicao?.filter((c: any) => c.observacao).map((comp: any, i: number) => (
-                <div key={i} className="p-4 bg-amber-50 border border-amber-100 rounded-2xl space-y-1">
-                  <div className="flex justify-between items-center text-[8px] font-black text-amber-600 uppercase">
+            <div className="max-h-96 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
+              {(obsItem.composicao || []).map((comp: any, i: number) => (
+                <div key={i} className="space-y-3 p-6 bg-gray-50 rounded-3xl border border-gray-100">
+                  <div className="flex justify-between items-center text-[9px] font-black text-gray-400 uppercase tracking-widest">
                     <span>OP: {comp.op}</span>
                   </div>
-                  <p className="text-xs font-bold text-amber-800 leading-relaxed">{comp.observacao}</p>
+                  <textarea
+                    className="w-full h-24 bg-white border border-gray-100 rounded-2xl p-4 text-xs font-bold text-gray-800 outline-none focus:ring-4 focus:ring-blue-50 transition-all resize-none"
+                    placeholder="Digite sua observação aqui..."
+                    defaultValue={comp.observacao || ''}
+                    onBlur={(e) => handleSaveObs(obsItem.codigo, comp.op, e.target.value)}
+                  />
                 </div>
               ))}
             </div>
 
             <button
               onClick={() => setShowObsModal(false)}
-              className="w-full py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+              className="w-full py-5 bg-[#111827] text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black active:scale-95 transition-all"
             >
-              Entendido
+              Confirmar e Fechar
             </button>
           </div>
         </div>
