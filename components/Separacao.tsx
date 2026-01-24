@@ -117,9 +117,12 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       nome: selectedOP.opCode,
       armazem: selectedOP.armazem,
       ordens: selectedOP.ordens,
-      itens: selectedOP.rawItens.map((item: any) => ({ ...item, doc_transferencia: docTransferencia })),
+      itens: selectedOP.rawItens
+        .filter((item: any) => !item.falta) // Don't send OUT items to conference
+        .map((item: any) => ({ ...item, doc_transferencia: docTransferencia })),
       status: 'Aguardando'
     };
+
 
 
     try {
@@ -191,57 +194,84 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                   <tr>
                     <th className="px-8 py-5">CÓDIGO / DESCRIÇÃO</th>
                     <th className="px-6 py-5 text-center">SOLIC.</th>
+                    <th className="px-6 py-5 text-center">SEPARADA</th>
                     <th className="px-10 py-5 text-center">AÇÕES</th>
                   </tr>
                 </thead>
+
                 <tbody className="divide-y divide-gray-100">
-                  {selectedOP.rawItens.map((item, idx) => (
-                    <tr key={idx} className={`group ${item.separado ? 'bg-emerald-50/50' : item.falta ? 'bg-amber-50/50' : item.transferido ? 'bg-blue-50/50' : ''}`}>
+                  {selectedOP.rawItens.map((item, idx) => {
+                    const isBlacklisted = blacklist.some(b => b.sku === item.codigo);
+                    const isOUT = item.falta || isBlacklisted;
 
-                      <td className="px-8 py-6">
-                        <p className="font-black text-[#111827] text-sm font-mono tracking-tighter">{item.codigo}</p>
-                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">{item.descricao}</p>
-                        <div className="mt-2 flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">📍 {item.endereco || 'S/E'}</p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-6 text-center text-lg font-black text-gray-900">{item.quantidade}</td>
-                      <td className="px-10 py-6">
-                        <div className="flex justify-center gap-2">
-                          <button
-                            onClick={() => updateItem(item.codigo, 'separado', !item.separado)}
-                            className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.separado ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50'}`}
-                            title="OK - Separação Manual"
-                          >
-                            OK
-                          </button>
-                          <button
-                            onClick={() => updateItem(item.codigo, 'transferido', !item.transferido)}
-                            className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.transferido ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-gray-200 text-blue-600 hover:bg-blue-50'}`}
-                            title="TR - Transferência do Item"
-                          >
-                            TR
-                          </button>
-                          <button
-                            onClick={() => updateItem(item.codigo, 'falta', !item.falta)}
-                            className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.falta ? 'bg-amber-500 text-white shadow-lg shadow-amber-100' : 'bg-white border border-gray-200 text-amber-500 hover:bg-amber-50'}`}
-                            title="OUT - Falta do Item"
-                          >
-                            OUT
-                          </button>
-                          <button
-                            onClick={() => { setLupaItem(item); setShowLupaModal(true); }}
-                            className={`w-12 h-12 rounded-xl text-lg transition-all flex items-center justify-center bg-white border border-gray-200 hover:bg-gray-50 ${(item.composicao?.every((c: any) => c.concluido)) ? 'border-emerald-500 text-emerald-500 shadow-lg shadow-emerald-50 font-bold' : 'text-gray-400'}`}
-                            title="LUPA - Preencher Qtd p/ OP"
-                          >
-                            🔍{(item.composicao?.every((c: any) => c.concluido)) && <span className="absolute mt-5 ml-5 text-[10px]">✅</span>}
-                          </button>
-                        </div>
-
-                      </td>
-                    </tr>
-                  ))}
+                    return (
+                      <tr key={idx} className={`group ${item.separado ? 'bg-emerald-50/50' : isOUT ? 'bg-amber-50/50' : item.transferido ? 'bg-blue-50/50' : ''} ${isBlacklisted ? 'border-l-4 border-red-500' : ''}`}>
+                        <td className="px-8 py-6">
+                          <p className="font-black text-[#111827] text-sm font-mono tracking-tighter flex items-center gap-2">
+                            {item.codigo}
+                            {isBlacklisted && <span className="px-2 py-0.5 bg-red-500 text-white text-[8px] rounded-full">BLACKLIST</span>}
+                          </p>
+                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-tight mb-2">{item.descricao}</p>
+                          <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Armazém: <span className="text-gray-900">{selectedOP.armazem}</span></p>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                              <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Endereço: <span className="text-gray-900">{item.endereco || 'S/E'}</span></p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-6 text-center text-lg font-black text-gray-900">{item.quantidade}</td>
+                        <td className="px-6 py-6 text-center">
+                          <input
+                            type="number"
+                            className={`w-20 px-3 py-2 bg-white border rounded-xl text-center font-black text-sm outline-none transition-all ${item.qtd_separada > item.quantidade ? 'border-red-500 ring-4 ring-red-50' : 'border-gray-200 focus:ring-4 focus:ring-emerald-50'}`}
+                            value={item.qtd_separada || 0}
+                            disabled={isOUT}
+                            onChange={(e) => updateItem(item.codigo, 'qtd_separada', Number(e.target.value))}
+                          />
+                        </td>
+                        <td className="px-10 py-6">
+                          <div className="flex justify-center gap-2">
+                            <button
+                              onClick={() => updateItem(item.codigo, 'separado', !item.separado)}
+                              disabled={isOUT}
+                              className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.separado ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50 disabled:opacity-30 disabled:grayscale'}`}
+                              title="OK - Separação Manual"
+                            >
+                              OK
+                            </button>
+                            <button
+                              onClick={() => updateItem(item.codigo, 'transferido', !item.transferido)}
+                              disabled={isOUT}
+                              className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.transferido ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-gray-200 text-blue-600 hover:bg-blue-50 disabled:opacity-30 disabled:grayscale'}`}
+                              title="TR - Transferência do Item"
+                            >
+                              TR
+                            </button>
+                            <button
+                              onClick={() => updateItem(item.codigo, 'falta', !item.falta)}
+                              disabled={isBlacklisted}
+                              className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${isOUT ? 'bg-amber-500 text-white shadow-lg shadow-amber-100' : 'bg-white border border-gray-200 text-amber-500 hover:bg-amber-50'}`}
+                              title="OUT - Falta/Blacklist"
+                            >
+                              OUT
+                            </button>
+                            <button
+                              onClick={() => { setLupaItem(item); setShowLupaModal(true); }}
+                              disabled={isOUT}
+                              className={`w-12 h-12 rounded-xl text-lg transition-all flex items-center justify-center bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-30 disabled:grayscale ${(item.composicao?.every((c: any) => c.concluido)) ? 'border-emerald-500 text-emerald-500 shadow-lg shadow-emerald-50 font-bold' : 'text-gray-400'}`}
+                              title="LUPA - Preencher Qtd p/ OP"
+                            >
+                              🔍{(item.composicao?.every((c: any) => c.concluido)) && <span className="absolute mt-5 ml-5 text-[10px] bg-white rounded-full">✅</span>}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
