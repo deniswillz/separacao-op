@@ -56,28 +56,22 @@ const App: React.FC = () => {
     e.preventDefault();
     setError('');
 
-    // Admin check - allowing both common variant typos
-    if (loginData.username.toLowerCase() === 'admin' && (loginData.password === '12dfe13dfe' || loginData.password === '12dfe1d3fe')) {
+    // Hardcoded admin login (always works)
+    if (loginData.username === 'admin' && loginData.password === '12dfe13dfe') {
       const adminUser: User = { id: 1, username: 'admin', nome: 'Administrador', role: 'admin', permissions: ['all'] };
       setUser(adminUser);
       setIsAuthenticated(true);
       return;
     }
 
+    // Try Supabase for other users
     try {
-      // Robust query for other users
       const { data, error: sbError } = await supabase
         .from('usuarios')
         .select('*')
         .eq('username', loginData.username)
         .eq('password', loginData.password)
-        .maybeSingle();
-
-      if (sbError) {
-        console.error('Login error:', sbError);
-        setError('Erro de conexão com o banco de dados. Contate o suporte.');
-        return;
-      }
+        .single();
 
       if (sbError || !data) {
         setError('Credenciais inválidas. Tente novamente.');

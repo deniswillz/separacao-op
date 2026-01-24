@@ -9,8 +9,7 @@ const Dashboard: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(true);
   const [alerts, setAlerts] = useState<{ id: string, op: string, produto: string, timestamp: string }[]>([]);
   const [kpiData, setKpiData] = useState({ pendingOps: 0, finalizedMonth: 0, inTransit: 0 });
-  const [opStatusList, setOpStatusList] = useState<{ id: string, name: string, ordens: string[], type: 'Separação' | 'Conferência', status: string, usuario: string | null, data: string }[]>([]);
-  const [showOPListModal, setShowOPListModal] = useState<{ open: boolean, ops: string[], title: string }>({ open: false, ops: [], title: '' });
+  const [opStatusList, setOpStatusList] = useState<{ id: string, type: 'Separação' | 'Conferência', status: string, usuario: string | null }[]>([]);
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -18,8 +17,8 @@ const Dashboard: React.FC = () => {
     const fetchDashboardData = async () => {
       setIsSyncing(true);
 
-      const { data: sepData } = await supabase.from('separacao').select('id, status, usuario_atual, data_criacao, nome, ordens');
-      const { data: confData } = await supabase.from('conferencia').select('id, status, responsavel_conferencia, data_conferencia, documento');
+      const { data: sepData } = await supabase.from('separacao').select('id, status, usuario_atual, data_criacao');
+      const { data: confData } = await supabase.from('conferencia').select('id, status, responsavel_conferencia, data_conferencia');
 
       const pending = (sepData?.filter(d => d.status?.toLowerCase() === 'pendente' || d.status?.toLowerCase() === 'em_separacao').length || 0) +
         (confData?.filter(d => d.status?.toLowerCase() === 'pendente' || d.status?.toLowerCase() === 'aguardando' || d.status?.toLowerCase() === 'em_conferencia').length || 0);
@@ -35,24 +34,8 @@ const Dashboard: React.FC = () => {
 
       // Transformar para o formato dos mini cards e filtrar por data
       const combined = [
-        ...(sepData || []).map(d => ({
-          id: d.id,
-          name: d.nome || `OP ${d.id.toString().slice(0, 8)}`,
-          ordens: d.ordens || [],
-          type: 'Separação' as const,
-          status: d.status,
-          usuario: d.usuario_atual,
-          data: d.data_criacao
-        })),
-        ...(confData || []).map(d => ({
-          id: d.id,
-          name: d.documento || `DOC ${d.id.toString().slice(0, 8)}`,
-          ordens: [],
-          type: 'Conferência' as const,
-          status: d.status,
-          usuario: d.responsavel_conferencia,
-          data: d.data_conferencia
-        }))
+        ...(sepData || []).map(d => ({ id: d.id, type: 'Separação' as const, status: d.status, usuario: d.usuario_atual, data: d.data_criacao })),
+        ...(confData || []).map(d => ({ id: d.id, type: 'Conferência' as const, status: d.status, usuario: d.responsavel_conferencia, data: d.data_conferencia }))
       ];
 
       setOpStatusList(combined);
@@ -84,18 +67,14 @@ const Dashboard: React.FC = () => {
     window.addEventListener('falta-detectada', handleFaltaAlert);
 
     const fetchAI = async () => {
+      setLoadingAI(true);
       try {
-        setLoadingAI(true);
         const mockHistory = [{ item: 'PARAF-01', falta: true, data: '2023-10-01' }];
         const data = await analyzeLogisticsEfficiency(mockHistory);
         setInsights(data);
-      } catch (err: any) {
-        console.error('Error in Dashboard fetchAI:', err);
-        if (err.message?.includes('429') || err.message?.includes('Quota exceeded')) {
-          setInsights({ resumo: '💡 As métricas estão excelentes! Continue com o fluxo de conferência para manter o ritmo de expedição.' });
-        } else {
-          setInsights({ resumo: 'Logística otimizada. Verifique os lotes pendentes em Separação.' });
-        }
+      } catch (error: any) {
+        console.error('Error in Dashboard fetchAI:', error);
+        setInsights({ resumo: 'Limite de cota de análise atingido (429). Tente novamente em 1 minuto.' });
       } finally {
         setLoadingAI(false);
       }
@@ -112,7 +91,7 @@ const Dashboard: React.FC = () => {
     return (
       <div className="h-full flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
         <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest animate-pulse">Sincronizando Ecossistema...</p>
+        <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest animate-pulse">Sincronizando Dashboard...</p>
       </div>
     );
   }
@@ -131,40 +110,8 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-fadeIn">
-      {/* Custom Modal for OP List */}
-      {showOPListModal.open && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[900] flex items-center justify-center p-6 animate-fadeIn">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-scaleIn border border-gray-100 text-left">
-            <div className="bg-gray-900 p-8 flex justify-between items-center text-white">
-              <div>
-                <h3 className="text-lg font-black uppercase tracking-tight">Lista de OPs do Lote</h3>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{showOPListModal.title}</p>
-              </div>
-              <button onClick={() => setShowOPListModal({ open: false, ops: [], title: '' })} className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-sm">✕</button>
-            </div>
-            <div className="p-10 space-y-4 max-h-[50vh] overflow-y-auto">
-              {showOPListModal.ops && showOPListModal.ops.length > 0 ? (
-                showOPListModal.ops.map((opId, idx) => (
-                  <div key={idx} className="flex items-center gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100 group hover:border-emerald-200 transition-all">
-                    <div className="w-8 h-8 rounded-lg bg-white border border-gray-100 flex items-center justify-center text-[10px] font-black text-gray-400 group-hover:text-emerald-600 group-hover:border-emerald-100 shadow-sm transition-all">{idx + 1}</div>
-                    <span className="font-mono text-sm font-black text-gray-800 tracking-tighter uppercase">{String(opId)}</span>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-xs font-black text-gray-300 uppercase tracking-widest italic">OP Única / Sem Detalhes</p>
-                </div>
-              )}
-            </div>
-            <div className="bg-gray-50 p-8 flex justify-end border-t border-gray-100">
-              <button onClick={() => setShowOPListModal({ open: false, ops: [], title: '' })} className="px-12 py-4 bg-white border border-gray-200 text-gray-500 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all">Fechar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {alerts.length > 0 && (
-        <div className="fixed top-20 right-8 z-50 w-80 space-y-2 pointer-events-none text-left">
+        <div className="fixed top-20 right-8 z-50 w-80 space-y-2 pointer-events-none">
           {alerts.map((alert) => (
             <div key={alert.id} className="bg-red-600 text-white p-4 rounded-2xl shadow-2xl animate-scaleIn pointer-events-auto border-2 border-white">
               <p className="text-xs font-black uppercase">PRODUTO EM FALTA!</p>
@@ -175,7 +122,7 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-left">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {kpis.map((kpi, idx) => (
           <div key={idx} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
             <div>
@@ -187,7 +134,7 @@ const Dashboard: React.FC = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-bold text-gray-800 mb-8">Volume de Separação Semanal</h3>
           <div className="h-[300px] min-h-[300px] w-full overflow-hidden">
@@ -240,25 +187,20 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-left">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {opStatusList
-            .filter(op => op.data?.startsWith(dateFilter))
+            .filter(op => (op as any).data?.startsWith(dateFilter))
             .map((op, idx) => (
-              <div key={`${op.id}-${idx}`} className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
+              <div key={`${op.id}-${idx}`} className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-3">
                   <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase ${op.type === 'Separação' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
                     {op.type}
                   </span>
-                  <button
-                    onClick={() => setShowOPListModal({ open: true, ops: op.ordens, title: op.name })}
-                    className="w-5 h-5 flex items-center justify-center bg-gray-50 text-gray-300 rounded-md hover:bg-emerald-50 hover:text-emerald-500 transition-all border border-gray-100"
-                  >
-                    <span className="text-[10px]">🔍</span>
-                  </button>
+                  <span className="text-[10px] font-black text-gray-300">#{op.id.toString().slice(-4)}</span>
                 </div>
-                <p className="text-xs font-black text-gray-900 mb-1 truncate">{op.name}</p>
+                <p className="text-xs font-black text-gray-900 mb-1 truncate">OP {op.id.toString().slice(0, 6)}</p>
                 <div className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${op.status === 'Finalizado' || op.status === 'Concluído' ? 'bg-emerald-500' : 'bg-orange-500 animate-pulse'}`}></div>
+                  <div className={`w-1.5 h-1.5 rounded-full ${op.status === 'Finalizado' ? 'bg-emerald-500' : 'bg-orange-500 animation-pulse'}`}></div>
                   <p className="text-[10px] font-bold text-gray-500 uppercase">{op.status}</p>
                 </div>
                 {op.usuario && (
@@ -271,9 +213,9 @@ const Dashboard: React.FC = () => {
                 )}
               </div>
             ))}
-          {opStatusList.filter(op => op.data?.startsWith(dateFilter)).length === 0 && (
-            <div className="col-span-full py-12 text-center text-[10px] font-black text-gray-300 uppercase tracking-widest border-2 border-dashed border-gray-100 rounded-3xl">
-              Nenhuma OP ativa para esta data
+          {opStatusList.length === 0 && (
+            <div className="w-full py-8 text-center text-[10px] font-black text-gray-300 uppercase tracking-widest">
+              Nenhuma OP ativa no momento
             </div>
           )}
         </div>

@@ -19,34 +19,16 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
   useEffect(() => {
     const fetchEnderecos = async () => {
       setIsLoading(true);
-      let allData: Product[] = [];
-      let from = 0;
-      let to = 999;
-      let hasMore = true;
+      const { data, error } = await supabase
+        .from('enderecos')
+        .select('*')
+        .order('codigo', { ascending: true });
 
-      while (hasMore) {
-        const { data, error } = await supabase
-          .from('enderecos')
-          .select('*')
-          .range(from, to)
-          .order('codigo', { ascending: true });
-
-        if (error) {
-          console.error('Erro ao buscar endereços:', error);
-          hasMore = false;
-        } else if (data && data.length > 0) {
-          allData = [...allData, ...data];
-          if (data.length < 1000) {
-            hasMore = false;
-          } else {
-            from += 1000;
-            to += 1000;
-          }
-        } else {
-          hasMore = false;
-        }
+      if (error) {
+        console.error('Erro ao buscar endereços:', error);
+      } else if (data) {
+        setItems(data);
       }
-      setItems(allData);
       setIsLoading(false);
     };
 
@@ -181,7 +163,7 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
             className={`flex items-center gap-3 px-8 py-4 bg-[#006B47] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-[#004D33] transition-all shadow-xl shadow-emerald-100 ${isImporting ? 'opacity-50 cursor-wait' : ''}`}
           >
             <span className="text-lg">{isImporting ? '⏳' : '📥'}</span>
-            {isImporting ? 'Processando...' : 'Importar Endereços (A,D,E,I)'}
+            {isImporting ? 'Processando...' : 'Importar Excel'}
           </button>
           <button
             onClick={handleClearAll}
@@ -211,14 +193,14 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
                   <td colSpan={5} className="px-10 py-20 text-center text-gray-400 font-black uppercase tracking-widest text-xs">
                     <div className="flex flex-col items-center gap-4">
                       <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-                      Sincronizando Base...
+                      Carregando endereços...
                     </div>
                   </td>
                 </tr>
               ) : filteredItems.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-10 py-20 text-center text-gray-400 font-black uppercase tracking-widest text-xs">
-                    Nenhum produto encontrado
+                    Nenhum produto encontrado na base de endereços
                   </td>
                 </tr>
               ) : (

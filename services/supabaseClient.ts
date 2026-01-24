@@ -10,23 +10,29 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export const upsertBatched = async (table: string, items: any[], batchSize = 500) => {
-  for (let i = 0; i < items.length; i += batchSize) {
-    const rawBatch = items.slice(i, i + batchSize);
-    const onConflict = table === 'enderecos' || table === 'blacklist' ? 'codigo' : table === 'historico' ? 'op' : 'id';
+  // 1. De-duplicação local: Supabase falha no upsert se o lote tiver o mesmo conflito várias vezes
+  const uniqueItems = Array.from(
+    new Map(items.map(item => [item.op || item.codigo || item.id, item])).values()
+  );
 
-    // De-duplicate locally within the batch to avoid "ON CONFLICT command cannot affect row a second time"
-    const uniqueMap = new Map();
-    rawBatch.forEach(item => {
-      const { id, ...rest } = item;
-      uniqueMap.set(rest[onConflict] || id, rest);
-    });
+  for (let i = 0; i < uniqueItems.length; i += batchSize) {
+    const batch = uniqueItems.slice(i, i + batchSize);
 
-    const cleanBatch = Array.from(uniqueMap.values());
+    // Identificar o alvo de conflito correto
+    let onConflict = 'id';
+    if (table === 'enderecos' || table === 'blacklist') onConflict = 'codigo';
+    if (table === 'historico') onConflict = 'op'; // Ajustado conforme lógica de negócio anterior, mas perigoso se a coluna faltar
 
     const { error } = await supabase
       .from(table)
-      .upsert(cleanBatch, { onConflict, ignoreDuplicates: false });
+      .upsert(batch, {
+        onConflict,
+        ignoreDuplicates: false
+      });
 
-    if (error) throw error;
+    if (error) {
+      console.error(`Erro no upsert na tabela ${table}:`, error);
+      throw error;
+    }
   }
 };

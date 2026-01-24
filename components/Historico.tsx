@@ -7,52 +7,59 @@ interface FinishedOP {
   opRange: string;
   armazem: string;
   documento: string;
-  ordens: string[];
+  ordens: string;
   separador: string;
   conferente: string;
   dataFinalizacao: string;
   totalItens: number;
-  itens: any[];
+  itens: { codigo: string; descricao: string; qtd: number; ok: boolean; obs: string }[];
 }
 
+const mockHistory: FinishedOP[] = [
+  {
+    id: '1',
+    opRange: '00657601001 - 00657901001',
+    armazem: 'CHICOTE',
+    documento: 'CC00102X2',
+    ordens: '00657601001, 00657701001, 00657801001, 00657901001',
+    separador: 'Denis',
+    conferente: 'Felipe',
+    dataFinalizacao: '2026-01-15T13:59:37.868',
+    totalItens: 36,
+    itens: [
+      { codigo: 'MP0101000000010', descricao: 'TRAVA CONECTOR DELPHI 6 VIAS', qtd: 2, ok: true, obs: '-' },
+      { codigo: 'MP0101000000017', descricao: 'TRAVA EM CUNHA DT06 4 VIAS FEMEA', qtd: 11, ok: true, obs: '-' },
+      { codigo: 'MP0101000000026', descricao: 'VEDACAO CINZA DO CONECTOR PORTA FUSIVEL', qtd: 6, ok: true, obs: '-' },
+    ]
+  }
+];
 const Historico: React.FC<{ user: User }> = ({ user }) => {
+  const [isSyncing, setIsSyncing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<FinishedOP | null>(null);
   const [history, setHistory] = useState<FinishedOP[]>([]);
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchHistorico = async () => {
-      setIsLoading(true);
+    const fetchHistory = async () => {
+      setIsSyncing(true);
       const { data, error } = await supabase
-        .from('conferencia')
+        .from('historico')
         .select('*')
-        .eq('status', 'Historico')
-        .order('data_conferencia', { ascending: false });
+        .order('data_finalizacao', { ascending: false });
 
-      if (error) {
-        console.error('Erro ao buscar histórico:', error);
-      } else if (data) {
+      if (data) {
         setHistory(data.map((item: any) => ({
-          id: item.id,
-          opRange: item.nome || `LOTE ${item.id.toString().slice(0, 8)}`,
-          armazem: item.armazem,
-          documento: item.id,
-          ordens: item.ordens || [],
-          separador: 'Sistema',
-          conferente: item.responsavel_conferencia || 'N/A',
-          dataFinalizacao: item.data_conferencia,
-          totalItens: item.itens?.length || 0,
-          itens: item.itens || []
+          ...item,
+          dataFinalizacao: item.data_finalizacao || item.data // Mapeando campos do DB
         })));
       }
-      setIsLoading(false);
+      setIsSyncing(false);
     };
 
-    fetchHistorico();
+    fetchHistory();
 
     const channel = supabase.channel('historico-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conferencia' }, fetchHistorico)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'historico' }, fetchHistory)
       .subscribe();
 
     return () => {
@@ -78,7 +85,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
     }
     if (confirm('Deseja realmente excluir este registro do histórico?')) {
       const { error } = await supabase
-        .from('conferencia')
+        .from('historico')
         .delete()
         .eq('id', id);
 
@@ -90,11 +97,11 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
-  if (isLoading) {
+  if (isSyncing && history.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
-        <div className="w-12 h-12 border-4 border-amber-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest animate-pulse tracking-[0.2em]">Sincronizando Histórico...</p>
+        <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest animate-pulse tracking-[0.2em]">Sincronizando Auditoria...</p>
       </div>
     );
   }
@@ -102,9 +109,9 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
   return (
     <div className="space-y-6 animate-fadeIn pb-16">
       {selectedItem && (
-        <div className="fixed inset-0 bg-black/60 z-[200] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-white rounded-[2.5rem] w-full max-w-4xl overflow-hidden shadow-2xl animate-scaleIn flex flex-col max-h-[95vh] border border-gray-100">
-            <div className="bg-gray-900 px-8 py-5 flex justify-between items-center text-white shrink-0">
+            <div className="bg-[#006B47] px-8 py-5 flex justify-between items-center text-white shrink-0">
               <h3 className="text-base font-extrabold uppercase tracking-tight">Detalhamento Logístico</h3>
               <button onClick={() => setSelectedItem(null)} className="w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all text-sm">✕</button>
             </div>
@@ -117,13 +124,14 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                   <p className="text-[11px] font-black text-emerald-600 font-mono mt-1">{selectedItem.documento}</p>
                 </div>
                 <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
-                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Responsável</p>
+                  <p className="text-[10px] font-black text-gray-400 uppercase mb-2">Equipe Responsável</p>
+                  <p className="text-[11px] font-bold text-gray-700 uppercase">Sep: {selectedItem.separador}</p>
                   <p className="text-[11px] font-bold text-gray-700 uppercase">Conf: {selectedItem.conferente}</p>
                 </div>
                 <div className="bg-emerald-900 text-white p-5 rounded-2xl shadow-lg">
                   <p className="text-[10px] font-black text-emerald-400 uppercase mb-2">Status Auditoria</p>
                   <p className="text-sm font-black uppercase">Finalizado ✅</p>
-                  <p className="text-[10px] font-mono mt-1 opacity-60">{new Date(selectedItem.dataFinalizacao).toLocaleString()}</p>
+                  <p className="text-[10px] font-mono mt-1 opacity-60">{selectedItem.dataFinalizacao}</p>
                 </div>
               </div>
 
@@ -133,7 +141,8 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                     <tr>
                       <th className="px-6 py-5">CÓDIGO</th>
                       <th className="px-6 py-5">DESCRIÇÃO</th>
-                      <th className="px-6 py-5 text-center">STATUS</th>
+                      <th className="px-6 py-5 text-center">QTD</th>
+                      <th className="px-6 py-5 text-center">OK</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -141,8 +150,9 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                       <tr key={idx} className="text-[11px] font-bold text-gray-500 hover:bg-gray-50/50 transition-colors">
                         <td className="px-6 py-6 font-mono text-emerald-700">{item.codigo}</td>
                         <td className="px-6 py-6 uppercase">{item.descricao}</td>
+                        <td className="px-6 py-6 text-center font-black text-gray-800">{item.qtd}</td>
                         <td className="px-6 py-6 text-center">
-                          <span className="inline-flex items-center justify-center px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg font-black text-[9px] border border-emerald-100 uppercase">OK</span>
+                          <span className="inline-flex items-center justify-center w-6 h-6 bg-emerald-50 text-emerald-600 rounded-lg font-black text-xs border border-emerald-100">✔️</span>
                         </td>
                       </tr>
                     ))}
@@ -153,6 +163,9 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
 
             <div className="bg-gray-50/80 p-8 flex justify-end gap-5 shrink-0 border-t border-gray-100">
               <button onClick={() => setSelectedItem(null)} className="px-10 py-4 bg-white border border-gray-200 text-gray-500 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">Sair</button>
+              <button className="px-10 py-4 bg-[#006B47] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest flex items-center gap-3 hover:bg-[#004D33] transition-all shadow-xl shadow-emerald-50">
+                📥 Exportar Relatório
+              </button>
             </div>
           </div>
         </div>
@@ -179,13 +192,14 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
           <div
             key={item.id}
             onClick={() => setSelectedItem(item)}
-            className="bg-white p-8 rounded-[3rem] border-2 border-gray-100 shadow-sm hover:border-emerald-500 hover:shadow-2xl transition-all cursor-pointer group flex flex-col justify-between h-[24rem] relative overflow-hidden"
+            className="bg-white p-8 rounded-[3rem] border-2 border-gray-100 shadow-sm hover:border-emerald-500 hover:shadow-2xl transition-all cursor-pointer group flex flex-col justify-between h-[24rem] relative overflow-hidden hover:translate-y-[-5px]"
           >
-            <div className="space-y-6 relative z-10 text-left">
+            <div className="space-y-6 relative z-10">
               <div className="flex justify-between items-center">
                 <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-3xl shadow-sm group-hover:bg-emerald-600 group-hover:text-white transition-all">📋</div>
                 <div className="text-right">
                   <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Finalizado</p>
+                  <p className="text-[12px] font-mono font-black text-gray-300 uppercase tracking-tighter">{item.documento}</p>
                 </div>
               </div>
 
@@ -201,7 +215,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
 
               <div className="space-y-4">
                 <h4 className="text-sm font-black text-gray-900 uppercase tracking-tight leading-snug line-clamp-3">
-                  {item.opRange}
+                  OP {item.opRange}
                 </h4>
 
                 <div className="grid grid-cols-2 gap-4 border-t border-gray-100 pt-5">
@@ -217,7 +231,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
               </div>
             </div>
 
-            <div className="mt-8 pt-6 border-t border-gray-50 flex justify-between items-center relative z-10 text-left">
+            <div className="mt-8 pt-6 border-t border-gray-50 flex justify-between items-center relative z-10">
               <div className="space-y-0.5">
                 <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest">Data Fechamento</p>
                 <p className="text-[10px] font-black text-gray-600 font-mono tracking-tighter">{new Date(item.dataFinalizacao).toLocaleDateString()}</p>
@@ -228,11 +242,6 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
             </div>
           </div>
         ))}
-        {filteredHistory.length === 0 && (
-          <div className="col-span-full py-20 text-center">
-            <p className="text-gray-400 font-black uppercase text-xs tracking-widest">Nenhum registro para esta data</p>
-          </div>
-        )}
       </div>
     </div>
   );
