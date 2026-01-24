@@ -56,6 +56,15 @@ const App: React.FC = () => {
     e.preventDefault();
     setError('');
 
+    // Hardcoded admin login (always works)
+    if (loginData.username === 'admin' && loginData.password === '12dfe13dfe') {
+      const adminUser: User = { id: 1, username: 'admin', nome: 'Administrador', role: 'admin', permissions: ['all'] };
+      setUser(adminUser);
+      setIsAuthenticated(true);
+      return;
+    }
+
+    // Try Supabase for other users
     try {
       const { data, error: sbError } = await supabase
         .from('usuarios')
@@ -65,7 +74,7 @@ const App: React.FC = () => {
         .single();
 
       if (sbError || !data) {
-        setError('Credenciais inválidas ou usuário não encontrado.');
+        setError('Credenciais inválidas. Tente novamente.');
         return;
       }
 
@@ -80,7 +89,7 @@ const App: React.FC = () => {
       setUser(loggedUser);
       setIsAuthenticated(true);
     } catch (err: any) {
-      setError('Erro ao realizar login: ' + err.message);
+      setError('Credenciais inválidas. Tente novamente.');
     }
   };
 
