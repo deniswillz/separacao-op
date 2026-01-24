@@ -31,7 +31,7 @@ const mockHistory: ShipmentHistory[] = [
 
 const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   const [showHistory, setShowHistory] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [history, setHistory] = useState<ShipmentHistory[]>([]);
 
   useEffect(() => {
@@ -76,7 +76,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
-  if (isSyncing) {
+  if (isSyncing && showHistory) {
     return (
       <div className="h-full flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>

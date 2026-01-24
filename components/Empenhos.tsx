@@ -1,26 +1,24 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { UrgencyLevel } from '../types';
+import * as XLSX from 'xlsx';
+import { supabase, upsertBatched } from '../services/supabaseClient';
 
 interface PendingOP {
   id: string;
   data: string;
-  itens: number;
+  itens: { codigo: string; descricao: string; quantidade: number; unidade: string }[];
   prioridade: UrgencyLevel;
   armazem?: string;
 }
 
-const mockImported: PendingOP[] = Array.from({ length: 18 }, (_, i) => ({
-  id: `00653${70 + i}01001`,
-  data: '22/01/2026',
-  itens: Math.floor(Math.random() * 20) + 1,
-  prioridade: 'media'
-}));
-
 const Empenhos: React.FC = () => {
-  const [ops, setOps] = useState<PendingOP[]>(mockImported);
-  const [selectedIds, setSelectedIds] = useState<string[]>(mockImported.slice(0, 15).map(o => o.id));
+  const [ops, setOps] = useState<PendingOP[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [globalWarehouse, setGlobalWarehouse] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
@@ -35,6 +33,87 @@ const Empenhos: React.FC = () => {
     setOps(prev => prev.map(op => op.id === id ? { ...op, prioridade: newPriority } : op));
   };
 
+  // Excel import: A=OP, U=Codigo, V=Descricao, W=Quantidade, X=Unidade. Header linha 2.
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+
+        // Agrupar por OP (coluna A - index 0)
+        const opsMap: { [key: string]: PendingOP } = {};
+        data.slice(2).filter(row => row[0]).forEach(row => {
+          const opId = String(row[0]).trim();
+          if (!opsMap[opId]) {
+            opsMap[opId] = {
+              id: opId,
+              data: new Date().toLocaleDateString('pt-BR'),
+              itens: [],
+              prioridade: 'media'
+            };
+          }
+          opsMap[opId].itens.push({
+            codigo: String(row[20] || '').trim(),  // U
+            descricao: String(row[21] || '').trim(), // V
+            quantidade: Number(row[22]) || 0,       // W
+            unidade: String(row[23] || '').trim()   // X
+          });
+        });
+
+        const importedOps = Object.values(opsMap);
+        setOps(prev => [...prev, ...importedOps]);
+        setSelectedIds(prev => [...prev, ...importedOps.map(op => op.id)]);
+        alert(`${importedOps.length} OPs importadas com ${Object.values(opsMap).reduce((t, o) => t + o.itens.length, 0)} itens!`);
+      } catch (error: any) {
+        alert('Erro ao processar Excel: ' + error.message);
+      } finally {
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const handleGenerateList = async () => {
+    if (selectedIds.length === 0 || !globalWarehouse) return;
+
+    const selectedOps = ops.filter(op => selectedIds.includes(op.id));
+    const separacaoData = selectedOps.map(op => ({
+      documento: op.id,
+      armazem: globalWarehouse,
+      ordens: [op.id],
+      itens: op.itens.map(item => ({
+        codigo: item.codigo,
+        descricao: item.descricao,
+        quantidade: item.quantidade,
+        unidade: item.unidade,
+        separado: false,
+        transferido: false
+      })),
+      urgencia: op.prioridade,
+      status: 'pendente',
+      data_criacao: new Date().toISOString(),
+      usuario_atual: null
+    }));
+
+    try {
+      await upsertBatched('separacao', separacaoData, 500);
+      alert(`${separacaoData.length} listas de separação geradas com sucesso!`);
+      // Clear selected ops after generation
+      setOps(prev => prev.filter(op => !selectedIds.includes(op.id)));
+      setSelectedIds([]);
+    } catch (error: any) {
+      alert('Erro ao gerar lista: ' + error.message);
+    }
+  };
+
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Botões de Ação Superiores */}
@@ -43,25 +122,36 @@ const Empenhos: React.FC = () => {
           <h2 className="text-sm font-black text-gray-700 uppercase tracking-tight">
             SELECIONE AS ORDENS DE PRODUÇÃO
           </h2>
-          
+
           <div className="flex flex-wrap gap-2">
             <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-50 transition-all">
               <span className="text-base">📄</span> Baixar Modelo Excel
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-[#004d33] text-white rounded-xl text-xs font-bold hover:bg-[#003624] transition-all">
-              <span className="text-base">📥</span> Importar Ordens (Excel)
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImportExcel}
+              accept=".xlsx, .xls"
+              className="hidden"
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className={`flex items-center gap-2 px-4 py-2 bg-[#004d33] text-white rounded-xl text-xs font-bold hover:bg-[#003624] transition-all ${isImporting ? 'opacity-50' : ''}`}
+            >
+              <span className="text-base">📥</span> {isImporting ? 'Importando...' : 'Importar Ordens (Excel)'}
             </button>
-            <button 
+            <button
+              onClick={handleGenerateList}
               disabled={selectedIds.length === 0 || !globalWarehouse}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                selectedIds.length > 0 && globalWarehouse 
-                ? 'bg-[#10b981] text-white hover:bg-[#059669]' 
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${selectedIds.length > 0 && globalWarehouse
+                ? 'bg-[#10b981] text-white hover:bg-[#059669]'
                 : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-              }`}
+                }`}
             >
               <span className="text-base">✅</span> Gerar Lista de Separação
             </button>
-            <button 
+            <button
               onClick={() => { setSelectedIds([]); setOps([]); }}
               className="flex items-center gap-2 px-4 py-2 bg-[#ef4444] text-white rounded-xl text-xs font-bold hover:bg-[#dc2626] transition-all"
             >
@@ -78,11 +168,10 @@ const Empenhos: React.FC = () => {
                 <button
                   key={op.id}
                   onClick={() => toggleSelect(op.id)}
-                  className={`px-3 py-2.5 rounded-xl border text-[11px] font-bold transition-all text-center flex items-center justify-center gap-1 ${
-                    selectedIds.includes(op.id)
+                  className={`px-3 py-2.5 rounded-xl border text-[11px] font-bold transition-all text-center flex items-center justify-center gap-1 ${selectedIds.includes(op.id)
                     ? 'bg-white border-emerald-500 text-emerald-700 shadow-sm ring-2 ring-emerald-500/10'
                     : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
-                  }`}
+                    }`}
                 >
                   <span className="tracking-tighter">{op.id}</span>
                 </button>
@@ -92,9 +181,9 @@ const Empenhos: React.FC = () => {
             <div className="absolute top-0 right-0 w-1.5 h-full bg-[#006B47] rounded-full"></div>
           </div>
           {ops.length > 0 && (
-             <p className="text-[10px] font-black text-emerald-600 mt-3 flex items-center gap-2 uppercase tracking-widest">
-                ✨ {selectedIds.length === ops.length ? 'Todas as OPs já foram selecionadas' : `${selectedIds.length} OPs selecionadas para empenho`}
-             </p>
+            <p className="text-[10px] font-black text-emerald-600 mt-3 flex items-center gap-2 uppercase tracking-widest">
+              ✨ {selectedIds.length === ops.length ? 'Todas as OPs já foram selecionadas' : `${selectedIds.length} OPs selecionadas para empenho`}
+            </p>
           )}
         </div>
       </div>
@@ -105,7 +194,7 @@ const Empenhos: React.FC = () => {
         <div className="lg:col-span-1 bg-white p-6 rounded-3xl border border-gray-200 shadow-sm h-fit space-y-4">
           <div className="space-y-2">
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Armazém (Destino)</label>
-            <select 
+            <select
               value={globalWarehouse}
               onChange={(e) => setGlobalWarehouse(e.target.value)}
               className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-500 appearance-none cursor-pointer"
@@ -146,14 +235,13 @@ const Empenhos: React.FC = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-center">
-                        <select 
+                        <select
                           value={op.prioridade}
                           onChange={(e) => handlePriorityChange(op.id, e.target.value as UrgencyLevel)}
-                          className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-xl border outline-none focus:ring-2 focus:ring-emerald-500 appearance-none text-center cursor-pointer ${
-                            op.prioridade === 'urgencia' ? 'bg-red-50 text-red-600 border-red-200' :
+                          className={`text-[10px] font-black uppercase px-3 py-1.5 rounded-xl border outline-none focus:ring-2 focus:ring-emerald-500 appearance-none text-center cursor-pointer ${op.prioridade === 'urgencia' ? 'bg-red-50 text-red-600 border-red-200' :
                             op.prioridade === 'alta' ? 'bg-orange-50 text-orange-600 border-orange-200' :
-                            'bg-gray-50 text-gray-600 border-gray-200'
-                          }`}
+                              'bg-gray-50 text-gray-600 border-gray-200'
+                            }`}
                         >
                           <option value="baixa">Baixa</option>
                           <option value="media">Média</option>
@@ -165,7 +253,7 @@ const Empenhos: React.FC = () => {
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">
                         <button className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all text-xs font-bold">Adc +</button>
-                        <button 
+                        <button
                           onClick={() => toggleSelect(op.id)}
                           className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                         >

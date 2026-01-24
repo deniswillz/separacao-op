@@ -34,9 +34,10 @@ const mockHistory: FinishedOP[] = [
   }
 ];
 const Historico: React.FC<{ user: User }> = ({ user }) => {
-  const [isSyncing, setIsSyncing] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [selectedItem, setSelectedItem] = useState<FinishedOP | null>(null);
   const [history, setHistory] = useState<FinishedOP[]>([]);
+  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     const fetchHistory = async () => {
