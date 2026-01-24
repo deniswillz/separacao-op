@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 
 interface TEAItem {
   id: string;
-  documento: string; // OP
+  documento: string; // Ordem Produção
   armazem?: string;
   produto?: string;
   descricao?: string;
@@ -21,7 +21,6 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   const [isImporting, setIsImporting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [history, setHistory] = useState<TEAItem[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -35,7 +34,6 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
     if (error) {
       console.error(error);
     } else if (data) {
-      // Mapeamento para garantir que os campos necessários existam
       const formattedData = data.map((item: any) => ({
         ...item,
         produto: item.produto || 'PA00000000000',
@@ -43,7 +41,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
         quantidade: item.quantidade || 0,
         prioridade: item.prioridade || 'Média',
         status_atual: item.status_atual || 'Aguardando',
-        ultima_atualizacao: item.data_finalizacao || item.data_conferencia || new Date().toISOString(),
+        ultima_atualizacao: item.updated_at || item.data_finalizacao || item.data_conferencia || new Date().toISOString(),
         itens: Array.isArray(item.itens) ? item.itens : []
       }));
       setHistory(formattedData);
@@ -53,6 +51,10 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
 
   useEffect(() => {
     fetchHistory();
+    const channel = supabase.channel('historico-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'historico' }, fetchHistory)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,7 +70,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
 
-        // Mapeamento conforme imagem (A=OP, B=Produto, C=Descricao, H=Qtd)
+        // Mapeamento: A=OP, B=Produto, C=Descricao, H=Qtd
         // Linha 2 é cabeçalho, dados começam na 3 (index 2)
         const teaData = data.slice(2).filter(row => row[0]).map(row => ({
           documento: String(row[0]).trim(),
@@ -84,7 +86,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
         }));
 
         await upsertBatched('historico', teaData, 500);
-        alert('Movimentações TEA sincronizadas com sucesso!');
+        alert(`${teaData.length} OPs importadas para TEA!`);
         fetchHistory();
       } catch (error: any) {
         alert('Erro ao importar Excel: ' + error.message);
@@ -111,171 +113,113 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
       })
       .eq('id', item.id);
 
-    if (error) {
-      alert('Erro ao atualizar status: ' + error.message);
-    } else {
-      fetchHistory();
-    }
+    if (error) alert('Erro: ' + error.message);
+    else fetchHistory();
+  };
+
+  const deleteItem = async (id: string) => {
+    if (!confirm('Deseja excluir este rastreio?')) return;
+    const { error } = await supabase.from('historico').delete().eq('id', id);
+    if (error) alert(error.message);
+    else fetchHistory();
   };
 
   const getStatusBadge = (fluxo: any[]) => {
-    const lastStatus = fluxo[fluxo.length - 1]?.status;
-    if (lastStatus === 'Separação') return { label: 'EM SEPARAÇÃO', color: 'bg-blue-50 text-blue-600', icon: '📄' };
-    if (lastStatus === 'Conferência' || lastStatus === 'Qualidade') return { label: 'EM CONFERÊNCIA', color: 'bg-indigo-50 text-indigo-600', icon: '🔍' };
-    if (lastStatus === 'Em Transito') return { label: 'EM TRÂNSITO', color: 'bg-blue-50 text-blue-600', icon: '🚚' };
-    return { label: 'AGUARDANDO', color: 'bg-gray-50 text-gray-500', icon: '⏳' };
+    const last = fluxo[fluxo.length - 1]?.status;
+    if (last === 'Separação') return { label: 'Em Separação', color: 'bg-blue-100 text-blue-800', icon: '📦' };
+    if (last === 'Conferência' || last === 'Qualidade') return { label: 'Em Conferência', color: 'bg-indigo-100 text-indigo-800', icon: '🔍' };
+    if (last === 'transito' || last === 'Em Transito') return { label: 'Em Trânsito', color: 'bg-blue-100 text-blue-800', icon: '🚚' };
+    if (last === 'Recebido') return { label: 'Concluído', color: 'bg-emerald-100 text-emerald-800', icon: '✅' };
+    return { label: 'Aguardando', color: 'bg-gray-100 text-gray-800', icon: '⏳' };
   };
 
   const filteredHistory = history.filter(h =>
     h.documento.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    h.produto?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    h.descricao?.toLowerCase().includes(searchTerm.toLowerCase())
+    h.produto?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (isLoading) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-[10px] font-black text-blue-800 uppercase tracking-widest animate-pulse">Carregando Painel TEA...</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-12 animate-fadeIn pb-20 bg-[#F8FAFC] -m-8 p-8 min-h-screen">
-      {/* Header Section */}
-      <div className="flex flex-col gap-1">
-        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">TEA</p>
-        <h1 className="text-4xl font-extrabold text-[#111827] tracking-tight uppercase">Integração TEA</h1>
-        <p className="text-gray-400 font-bold text-[11px] uppercase tracking-widest mt-1 opacity-70">Sincronização entre Matriz e Filial</p>
-      </div>
-
-      {/* Action Cards Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm flex items-center gap-8 group hover:shadow-xl transition-all duration-500">
-          <div className="w-20 h-20 bg-blue-50 text-blue-600 rounded-[2rem] flex items-center justify-center text-4xl group-hover:scale-110 transition-transform">📥</div>
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-black text-gray-900 uppercase">Receber Matriz</h3>
-              <p className="text-gray-400 font-bold text-[10px] uppercase tracking-wider">Importar/Sincronizar TEA</p>
-            </div>
-            <input type="file" ref={fileInputRef} className="hidden" onChange={handleImportExcel} />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isImporting}
-              className="px-8 py-3.5 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95"
-            >
-              {isImporting ? 'PROCESSANDO...' : 'Carregar Excel'}
-            </button>
-          </div>
+    <div className="space-y-8 animate-fadeIn pb-20 bg-gray-50 -m-8 p-8 min-h-screen">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-8 rounded-[2rem] border shadow-sm">
+        <div>
+          <h1 className="text-2xl font-black text-gray-900 uppercase">Matriz x Filial</h1>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Sincronização Integrada TEA</p>
         </div>
-
-        <div className="bg-white p-10 rounded-[3rem] border border-gray-100 shadow-sm flex items-center gap-8 group hover:shadow-xl transition-all duration-500">
-          <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-[2rem] flex items-center justify-center text-4xl group-hover:scale-110 transition-transform">🕒</div>
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-black text-gray-900 uppercase">Rastreio Fluxo</h3>
-              <p className="text-gray-400 font-bold text-[10px] uppercase tracking-wider">Histórico Completo TEA</p>
-            </div>
-            <button
-              onClick={() => setShowHistory(!showHistory)}
-              className="px-8 py-3.5 bg-[#111827] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all shadow-lg shadow-gray-200 active:scale-95"
-            >
-              Ver Fluxo
-            </button>
+        <div className="flex gap-4 w-full md:w-auto">
+          <input type="file" ref={fileInputRef} className="hidden" onChange={handleImportExcel} />
+          <button onClick={() => fileInputRef.current?.click()} className="flex-1 md:flex-none px-8 py-3 bg-blue-600 text-white rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 shadow-lg shadow-blue-100">
+            {isImporting ? 'IMPORTANDO...' : 'Importar Matriz'}
+          </button>
+          <div className="relative flex-1 md:w-64">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30 text-xs">🔍</span>
+            <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="BUSCAR OP..." className="w-full pl-10 pr-4 py-3 bg-gray-50 border-transparent rounded-xl text-[10px] font-black uppercase focus:bg-white focus:ring-2 focus:ring-blue-50 outline-none transition-all" />
           </div>
         </div>
       </div>
 
-      {/* Transfer List Header & Search */}
-      <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-        <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight">Lista de Transferência</h2>
-        <div className="relative w-full max-w-lg">
-          <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300">🔍</span>
-          <input
-            type="text"
-            placeholder="BUSCAR OP, PRODUTO OU DESCRIÇÃO..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-white border border-gray-50 rounded-[2rem] py-4 pl-14 pr-8 text-xs font-bold text-gray-500 placeholder-gray-300 outline-none focus:ring-4 focus:ring-blue-50 transition-all shadow-sm"
-          />
-        </div>
-      </div>
-
-      {/* Grid of Transfer Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {filteredHistory.map((item) => {
           const badge = getStatusBadge(item.itens);
+          const isQualidade = item.status_atual?.includes('Qualidade') || item.itens.some(i => i.status === 'Qualidade');
+          const isConcuidado = item.status_atual === 'CONCLUÍDO';
+
           return (
-            <div key={item.id} className="bg-white rounded-[3rem] border border-gray-50 shadow-sm p-8 space-y-6 flex flex-col justify-between hover:shadow-2xl hover:translate-y-[-8px] transition-all duration-500 relative group overflow-hidden">
-              <div className="space-y-4 relative z-10">
+            <div key={item.id} className="bg-white rounded-[2.5rem] border p-8 flex flex-col justify-between h-[30rem] shadow-sm hover:shadow-xl transition-all relative group overflow-hidden">
+              <div className="space-y-5 relative z-10">
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
-                    <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">OP: {item.documento}</p>
-                    <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[9px] font-black uppercase ${badge.color}`}>
+                    <p className="text-[11px] font-black text-gray-900">OP: {item.documento}</p>
+                    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase ${badge.color}`}>
                       <span>{badge.icon}</span> {badge.label}
                     </div>
                   </div>
+                  <button onClick={() => deleteItem(item.id)} className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all">✕</button>
                 </div>
 
-                <div className="space-y-1 text-left">
+                <div className="space-y-1">
                   <p className="text-[11px] font-black text-blue-600 font-mono tracking-tighter">{item.produto}</p>
-                  <h4 className="text-sm font-black text-gray-800 uppercase leading-snug line-clamp-2 h-10">{item.descricao}</h4>
+                  <p className="text-[11px] font-bold text-gray-400 uppercase leading-snug line-clamp-3 h-12">{item.descricao}</p>
                 </div>
 
-                <div className="bg-gray-50/50 rounded-[2rem] p-6 grid grid-cols-2 gap-4 border border-gray-50">
-                  <div className="space-y-1 text-center">
-                    <p className="text-[9px] font-black text-gray-400 uppercase">Qtd Sol.</p>
-                    <p className="text-xl font-black text-gray-900">{item.quantidade}</p>
+                <div className="grid grid-cols-2 gap-2 border-y py-4">
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-black text-gray-300 uppercase">Qtd Sol.</p>
+                    <p className="text-sm font-black text-gray-800">{item.quantidade}</p>
                   </div>
-                  <div className="space-y-1 text-center border-l border-gray-100">
-                    <p className="text-[9px] font-black text-gray-400 uppercase">Prioridade</p>
-                    <p className={`text-[11px] font-black uppercase ${item.prioridade?.toLowerCase().includes('urg') ? 'text-red-500' : 'text-blue-500'}`}>
-                      {item.prioridade}
-                    </p>
+                  <div className="space-y-1 border-l pl-4">
+                    <p className="text-[9px] font-black text-gray-300 uppercase">Prioridade</p>
+                    <p className="text-sm font-black text-gray-800">{item.prioridade}</p>
                   </div>
                 </div>
 
-                <div className="pt-2">
+                <div className="space-y-3">
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 rounded-md bg-blue-100 flex items-center justify-center text-[7px] font-black text-blue-600">🕒</div>
-                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Última atualização: {new Date(item.ultima_atualizacao!).toLocaleString('pt-BR')}</p>
+                    <span className="text-xs">🔄</span>
+                    <p className="text-[9px] font-bold text-gray-400 uppercase">Última atualização: {new Date(item.ultima_atualizacao!).toLocaleString('pt-BR')}</p>
                   </div>
-                  <p className="text-xs font-black text-emerald-600 uppercase mt-2 tracking-widest">{item.status_atual}</p>
+                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{item.status_atual}</p>
                 </div>
               </div>
 
-              <div className="mt-8 relative z-10">
-                {badge.label === 'EM TRÂNSITO' ? (
-                  <button
-                    onClick={() => updateStatus(item, 'Recebido', '🏁', 'CONCLUÍDO')}
-                    className="w-full py-5 bg-[#111827] text-emerald-400 rounded-[1.75rem] font-black text-[11px] uppercase tracking-widest hover:bg-black transition-all shadow-xl active:scale-95 border border-emerald-900/30"
-                  >
-                    Confirmar
-                  </button>
+              <div className="relative z-10">
+                {isConcuidado ? (
+                  <div className="w-full py-4 bg-emerald-50 text-emerald-600 rounded-2xl font-black text-[10px] uppercase text-center border border-emerald-100">Finalizado ✅</div>
                 ) : (
                   <button
-                    disabled
-                    className="w-full py-5 bg-[#111827] text-red-500/80 rounded-[1.75rem] font-black text-[11px] uppercase tracking-widest opacity-90 cursor-default border border-red-900/10"
+                    disabled={!isQualidade}
+                    onClick={() => updateStatus(item, 'Recebido', '🏁', 'CONCLUÍDO')}
+                    className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase transition-all ${isQualidade ? 'bg-gray-900 text-white hover:bg-black active:scale-95 shadow-xl shadow-gray-200' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
                   >
-                    Aguardando
+                    {isQualidade ? 'Confirmar Recebimento' : 'Aguardando Qualidade...'}
                   </button>
                 )}
               </div>
 
-              {/* Design decoration */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-bl-[100%] z-0 group-hover:bg-blue-50 transition-colors duration-500"></div>
+              <div className="absolute top-0 right-0 w-24 h-24 bg-gray-50 rounded-bl-full z-0 group-hover:bg-blue-50/50 transition-colors"></div>
             </div>
           );
         })}
       </div>
-
-      {filteredHistory.length === 0 && (
-        <div className="py-32 text-center space-y-4">
-          <div className="text-6xl opacity-20">🚚</div>
-          <p className="text-sm font-black text-gray-300 uppercase tracking-[0.3em]">Nenhuma transferência encontrada</p>
-        </div>
-      )}
     </div>
   );
 };

@@ -12,7 +12,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 export const upsertBatched = async (table: string, items: any[], batchSize = 500) => {
   // 1. De-duplicação local: Supabase falha no upsert se o lote tiver o mesmo conflito várias vezes
   const uniqueItems = Array.from(
-    new Map(items.map(item => [item.op || item.codigo || item.id, item])).values()
+    new Map(items.map(item => [item.documento || item.op || item.codigo || item.id, item])).values()
   );
 
   for (let i = 0; i < uniqueItems.length; i += batchSize) {
@@ -21,7 +21,7 @@ export const upsertBatched = async (table: string, items: any[], batchSize = 500
     // Identificar o alvo de conflito correto
     let onConflict = 'id';
     if (table === 'enderecos' || table === 'blacklist') onConflict = 'codigo';
-    if (table === 'historico') onConflict = 'op'; // Ajustado conforme lógica de negócio anterior, mas perigoso se a coluna faltar
+    if (table === 'historico') onConflict = 'documento'; // Ajustado de 'op' para 'documento'
 
     const { error } = await supabase
       .from(table)

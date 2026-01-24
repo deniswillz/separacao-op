@@ -9,7 +9,6 @@ interface PendingOP {
   data: string;
   itens: { codigo: string; descricao: string; quantidade: number; unidade: string }[];
   prioridade: UrgencyLevel;
-  armazem?: string;
 }
 
 const Empenhos: React.FC = () => {
@@ -24,10 +23,6 @@ const Empenhos: React.FC = () => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
-  const handlePriorityChange = (id: string, newPriority: UrgencyLevel) => {
-    setOps(prev => prev.map(op => op.id === id ? { ...op, prioridade: newPriority } : op));
-  };
-
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -38,8 +33,7 @@ const Empenhos: React.FC = () => {
       try {
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+        const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 }) as any[][];
 
         const opsMap: { [key: string]: PendingOP } = {};
         data.slice(2).filter(row => row[0]).forEach(row => {
@@ -80,90 +74,96 @@ const Empenhos: React.FC = () => {
     setIsGenerating(true);
     const selectedOps = ops.filter(op => selectedIds.includes(op.id));
 
-    // NOVA SOLICITAÇÃO: Gerar Cards Individuais por OP
     const lotsToInsert = selectedOps.map(op => {
-      const lotId = `OP-${op.id}`;
-      // Formata itens para o padrão do banco
       const formattedItens = op.itens.map(item => ({
         ...item,
         separado: false,
         transferido: false,
         falta: false,
+        qtd_separada: 0,
         composicao: [{ op: op.id, quantidade: item.quantidade, concluido: false }]
       }));
 
       return {
-        documento: lotId,
+        documento: `OP-${op.id}`,
         nome: op.id,
         armazem: globalWarehouse,
         ordens: [op.id],
         itens: formattedItens,
         status: 'pendente',
-        data_criacao: new Date().toISOString(),
-        usuario_atual: null
+        data_criacao: new Date().toISOString()
       };
     });
 
     try {
       await upsertBatched('separacao', lotsToInsert, 500);
 
-      // TEA INTEGRATION: Usando colunas existentes ('documento' e 'itens' p/ fluxo?)
-      // NOTA: 'op' e 'fluxo' faltam no banco, usando 'documento' e 'itens' (JSON)
+      // TEA Sync: Individual cards for TEA
       const teaRecords = selectedOps.map(op => ({
         documento: op.id,
         armazem: globalWarehouse,
-        produto: op.itens[0]?.codigo || 'PA0000000', // Pega o primeiro como referência do card
-        descricao: op.itens[0]?.descricao || 'DIVERSOS',
+        produto: op.itens[0]?.codigo || 'DIVERSOS',
+        descricao: op.itens[0]?.descricao || 'LISTA DE EMPENHOS',
         quantidade: op.itens.reduce((sum, i) => sum + i.quantidade, 0),
-        prioridade: op.prioridade,
+        prioridade: 'Média',
         status_atual: 'Aguardando Separação...',
-        itens: [
-          { status: 'Logística', icon: '🏢', data: new Date().toLocaleDateString('pt-BR') },
-          { status: 'Separação', icon: '✅', data: new Date().toLocaleDateString('pt-BR') }
-        ]
+        itens: [{ status: 'Logística', icon: '🏢', data: new Date().toLocaleDateString('pt-BR') }]
       }));
-      // Atenção: Upsert em 'historico' pode precisar de 'id' ou 'documento' como conflito
+
       await upsertBatched('historico', teaRecords, 500);
 
-      alert(`Geradas ${lotsToInsert.length} listas individuais! TEA atualizado.`);
+      alert(`Geradas ${lotsToInsert.length} listas individuais e TEA atualizado.`);
       setOps(prev => prev.filter(op => !selectedIds.includes(op.id)));
       setSelectedIds([]);
     } catch (error: any) {
-      alert('Erro: ' + error.message);
+      alert('Erro ao gerar lista: ' + error.message);
     } finally {
       setIsGenerating(false);
     }
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      <div className="bg-white p-6 rounded-2xl border flex flex-col lg:flex-row justify-between items-center gap-4">
-        <h2 className="text-sm font-black text-gray-700 uppercase">Selecione Ordens (A,U,V,W,X)</h2>
-        <div className="flex gap-2">
-          <input type="file" ref={fileInputRef} onChange={handleImportExcel} className="hidden" />
-          <button onClick={() => fileInputRef.current?.click()} className="px-4 py-2 bg-[#004d33] text-white rounded-xl text-xs font-bold">IMPORTAR</button>
-          <button onClick={handleGenerateList} disabled={selectedIds.length === 0 || !globalWarehouse} className="px-4 py-2 bg-[#10b981] text-white rounded-xl text-xs font-bold">GERAR (INDIVIDUAL)</button>
+    <div className="space-y-6">
+      <div className="bg-white p-6 rounded-2xl border flex justify-between items-center shadow-sm">
+        <h2 className="text-base font-black text-gray-800 uppercase">Geração de Lotes Individual</h2>
+        <div className="flex gap-3">
+          <input type="file" ref={fileInputRef} className="hidden" onChange={handleImportExcel} />
+          <button onClick={() => fileInputRef.current?.click()} className="px-6 py-2 bg-gray-100 rounded-xl text-[10px] font-black uppercase hover:bg-gray-200 transition-all">Importar Excel</button>
+          <button onClick={handleGenerateList} disabled={selectedIds.length === 0 || !globalWarehouse} className="px-6 py-2 bg-[#004D33] text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-emerald-50 active:scale-95">Gerar Listas ({selectedIds.length})</button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-3xl border space-y-4">
-          <select value={globalWarehouse} onChange={e => setGlobalWarehouse(e.target.value)} className="w-full px-4 py-3 bg-gray-50 rounded-2xl text-sm font-bold">
-            <option value="">Selecione Armazém...</option>
+        <div className="bg-white p-6 rounded-2xl border shadow-sm">
+          <p className="text-[10px] font-black text-gray-400 uppercase mb-4">Configuração Geral</p>
+          <select value={globalWarehouse} onChange={e => setGlobalWarehouse(e.target.value)} className="w-full px-4 py-3 bg-gray-50 rounded-xl text-xs font-black uppercase outline-none focus:ring-2 focus:ring-emerald-50">
+            <option value="">Selecione o Armazém</option>
             <option value="CHICOTE">CHICOTE</option><option value="MECANICA">MECÂNICA</option><option value="ELETRONICA">ELETRÔNICA</option>
           </select>
         </div>
-        <div className="lg:col-span-3 bg-white rounded-3xl border overflow-hidden">
+
+        <div className="lg:col-span-3 bg-white rounded-2xl border shadow-sm overflow-hidden">
           <table className="w-full text-left">
-            <thead><tr className="bg-gray-50 text-[10px] font-black uppercase"><th className="px-6 py-4">OP</th><th className="px-6 py-4">ITENS</th><th className="px-6 py-4">SELECIONAR</th></tr></thead>
-            <tbody className="divide-y">
+            <thead className="bg-gray-50 border-b text-[10px] font-black text-gray-400 uppercase tracking-widest">
+              <tr>
+                <th className="px-6 py-4">OP</th>
+                <th className="px-6 py-4">ITENS</th>
+                <th className="px-6 py-4 text-center">AÇÃO</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y text-xs font-bold text-gray-600">
               {ops.map(op => (
-                <tr key={op.id}>
-                  <td className="px-6 py-4 font-black">{op.id}</td>
-                  <td className="px-6 py-4 text-xs">{op.itens.length} itens</td>
-                  <td className="px-6 py-4"><input type="checkbox" checked={selectedIds.includes(op.id)} onChange={() => toggleSelect(op.id)} /></td>
+                <tr key={op.id} className="hover:bg-gray-50/50 transition-colors">
+                  <td className="px-6 py-4 font-black text-gray-900">{op.id}</td>
+                  <td className="px-6 py-4">{op.itens.length} SKU(s)</td>
+                  <td className="px-6 py-4 text-center">
+                    <input type="checkbox" checked={selectedIds.includes(op.id)} onChange={() => toggleSelect(op.id)} className="w-5 h-5 rounded border-gray-300 text-emerald-600" />
+                  </td>
                 </tr>
               ))}
+              {ops.length === 0 && (
+                <tr><td colSpan={3} className="px-6 py-12 text-center text-gray-300 uppercase tracking-tighter">Nenhuma OP importada</td></tr>
+              )}
             </tbody>
           </table>
         </div>
