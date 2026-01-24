@@ -1,5 +1,5 @@
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UrgencyLevel, User } from '../types';
 import * as XLSX from 'xlsx';
 import { supabase, upsertBatched } from '../services/supabaseClient';

@@ -22,13 +22,13 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchHistory = async () => {
+    const fetchHistorico = async () => {
       setIsLoading(true);
       const { data, error } = await supabase
         .from('conferencia')
         .select('*')
         .eq('status', 'Historico')
-        .order('data_finalizado', { ascending: false });
+        .order('data_conferencia', { ascending: false });
 
       if (error) {
         console.error('Erro ao buscar histórico:', error);
@@ -39,9 +39,9 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
           armazem: item.armazem,
           documento: item.id,
           ordens: item.ordens || [],
-          separador: 'Sistema', // Opcional: implementar quem separou
+          separador: 'Sistema',
           conferente: item.responsavel_conferencia || 'N/A',
-          dataFinalizacao: item.data_finalizado || item.data_conferencia,
+          dataFinalizacao: item.data_conferencia,
           totalItens: item.itens?.length || 0,
           itens: item.itens || []
         })));
@@ -49,10 +49,10 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
       setIsLoading(false);
     };
 
-    fetchHistory();
+    fetchHistorico();
 
     const channel = supabase.channel('historico-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conferencia' }, fetchHistory)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conferencia' }, fetchHistorico)
       .subscribe();
 
     return () => {
