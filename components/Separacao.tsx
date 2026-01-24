@@ -116,7 +116,36 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
   const updateItem = async (itemCodigo: string, field: string, value: any) => {
     if (!selectedOP) return;
     const newItens = selectedOP.rawItens.map(i => i.codigo === itemCodigo ? { ...i, [field]: value } : i);
-    setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
+
+    // Auto-save to DB instantly
+    const { error } = await supabase.from('separacao').update({ itens: newItens }).eq('id', selectedOP.id);
+    if (!error) {
+      setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
+    } else {
+      console.error('Erro ao auto-salvar item:', error);
+    }
+  };
+
+  const getOPDisplayRange = (ordens: string[]) => {
+    if (!ordens || ordens.length === 0) return 'S/N';
+    if (ordens.length === 1) return ordens[0];
+
+    const first = ordens[0];
+    const last = ordens[ordens.length - 1];
+
+    let commonPrefix = '';
+    for (let i = 0; i < first.length; i++) {
+      if (first[i] === last[i]) commonPrefix += first[i];
+      else break;
+    }
+
+    if (commonPrefix.length >= 4) {
+      const start = first.slice(commonPrefix.length);
+      const end = last.slice(commonPrefix.length);
+      return `${commonPrefix}(${start}-${end})`;
+    }
+
+    return `${first.slice(-4)}...${last.slice(-4)}`;
   };
 
   const handleFinalize = async () => {
@@ -386,29 +415,22 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
             }).length;
 
             const progress = total > 0 ? Math.round((finalizedCount / total) * 100) : 0;
-            const opRange = op.ordens.length > 1
-              ? `${op.ordens[0].slice(-4)} até ${op.ordens[op.ordens.length - 1].slice(-4)}`
-              : op.opCode;
+            const opRange = getOPDisplayRange(op.ordens);
 
-            const isEmUso = op.responsavel_separacao && op.responsavel_separacao !== user.nome;
+            const isEmUso = op.usuarioAtual && op.usuarioAtual !== user.nome;
 
             return (
-              <div key={op.id} className={`bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 space-y-4 flex flex-col justify-between hover:shadow-md transition-all group relative overflow-hidden ${isEmUso ? 'bg-gray-50 grayscale' : ''}`}>
-                {/* In-Use Overlay */}
+              <div key={op.id} className={`bg-white rounded-[2rem] border border-gray-100 shadow-sm p-8 space-y-6 flex flex-col justify-between hover:shadow-xl transition-all group relative overflow-hidden ${isEmUso ? 'bg-gray-50' : ''}`}>
+                {/* In-Use Bar */}
                 {isEmUso && (
-                  <div className="absolute inset-0 bg-gray-100/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center text-center p-4">
-                    <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200">
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Em uso por</p>
-                      <p className="text-xs font-black text-gray-900">{op.responsavel_separacao}</p>
-                    </div>
-                  </div>
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500 animate-pulse z-30"></div>
                 )}
 
                 {/* Top Row: ID, Priority, X */}
                 <div className="flex justify-between items-center relative z-10">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-black text-gray-400">ID {(index + 1).toString().padStart(2, '0')}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${styles.bg} ${styles.text}`}>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-black text-gray-300 uppercase tracking-widest">ID {(index + 1).toString().padStart(2, '0')}</span>
+                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${styles.bg} ${styles.text}`}>
                       {op.urgencia.toUpperCase()}
                     </span>
                   </div>
@@ -416,11 +438,11 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (confirm(`Excluir ${op.opCode}?`)) {
+                        if (confirm(`Excluir Lote: ${op.opCode}?`)) {
                           supabase.from('separacao').delete().eq('id', op.id).then(() => fetchOps());
                         }
                       }}
-                      className="text-gray-300 hover:text-red-500 font-black text-xs transition-colors"
+                      className="w-8 h-8 rounded-lg bg-gray-50 text-gray-300 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-all"
                     >
                       ✕
                     </button>
@@ -428,64 +450,76 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                 </div>
 
                 {/* OP Section */}
-                <div className="space-y-1 relative z-10">
+                <div className="space-y-4 relative z-10">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-black text-gray-900 uppercase">OP Lote: {opRange}</h3>
+                    <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter">OP Lote: {opRange}</h3>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedOpForList(op);
                         setShowOpListModal(true);
                       }}
-                      className="text-blue-500 text-xs hover:scale-110 transition-transform"
-                      title="Ver lista de OPs"
+                      className="text-blue-500 text-xs hover:scale-125 transition-transform p-1"
+                      title="Ver lista completa de OPs"
                     >
                       🔍
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px]">📍</span>
-                      <p className="text-[9px] font-bold text-gray-400 uppercase">Armazém: <span className="text-gray-900">{op.armazem}</span></p>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">📍 Armazém</p>
+                      <p className="text-xs font-black text-gray-900 truncate">{op.armazem}</p>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px]">📦</span>
-                      <p className="text-[9px] font-bold text-gray-400 uppercase">Ordens: <span className="text-gray-900">{op.ordens.length}</span></p>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">📦 Ordens</p>
+                      <p className="text-xs font-black text-gray-900">{op.ordens.length}</p>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px]">📋</span>
-                      <p className="text-[9px] font-bold text-gray-400 uppercase">Itens: <span className="text-gray-900">{total} ITENS</span></p>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">📋 Itens</p>
+                      <p className="text-xs font-black text-gray-900">{total} ITENS</p>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px]">👤</span>
-                      <p className="text-[9px] font-bold text-gray-400 uppercase truncate">Resp: <span className={op.usuarioAtual ? 'text-emerald-600' : 'text-gray-300'}>{op.usuarioAtual || 'Aguardando'}</span></p>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">👤 Resp.</p>
+                      <p className={`text-xs font-black truncate ${op.usuarioAtual ? 'text-emerald-600' : 'text-gray-300'}`}>
+                        {op.usuarioAtual || 'Aguardando'}
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-2 py-3 border-y border-gray-50 relative z-10">
-                  <div className="text-center">
-                    <p className="text-[8px] font-black text-gray-300 uppercase">Concluídos</p>
-                    <p className="text-[10px] font-black text-gray-900">{finalizedCount}/{total}</p>
+                {/* Progress Visual */}
+                <div className="space-y-3 relative z-10 pt-4 border-t border-gray-50">
+                  <div className="flex justify-between items-end">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Concluídos</p>
+                      <p className="text-sm font-black text-gray-900">{finalizedCount}/{total}</p>
+                    </div>
+                    <div className="text-right space-y-1">
+                      <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Progresso</p>
+                      <p className={`text-sm font-black ${progress === 100 ? 'text-emerald-600' : 'text-gray-900'}`}>{progress}%</p>
+                    </div>
                   </div>
-                  <div className="text-center border-l border-gray-50">
-                    <p className="text-[8px] font-black text-gray-300 uppercase">Progresso</p>
-                    <p className="text-[10px] font-black text-emerald-600">{progress}%</p>
+                  <div className="w-full h-2 bg-gray-50 rounded-full overflow-hidden">
+                    <div className={`h-full transition-all duration-700 ${progress === 100 ? 'bg-emerald-500' : 'bg-gray-900'}`} style={{ width: `${progress}%` }}></div>
                   </div>
                 </div>
 
                 {/* Footer and Button */}
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center text-[8px] font-black text-gray-300 uppercase">
-                    <span>{op.status.toUpperCase()}</span>
+                <div className="space-y-4 pt-4 relative z-10">
+                  <div className="flex justify-between items-center text-[10px] font-black text-gray-300 uppercase tracking-widest">
+                    <span className={op.status === 'Pendente' ? 'text-amber-500' : 'text-gray-300'}>{op.status || 'PENDENTE'}</span>
                     <span>{new Date(op.data).toLocaleDateString()}</span>
                   </div>
                   <button
                     onClick={() => handleStart(op)}
-                    className="w-full py-3 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black active:scale-95 transition-all"
+                    disabled={isEmUso}
+                    className={`w-full py-4 rounded-[1.25rem] text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg active:scale-95 ${isEmUso
+                      ? 'bg-gray-50 text-gray-300 cursor-not-allowed shadow-none'
+                      : 'bg-gray-900 text-white hover:bg-black shadow-gray-100'
+                      }`}
                   >
-                    Iniciar Separação
+                    {isEmUso ? 'Em Uso' : 'Iniciar Separação'}
                   </button>
                 </div>
               </div>
@@ -538,8 +572,14 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                             const totalSep = newComp.reduce((sum, c) => sum + (c.qtd_separada || 0), 0);
                             if (!selectedOP) return;
                             const newItens = selectedOP.rawItens.map(i => i.codigo === lupaItem.codigo ? { ...i, composicao: newComp, qtd_separada: totalSep } : i);
-                            setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
-                            setLupaItem({ ...lupaItem, composicao: newComp, qtd_separada: totalSep });
+
+                            // Auto-save Lupa changes
+                            supabase.from('separacao').update({ itens: newItens }).eq('id', selectedOP.id).then(({ error }) => {
+                              if (!error) {
+                                setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
+                                setLupaItem({ ...lupaItem, composicao: newComp, qtd_separada: totalSep });
+                              }
+                            });
                           }}
                           className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm transition-all ${comp.concluido ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-gray-50 text-gray-300 border border-gray-100 group-hover:bg-white group-hover:border-emerald-100'}`}
                         >
@@ -564,8 +604,14 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                               const totalSep = newComp.reduce((sum, c) => sum + (c.qtd_separada || 0), 0);
                               if (!selectedOP) return;
                               const newItens = selectedOP.rawItens.map(i => i.codigo === lupaItem.codigo ? { ...i, composicao: newComp, qtd_separada: totalSep } : i);
-                              setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
-                              setLupaItem({ ...lupaItem, composicao: newComp, qtd_separada: totalSep });
+
+                              // Auto-save quantity inputs
+                              supabase.from('separacao').update({ itens: newItens }).eq('id', selectedOP.id).then(({ error }) => {
+                                if (!error) {
+                                  setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
+                                  setLupaItem({ ...lupaItem, composicao: newComp, qtd_separada: totalSep });
+                                }
+                              });
                             }}
                           />
                         </div>

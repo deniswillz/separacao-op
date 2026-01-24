@@ -272,6 +272,24 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
     else setSelectedItem({ ...selectedItem, itens: newItens });
   };
 
+  const getOPDisplayRange = (ordens: string[]) => {
+    if (!ordens || ordens.length === 0) return 'S/N';
+    if (ordens.length === 1) return ordens[0];
+    const first = ordens[0];
+    const last = ordens[ordens.length - 1];
+    let commonPrefix = '';
+    for (let i = 0; i < first.length; i++) {
+      if (first[i] === last[i]) commonPrefix += first[i];
+      else break;
+    }
+    if (commonPrefix.length >= 4) {
+      const start = first.slice(commonPrefix.length);
+      const end = last.slice(commonPrefix.length);
+      return `${commonPrefix}(${start}-${end})`;
+    }
+    return `${first.slice(-4)}...${last.slice(-4)}`;
+  };
+
   if (isLoading && items.length === 0) {
     return <Loading message="Sincronizando Conferência..." />;
   }
@@ -483,65 +501,75 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {items.map((item, index) => {
-            const isAguardando = item.status === 'Aguardando' || !item.responsavel_conferencia;
+            const opRange = getOPDisplayRange(item.ordens || []);
             const isEmUso = item.responsavel_conferencia && item.responsavel_conferencia !== user.nome;
 
             return (
-              <div key={item.id} className={`bg-white rounded-[2rem] border border-gray-100 p-6 space-y-4 flex flex-col justify-between hover:shadow-md transition-all group relative overflow-hidden ${isEmUso ? 'bg-gray-50 grayscale' : ''}`}>
-                {/* In-Use Overlay */}
+              <div key={item.id} className={`bg-white rounded-[2rem] border border-gray-100 shadow-sm p-8 space-y-6 flex flex-col justify-between hover:shadow-xl transition-all group relative overflow-hidden ${isEmUso ? 'bg-gray-50' : ''}`}>
+                {/* In-Use Bar */}
                 {isEmUso && (
-                  <div className="absolute inset-0 bg-gray-100/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center text-center p-4">
-                    <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200">
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Em uso por</p>
-                      <p className="text-xs font-black text-gray-900">{item.responsavel_conferencia}</p>
-                    </div>
-                  </div>
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500 animate-pulse z-30"></div>
                 )}
 
+                {/* Top Row: ID, Status, X */}
+                <div className="flex justify-between items-center relative z-10">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-black text-gray-300 uppercase tracking-widest">ID {(index + 1).toString().padStart(2, '0')}</span>
+                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${item.status === 'Finalizado' ? 'bg-emerald-50 text-emerald-600' : 'bg-blue-50 text-blue-600'}`}>
+                      {item.status?.toUpperCase() || 'EM CONFERÊNCIA'}
+                    </span>
+                  </div>
+                  {user.role === 'admin' && (
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (confirm(`Excluir Lote: ${item.doc_transferencia}?`)) {
+                          await supabase.from('conferencia').delete().eq('id', item.id);
+                          fetchItems();
+                        }
+                      }}
+                      className="w-8 h-8 rounded-lg bg-gray-50 text-gray-300 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-all"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Main Content */}
                 <div className="space-y-4 relative z-10">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-gray-400">ID {(index + 1).toString().padStart(2, '0')}</span>
-                      <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${isAguardando ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'}`}>
-                        {isAguardando ? 'AGUARDANDO' : 'EM CONFERENCIA'}
-                      </span>
-                    </div>
-                    <button onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className="text-gray-300 hover:text-red-500 font-black text-xs transition-colors">✕</button>
-                  </div>
+                  <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter">OP Lote: {opRange}</h3>
 
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-black text-gray-900 uppercase">OP {item.nome || item.documento}</h3>
-                    <div className="grid grid-cols-2 gap-y-1 pt-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px]">📍</span>
-                        <p className="text-[9px] font-bold text-gray-400 uppercase">Armazém: <span className="text-gray-900">{item.armazem}</span></p>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px]">📋</span>
-                        <p className="text-[9px] font-bold text-gray-400 uppercase truncate">DOC: <span className="text-blue-600 font-mono">{item.itens?.[0]?.doc_transferencia || 'S/N'}</span></p>
-                      </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">📍 Armazém</p>
+                      <p className="text-xs font-black text-gray-900 truncate">{item.armazem || 'N/A'}</p>
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 border-y py-3">
-                    <div className="text-center">
-                      <p className="text-[8px] font-black text-gray-300 uppercase">Status</p>
-                      <p className="text-[10px] font-black text-gray-900">{item.status}</p>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">📋 DOC</p>
+                      <p className="text-xs font-black text-blue-600 font-mono truncate">{item.itens?.[0]?.doc_transferencia || 'S/N'}</p>
                     </div>
-                    <div className="text-center border-l">
-                      <p className="text-[8px] font-black text-gray-300 uppercase">Itens</p>
-                      <p className="text-[10px] font-black text-gray-900">{item.itens?.length || 0}</p>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">📊 Status</p>
+                      <p className="text-xs font-black text-gray-900 truncate">{item.status}</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">🔢 Itens</p>
+                      <p className="text-xs font-black text-gray-900">{item.itens?.length || 0} SKU/OP</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="relative z-10 pt-2">
+                {/* Footer and Button */}
+                <div className="pt-4 relative z-10">
                   <button
                     disabled={isEmUso}
                     onClick={() => handleOpen(item)}
-                    className="w-full py-3 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black active:scale-95 transition-all disabled:opacity-50"
+                    className={`w-full py-4 rounded-[1.25rem] text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg active:scale-95 ${isEmUso
+                      ? 'bg-gray-50 text-gray-300 cursor-not-allowed shadow-none'
+                      : 'bg-[#111827] text-white hover:bg-black shadow-gray-100'
+                      }`}
                   >
-                    Abrir Conferência
+                    {isEmUso ? 'Em Uso' : 'Abrir Conferência'}
                   </button>
                 </div>
               </div>
