@@ -30,6 +30,10 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
   const [showObsModal, setShowObsModal] = useState(false);
   const [obsItem, setObsItem] = useState<any | null>(null);
 
+  const [showDivModal, setShowDivModal] = useState(false);
+  const [divItem, setDivItem] = useState<any | null>(null);
+  const [divReason, setDivReason] = useState('');
+
   const fetchItems = async () => {
     setIsLoading(true);
     const { data, error } = await supabase.from('conferencia').select('*').order('data_conferencia', { ascending: false });
@@ -70,15 +74,19 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
 
   const handleToggleCheck = (sku: string, op: string, field: 'ok' | 'ok2' | 'falta') => {
     if (!selectedItem) return;
+
+    if (field === 'falta') {
+      const item = selectedItem.itens.find(i => i.codigo === sku && i.op === op);
+      if (item && !item.falta) {
+        setDivItem(item);
+        setDivReason('');
+        setShowDivModal(true);
+        return;
+      }
+    }
+
     const newItens = selectedItem.itens.map(item => {
       if (item.codigo === sku && item.op === op) {
-        if (field === 'falta' && !item.falta) {
-          console.log('🚨 ALARME: Divergência detectada!');
-          // Dispatch custom event for Dashboard
-          window.dispatchEvent(new CustomEvent('falta-detectada', {
-            detail: { op, produto: `${item.codigo} - ${item.descricao}` }
-          }));
-        }
         return {
           ...item,
           ok: field === 'ok' ? !item.ok : item.ok,
@@ -89,6 +97,36 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
       return item;
     });
     setSelectedItem({ ...selectedItem, itens: newItens });
+  };
+
+  const handleConfirmDivergencia = () => {
+    if (!selectedItem || !divItem) return;
+
+    const newItens = selectedItem.itens.map(item => {
+      if (item.codigo === divItem.codigo && item.op === divItem.op) {
+        // Dispatch custom event for Dashboard with REASON
+        window.dispatchEvent(new CustomEvent('falta-detectada', {
+          detail: {
+            op: item.op,
+            produto: `${item.codigo} - ${item.descricao}`,
+            motivo: divReason || 'Não especificado'
+          }
+        }));
+
+        return {
+          ...item,
+          falta: true,
+          ok: false,
+          ok2: false,
+          motivo_divergencia: divReason || 'Não especificado'
+        };
+      }
+      return item;
+    });
+
+    setSelectedItem({ ...selectedItem, itens: newItens });
+    setShowDivModal(false);
+    setDivItem(null);
   };
 
   const handleSavePendency = async () => {
@@ -120,6 +158,7 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
     }
 
     const allChecked = selectedItem.itens.every(i => {
+      if (i.falta) return true; // Handled divergence
       const blacklistItem = blacklist.find(b => b.codigo === i.codigo);
       if (blacklistItem?.nao_sep) return true;
       return i.ok && i.ok2;
@@ -230,7 +269,7 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                 <table className="w-full text-left">
                   <thead className="bg-gray-50 text-[10px] font-black uppercase tracking-widest text-gray-400">
                     <tr>
-                      <th className="px-8 py-5 text-center">LUPA</th>
+                      <th className="px-8 py-5 text-center">OBS 👁️🗨️</th>
                       <th className="px-8 py-5">PRODUTO / OP</th>
                       <th className="px-6 py-5 text-center">SOLICITADO</th>
                       <th className="px-6 py-5 text-center">SEPARADO</th>
@@ -257,9 +296,9 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                                 className={`w-12 h-12 rounded-xl text-lg transition-all flex items-center justify-center border ${isOut ? 'opacity-20 cursor-not-allowed bg-gray-100' :
                                   'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'
                                   }`}
-                                title="VER DETALHES / OBSERVAÇÕES"
+                                title="VER OBSERVAÇÕES / COMPOSIÇÃO"
                               >
-                                🔍
+                                👁️🗨️
                               </button>
                             </td>
                             <td className="px-8 py-6">
@@ -296,10 +335,10 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                                 </button>
                                 <button
                                   onClick={() => handleToggleCheck(item.codigo, item.op, 'falta')}
-                                  className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.falta ? 'bg-red-600 text-white shadow-lg shadow-red-100' : 'bg-white border border-gray-200 text-red-600 hover:bg-red-50'}`}
-                                  title="Divergência / Falta (OUT)"
+                                  className={`px-6 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center gap-2 ${item.falta ? 'bg-red-600 text-white shadow-lg shadow-red-100' : 'bg-white border border-gray-200 text-red-600 hover:bg-red-50'}`}
+                                  title="Divergência / Falta (🚨)"
                                 >
-                                  OUT
+                                  🚨 FALTA
                                 </button>
                               </div>
                             </td>
@@ -542,6 +581,19 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                   <p className="text-xs font-bold text-blue-800 leading-relaxed">{comp.observacao}</p>
                 </div>
               ))}
+              {obsItem.composicao?.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-[10px] font-black text-gray-400 uppercase mb-3">Composição Separada</p>
+                  <div className="space-y-2">
+                    {obsItem.composicao.map((comp: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-600">
+                        <span>OP {comp.op}</span>
+                        <span>{comp.qtd_separada || comp.quantidade} {obsItem.unidade}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <button
@@ -550,6 +602,46 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
             >
               Entendido
             </button>
+          </div>
+        </div>
+      )}
+      {showDivModal && divItem && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center animate-fadeIn p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowDivModal(false)}></div>
+          <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-10 space-y-8 animate-slideInUp">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black text-red-600 uppercase">🚨 Registrar Divergência</h3>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{divItem.codigo}</p>
+              </div>
+              <button onClick={() => setShowDivModal(false)} className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-xs font-black text-gray-300 hover:bg-gray-100 hover:text-gray-900 transition-all">✕</button>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-xs font-bold text-gray-600 uppercase">Descreva o motivo da divergência (excesso/falta):</p>
+              <textarea
+                autoFocus
+                value={divReason}
+                onChange={(e) => setDivReason(e.target.value)}
+                placeholder="Ex: Entregue 2 a menos, Item trocado, Embalagem avariada..."
+                className="w-full h-32 bg-gray-50 border border-gray-100 rounded-2xl p-4 text-sm font-bold text-gray-800 outline-none focus:ring-2 focus:ring-red-100 transition-all resize-none"
+              />
+            </div>
+
+            <div className="flex gap-4 pt-4">
+              <button
+                onClick={() => setShowDivModal(false)}
+                className="flex-1 py-4 bg-gray-50 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmDivergencia}
+                className="flex-[2] py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-red-100 hover:bg-red-700 transition-all"
+              >
+                Confirmar Divergência
+              </button>
+            </div>
           </div>
         </div>
       )}

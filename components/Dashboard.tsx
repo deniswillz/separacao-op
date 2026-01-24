@@ -8,8 +8,8 @@ import Loading from './Loading';
 const Dashboard: React.FC = () => {
   const [isSyncing, setIsSyncing] = useState(true);
 
-  const [liveAlerts, setLiveAlerts] = useState<{ id: string, op: string, produto: string, timestamp: string }[]>([]);
-  const [divergencias, setDivergencias] = useState<{ op: string, produto: string, responsavel: string }[]>([]);
+  const [liveAlerts, setLiveAlerts] = useState<{ id: string, op: string, produto: string, motivo: string, timestamp: string }[]>([]);
+  const [divergencias, setDivergencias] = useState<{ op: string, produto: string, responsavel: string, motivo: string }[]>([]);
   const [kpiData, setKpiData] = useState({ pendingOps: 0, finalizedMonth: 0, inTransit: 0, totalDivergencias: 0 });
   const [opStatusList, setOpStatusList] = useState<{ id: string, type: 'Separação' | 'Conferência', status: string, usuario: string | null }[]>([]);
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
@@ -37,7 +37,8 @@ const Dashboard: React.FC = () => {
               currentDivergencias.push({
                 op: item.op,
                 produto: `${item.codigo} - ${item.descricao}`,
-                responsavel: conf.responsavel_conferencia || 'Não atribuído'
+                responsavel: conf.responsavel_conferencia || 'Não atribuído',
+                motivo: item.motivo_divergencia || 'Não especificado'
               });
             }
           });
@@ -74,11 +75,12 @@ const Dashboard: React.FC = () => {
     audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
 
     const handleFaltaAlert = (e: any) => {
-      const { op, produto } = e.detail;
+      const { op, produto, motivo } = e.detail;
       const newAlert = {
         id: Math.random().toString(36).substr(2, 9),
         op,
         produto,
+        motivo: motivo || 'Divergência não especificada',
         timestamp: new Date().toLocaleTimeString('pt-BR')
       };
       setLiveAlerts(prev => [newAlert, ...prev].slice(0, 5));
@@ -121,6 +123,9 @@ const Dashboard: React.FC = () => {
             <div key={alert.id} className="bg-red-600 text-white p-4 rounded-2xl shadow-2xl animate-scaleIn pointer-events-auto border-2 border-white">
               <p className="text-xs font-black uppercase">🚨 PRODUTO EM FALTA!</p>
               <p className="text-[10px] font-bold opacity-90 truncate">OP: {alert.op} - {alert.produto}</p>
+              <div className="mt-2 text-[9px] bg-white/10 p-2 rounded-lg font-black uppercase leading-tight italic">
+                "{alert.motivo}"
+              </div>
               <button onClick={() => setLiveAlerts(prev => prev.filter(a => a.id !== alert.id))} className="mt-2 w-full py-2 bg-white/20 rounded-lg text-[9px] font-black uppercase">Ciente</button>
             </div>
           ))}
@@ -167,6 +172,7 @@ const Dashboard: React.FC = () => {
                   <div>
                     <p className="text-[10px] font-black text-red-600 uppercase">OP: {div.op}</p>
                     <p className="text-xs font-bold text-gray-800 mt-1">{div.produto}</p>
+                    <p className="text-[9px] font-bold text-red-400 mt-1 uppercase italic italic tracking-tighter">MOTIVO: {div.motivo}</p>
                     <p className="text-[9px] font-bold text-gray-400 mt-2">Conferente: {div.responsavel}</p>
                   </div>
                   <span className="text-xl">⚠️</span>

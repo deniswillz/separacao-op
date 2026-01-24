@@ -129,12 +129,11 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       const blacklistItem = blacklist.find(b => b.sku === i.codigo || (b as any).codigo === i.codigo);
       if (blacklistItem?.nao_sep) return true;
 
-      if (i.falta) return true; // OUT is a valid finished state
+      if (i.falta) return true;
 
-      const isLupaDone = i.composicao?.every((c: any) => c.concluido) &&
-        i.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0) >= i.quantidade;
+      const isLupaDone = i.composicao?.every((c: any) => c.concluido);
 
-      return i.ok && isLupaDone && i.tr; // Mandatory Flow
+      return i.ok && isLupaDone && i.tr;
     });
 
     if (!isComplete) {
@@ -150,12 +149,15 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       armazem: selectedOP.armazem,
       ordens: selectedOP.ordens,
       itens: selectedOP.rawItens
-        .filter((item: any) => !item.falta) // EXCLUDE "OUT" items from conference
-        .map((item: any) => ({
-          ...item,
-          doc_transferencia: docTransferencia,
-          // Map separated quantity from composition if needed, but usually item.qtd_separada is already updated
-        })),
+        .filter((item: any) => !item.falta)
+        .map((item: any) => {
+          const actualQtd = item.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0) || item.qtd_separada || 0;
+          return {
+            ...item,
+            quantidade: actualQtd, // New target for conference
+            doc_transferencia: docTransferencia
+          };
+        }),
       status: 'Aguardando'
     };
 
@@ -364,8 +366,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
             const total = op.totalItens;
             const finalizedCount = op.rawItens.filter(i => {
               if (i.falta) return true;
-              const isLupaDone = i.composicao?.every((c: any) => c.concluido) &&
-                i.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0) >= i.quantidade;
+              const isLupaDone = i.composicao?.every((c: any) => c.concluido);
               return i.ok && isLupaDone && i.tr;
             }).length;
 
