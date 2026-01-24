@@ -110,8 +110,14 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
       return item;
     });
 
-    const { error } = await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
-    if (!error) setSelectedItem({ ...selectedItem, itens: newItens });
+    setIsSaving(true);
+    const { error } = await supabase.from('conferencia').update({
+      itens: newItens,
+      responsavel_conferencia: user.nome
+    }).eq('id', selectedItem.id);
+    setIsSaving(false);
+
+    if (!error) setSelectedItem({ ...selectedItem, itens: newItens, responsavel_conferencia: user.nome });
     else console.error('Erro ao sincronizar check:', error);
   };
 
@@ -129,8 +135,14 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
       return item;
     });
 
-    const { error } = await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
-    if (!error) setSelectedItem({ ...selectedItem, itens: newItens });
+    setIsSaving(true);
+    const { error } = await supabase.from('conferencia').update({
+      itens: newItens,
+      responsavel_conferencia: user.nome
+    }).eq('id', selectedItem.id);
+    setIsSaving(false);
+
+    if (!error) setSelectedItem({ ...selectedItem, itens: newItens, responsavel_conferencia: user.nome });
   };
 
   const handleConfirmDivergencia = async () => {
@@ -162,10 +174,13 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
       return item;
     });
 
+    setIsSaving(true);
     const { error } = await supabase.from('conferencia').update({
       itens: newItens,
-      status: 'Pendente' // Ensure status reflects activity
+      status: 'Pendente', // Ensure status reflects activity
+      responsavel_conferencia: user.nome
     }).eq('id', selectedItem.id);
+    setIsSaving(false);
 
     if (!error) {
       setSelectedItem({ ...selectedItem, itens: newItens });
@@ -297,10 +312,18 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
 
   return (
     <div className="space-y-8 animate-fadeIn pb-20">
-      <div className="flex justify-between items-center bg-white p-4 rounded-xl border-l-4 border-[#006B47]">
-        <h1 className="text-sm font-black text-[#006B47] uppercase tracking-widest">Conferência</h1>
+      <div className="flex justify-between items-center bg-white p-4 rounded-xl border-l-4 border-blue-600 shadow-sm">
+        <div className="flex items-center gap-4">
+          <h1 className="text-sm font-black text-blue-600 uppercase tracking-widest">Conferência</h1>
+          {isSaving && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-600 rounded-full animate-pulse border border-blue-100">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <span className="text-[9px] font-black uppercase">Sincronizando...</span>
+            </div>
+          )}
+        </div>
         <div className="text-[10px] font-bold text-gray-400 uppercase">
-          Data do Sistema: <span className="text-[#006B47]">{new Date().toLocaleDateString('pt-BR')}</span>
+          Data do Sistema: <span className="text-blue-600">{new Date().toLocaleDateString('pt-BR')}</span>
         </div>
       </div>
 
@@ -440,6 +463,53 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
             </div>
 
             <div className="space-y-6">
+              {/* Info Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+                <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">📊</div>
+                  <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-2">Progresso Geral</p>
+                  <div className="flex items-end gap-2">
+                    <p className="text-3xl font-black text-gray-900 leading-none">
+                      {(() => {
+                        const allPairs = selectedItem.itens.flatMap(i => i.composicao || []);
+                        const deliveredPairs = allPairs.filter((c: any) => (c.qtd_separada || 0) > 0);
+                        const verifiedCount = deliveredPairs.filter((c: any) => (c.ok_conf && c.ok2_conf) || c.falta_conf).length;
+                        return deliveredPairs.length > 0 ? Math.round((verifiedCount / deliveredPairs.length) * 100) : 0;
+                      })()}%
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform text-emerald-600">✅</div>
+                  <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-2">Itens OK</p>
+                  <p className="text-3xl font-black text-emerald-600 leading-none">
+                    {(() => {
+                      const allPairs = selectedItem.itens.flatMap(i => i.composicao || []);
+                      const deliveredPairs = allPairs.filter((c: any) => (c.qtd_separada || 0) > 0);
+                      const okCount = deliveredPairs.filter((c: any) => c.ok_conf && c.ok2_conf).length;
+                      return `${okCount}/${deliveredPairs.length}`;
+                    })()}
+                  </p>
+                </div>
+
+                <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform text-orange-500">⚠️</div>
+                  <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-2">Divergências</p>
+                  <p className="text-3xl font-black text-orange-500 leading-none">
+                    {selectedItem.itens.reduce((acc, item) => {
+                      return acc + (item.composicao?.filter((c: any) => c.falta_conf).length || 0);
+                    }, 0)}
+                  </p>
+                </div>
+
+                <div className="bg-[#111827] p-8 rounded-[2rem] shadow-xl relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform text-white">👤</div>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Responsável</p>
+                  <p className="text-lg font-black text-white leading-none truncate">{user.nome}</p>
+                </div>
+              </div>
+
               <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
                 <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Resumo da Conferência</h3>
 
@@ -556,7 +626,7 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">🔢 Itens</p>
                       <p className="text-xs font-black text-gray-900">
-                        {item.itens?.filter((i: any) => i.composicao?.every((c: any) => c.ok_conf && c.ok2_conf)).length || 0}/{item.itens?.length || 0} ITENS
+                        {item.itens?.filter((i: any) => i.composicao?.every((c: any) => (c.ok_conf && c.ok2_conf) || c.falta_conf)).length || 0}/{item.itens?.length || 0}
                       </p>
                     </div>
                   </div>
@@ -597,7 +667,16 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
             <div className="p-8 space-y-2 border-b">
               <p className="text-sm font-black text-gray-900">Documento de Transferência: <span className="text-gray-500 font-mono">{selectedItem.itens[0]?.doc_transferencia || 'S/N'}</span></p>
               <p className="text-sm font-black text-gray-900">Responsável Separação: <span className="text-gray-500">{selectedItem.responsavel_conferencia}</span></p>
-              <p className="text-sm font-black text-gray-900">Verificados: <span className="text-gray-500">{selectedItem.itens.filter(i => i.ok).length}/{selectedItem.itens.length} ⏳</span></p>
+              <p className="text-sm font-black text-gray-900">
+                Verificados: <span className="text-gray-500">
+                  {(() => {
+                    const allPairs = selectedItem.itens.flatMap(i => i.composicao || []);
+                    const deliveredPairs = allPairs.filter((c: any) => (c.qtd_separada || 0) > 0);
+                    const verifiedCount = deliveredPairs.filter((c: any) => c.ok2_conf || c.falta_conf).length;
+                    return `${verifiedCount}/${deliveredPairs.length}`;
+                  })()}
+                </span> ⏳
+              </p>
             </div>
 
             {/* Table */}

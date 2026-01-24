@@ -117,8 +117,11 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
     if (!selectedOP) return;
     const newItens = selectedOP.rawItens.map(i => i.codigo === itemCodigo ? { ...i, [field]: value } : i);
 
+    setIsFinalizing(true);
     // Auto-save to DB instantly
     const { error } = await supabase.from('separacao').update({ itens: newItens }).eq('id', selectedOP.id);
+    setIsFinalizing(false);
+
     if (!error) {
       setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
     } else {
@@ -239,8 +242,16 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
 
   return (
     <div className="space-y-8 animate-fadeIn pb-20">
-      <div className="flex justify-between items-center bg-white p-4 rounded-xl border-l-4 border-[#006B47]">
-        <h1 className="text-sm font-black text-[#006B47] uppercase tracking-widest">Separação</h1>
+      <div className="flex justify-between items-center bg-white p-4 rounded-xl border-l-4 border-[#006B47] shadow-sm">
+        <div className="flex items-center gap-4">
+          <h1 className="text-sm font-black text-[#006B47] uppercase tracking-widest">Separação</h1>
+          {isFinalizing && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full animate-pulse border border-emerald-100">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+              <span className="text-[9px] font-black uppercase">Sincronizando...</span>
+            </div>
+          )}
+        </div>
         <div className="text-[10px] font-bold text-gray-400 uppercase">
           Data do Sistema: <span className="text-[#006B47]">{new Date().toLocaleDateString('pt-BR')}</span>
         </div>
@@ -393,18 +404,21 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
             <div className="p-10 bg-gray-50/80 border-t border-gray-100 flex justify-center">
               <div className="flex gap-4">
                 <button
+                  disabled={isFinalizing}
                   onClick={async () => {
                     if (!selectedOP) return;
+                    setIsFinalizing(true);
                     await supabase.from('separacao').update({
                       status: 'Pendente',
                       usuario_atual: null
                     }).eq('id', selectedOP.id);
+                    setIsFinalizing(false);
                     setSelectedOP(null);
                     setViewMode('list');
                   }}
-                  className="flex-1 py-5 bg-white border-2 border-gray-100 text-gray-500 rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-gray-50 active:scale-95 transition-all"
+                  className="flex-1 py-5 bg-white border-2 border-gray-100 text-gray-500 rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-gray-50 active:scale-95 transition-all disabled:opacity-50"
                 >
-                  Salvar como Pendência
+                  {isFinalizing ? '⏳ Salvador...' : 'Salvar como Pendência'}
                 </button>
                 <button
                   onClick={handleFinalize}
@@ -498,7 +512,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                     </div>
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">📋 Itens</p>
-                      <p className="text-xs font-black text-gray-900">{finalizedCount}/{total} ITENS</p>
+                      <p className="text-xs font-black text-gray-900">{finalizedCount}/{total}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">👤 Resp.</p>
