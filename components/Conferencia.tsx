@@ -467,11 +467,12 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
               <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden p-10">
                 <div className="flex flex-col gap-8">
                   <div>
-                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Resumo da Conferência</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Progresso Geral</p>
-                        <p className="text-2xl font-black text-gray-900 leading-none">
+                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-[0.2em] mb-8 border-b pb-4">📋 Resumo da Conferência</h3>
+
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Progresso Geral</p>
+                        <p className="text-xl font-black text-gray-900">
                           {(() => {
                             const validItens = selectedItem.itens.filter(i => {
                               const blacklistItem = blacklist.find(bl => bl.codigo === i.codigo);
@@ -485,9 +486,10 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                           })()}%
                         </p>
                       </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Itens OK</p>
-                        <p className="text-2xl font-black text-emerald-600 leading-none">
+
+                      <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Itens OK</p>
+                        <p className="text-xl font-black text-emerald-600">
                           {(() => {
                             const validItens = selectedItem.itens.filter(i => {
                               const blacklistItem = blacklist.find(bl => bl.codigo === i.codigo);
@@ -500,41 +502,41 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                           })()}
                         </p>
                       </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Divergências</p>
-                        <p className="text-2xl font-black text-orange-500 leading-none">
+
+                      <div className="flex justify-between items-center py-2 border-b border-gray-50">
+                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Divergências</p>
+                        <p className="text-xl font-black text-orange-500">
                           {selectedItem.itens.reduce((acc, item) => acc + (item.composicao?.filter((c: any) => c.falta_conf).length || 0), 0)}
                         </p>
                       </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Responsável</p>
-                        <p className="text-sm font-black text-gray-900 truncate bg-gray-50 px-4 py-2 rounded-xl border border-gray-100 inline-block">{user.nome}</p>
+
+                      <div className="flex justify-between items-center py-2">
+                        <p className="text-xs font-black text-gray-400 uppercase tracking-widest">Responsável</p>
+                        <p className="text-xs font-black text-gray-900 bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">{user.nome}</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-3 pt-8 border-t border-gray-100">
+                  <div className="flex flex-col gap-4 pt-8 border-t border-gray-100">
                     <button
                       onClick={handleFinalize}
-                      className="w-full py-5 bg-[#111827] text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black active:scale-95 transition-all flex items-center justify-center gap-3"
+                      className="w-full py-5 bg-[#111827] text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black active:scale-95 transition-all text-center"
                     >
-                      🚀 Finalizar e Salvar
+                      Finalizar e Salvar
                     </button>
-                    <div className="grid grid-cols-2 gap-3">
-                      <button
-                        onClick={() => setShowTransferList(true)}
-                        className="py-4 bg-white border-2 border-gray-100 text-gray-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 active:scale-95 transition-all"
-                      >
-                        Lista de Transferência
-                      </button>
-                      <button
-                        onClick={handleSavePendency}
-                        disabled={isSaving}
-                        className="py-4 bg-white border-2 border-gray-100 text-gray-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 active:scale-95 transition-all disabled:opacity-50"
-                      >
-                        {isSaving ? 'Salvando...' : 'Salvar Pendência'}
-                      </button>
-                    </div>
+                    <button
+                      onClick={() => setShowTransferList(true)}
+                      className="w-full py-4 bg-white border-2 border-gray-100 text-gray-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 active:scale-95 transition-all text-center"
+                    >
+                      Lista de Transferência
+                    </button>
+                    <button
+                      onClick={handleSavePendency}
+                      disabled={isSaving}
+                      className="w-full py-4 bg-white border-2 border-gray-100 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 active:scale-95 transition-all disabled:opacity-50 text-center"
+                    >
+                      {isSaving ? 'Salvando...' : 'Salvar Pendência'}
+                    </button>
                   </div>
                 </div>
               </div>

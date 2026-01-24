@@ -215,7 +215,9 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
         await supabase.from('historico').update({ itens: newFluxo }).eq('id', tea.id);
       }
 
-      alert('Lote enviado para Conferência!');
+      // Artificial delay to ensure user perceives the transition
+      await new Promise(resolve => setTimeout(resolve, 800));
+
       setViewMode('list'); setSelectedOP(null);
     } catch (e: any) {
       alert('Erro ao finalizar: ' + e.message);
@@ -416,17 +418,27 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                   onClick={async () => {
                     if (!selectedOP) return;
                     setIsFinalizing(true);
-                    await supabase.from('separacao').update({
-                      status: 'Pendente',
-                      usuario_atual: null
-                    }).eq('id', selectedOP.id);
-                    setIsFinalizing(false);
-                    setSelectedOP(null);
-                    setViewMode('list');
+                    try {
+                      await supabase.from('separacao').update({
+                        status: 'Pendente',
+                        usuario_atual: null
+                      }).eq('id', selectedOP.id);
+
+                      // Artificial delay to ensure user perceives the save
+                      await new Promise(resolve => setTimeout(resolve, 800));
+
+                      setSelectedOP(null);
+                      setViewMode('list');
+                    } catch (err) {
+                      console.error('Erro ao salvar pendência:', err);
+                      alert('Erro ao salvar. Tente novamente.');
+                    } finally {
+                      setIsFinalizing(false);
+                    }
                   }}
                   className="flex-1 py-5 bg-white border-2 border-gray-100 text-gray-500 rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-gray-50 active:scale-95 transition-all disabled:opacity-50"
                 >
-                  {isFinalizing ? '⏳ Salvador...' : 'Salvar como Pendência'}
+                  {isFinalizing ? '⏳ Salvando...' : 'Salvar como Pendência'}
                 </button>
                 <button
                   onClick={handleFinalize}
