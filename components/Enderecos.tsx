@@ -13,10 +13,12 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
   const [items, setItems] = useState<Product[]>(initialItems);
   const [searchTerm, setSearchTerm] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchEnderecos = async () => {
+      setIsLoading(true);
       const { data, error } = await supabase
         .from('enderecos')
         .select('*')
@@ -27,6 +29,7 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
       } else if (data) {
         setItems(data);
       }
+      setIsLoading(false);
     };
 
     fetchEnderecos();
@@ -185,39 +188,49 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filteredItems.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50/50 transition-colors group">
-                  <td className="px-10 py-6">
-                    <span className="font-mono text-xs font-black text-gray-700 tracking-tighter uppercase">{item.codigo}</span>
-                  </td>
-                  <td className="px-6 py-6">
-                    <p className="text-xs font-bold text-gray-500 uppercase leading-snug line-clamp-1 max-w-xl">{item.descricao}</p>
-                  </td>
-                  <td className="px-6 py-6 text-center">
-                    <span className="font-black text-sm text-gray-800 tracking-tight">{item.endereco}</span>
-                  </td>
-                  <td className="px-6 py-6 text-center">
-                    <span className="font-black text-sm text-gray-800">{item.armazem}</span>
-                  </td>
-                  <td className="px-10 py-6 text-right">
-                    {user.role === 'admin' && (
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        className="inline-flex items-center justify-center w-8 h-8 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 border border-red-100 shadow-sm"
-                        title="Excluir Endereço"
-                      >
-                        <span className="text-[14px] font-black italic">✕</span>
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {filteredItems.length === 0 && (
+              {isLoading ? (
                 <tr>
                   <td colSpan={5} className="px-10 py-20 text-center text-gray-400 font-black uppercase tracking-widest text-xs">
-                    Nenhum produto encontrado na base de endereços
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                      Sincronizando Base...
+                    </div>
                   </td>
                 </tr>
+              ) : filteredItems.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-10 py-20 text-center text-gray-400 font-black uppercase tracking-widest text-xs">
+                    Nenhum produto encontrado
+                  </td>
+                </tr>
+              ) : (
+                filteredItems.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50/50 transition-colors group">
+                    <td className="px-10 py-6">
+                      <span className="font-mono text-xs font-black text-gray-700 tracking-tighter uppercase">{item.codigo}</span>
+                    </td>
+                    <td className="px-6 py-6">
+                      <p className="text-xs font-bold text-gray-500 uppercase leading-snug line-clamp-1 max-w-xl">{item.descricao}</p>
+                    </td>
+                    <td className="px-6 py-6 text-center">
+                      <span className="font-black text-sm text-gray-800 tracking-tight">{item.endereco}</span>
+                    </td>
+                    <td className="px-6 py-6 text-center">
+                      <span className="font-black text-sm text-gray-800">{item.armazem}</span>
+                    </td>
+                    <td className="px-10 py-6 text-right">
+                      {user.role === 'admin' && (
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          className="inline-flex items-center justify-center w-8 h-8 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 border border-red-100 shadow-sm"
+                          title="Excluir Endereço"
+                        >
+                          <span className="text-[14px] font-black italic">✕</span>
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

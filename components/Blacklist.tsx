@@ -13,6 +13,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
   const [search, setSearch] = useState('');
   const [newCode, setNewCode] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredItems = useMemo(() => {
@@ -219,47 +220,16 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filteredItems.map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50/50 transition-colors group">
-                  <td className="px-10 py-6">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-2 h-2 rounded-full shadow-sm ${item.talvez ? 'bg-amber-400' : 'bg-red-500'}`}></div>
-                      <span className="font-mono text-sm font-bold text-gray-700 tracking-tight uppercase">{item.codigo}</span>
+              {isLoading ? (
+                <tr>
+                  <td colSpan={5} className="px-10 py-20 text-center text-gray-400 font-black uppercase tracking-widest text-xs">
+                    <div className="flex flex-col items-center gap-4">
+                      <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                      Carregando Blacklist...
                     </div>
                   </td>
-                  <td className="px-6 py-6 text-center">
-                    <input
-                      type="checkbox"
-                      checked={item.nao_sep}
-                      onChange={() => toggleStatus(item.id, 'nao_sep')}
-                      className="w-8 h-8 rounded-lg border-2 border-gray-200 text-red-600 focus:ring-red-500 cursor-pointer transition-all hover:scale-110"
-                    />
-                  </td>
-                  <td className="px-6 py-6 text-center">
-                    <input
-                      type="checkbox"
-                      checked={item.talvez}
-                      onChange={() => toggleStatus(item.id, 'talvez')}
-                      className="w-8 h-8 rounded-lg border-2 border-gray-200 text-blue-600 focus:ring-blue-500 cursor-pointer transition-all hover:scale-110"
-                    />
-                  </td>
-                  <td className="px-6 py-6 text-center">
-                    <span className="text-[10px] font-bold text-gray-400 font-mono tracking-widest bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">{item.data_inclusao}</span>
-                  </td>
-                  <td className="px-10 py-6 text-right">
-                    {user.role === 'admin' && (
-                      <button
-                        onClick={() => handleRemove(item.id)}
-                        className="inline-flex items-center justify-center w-8 h-8 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 border border-red-100 shadow-sm"
-                        title="Remover da Blacklist"
-                      >
-                        <span className="text-[14px] font-black italic">✕</span>
-                      </button>
-                    )}
-                  </td>
                 </tr>
-              ))}
-              {filteredItems.length === 0 && (
+              ) : filteredItems.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-10 py-20 text-center">
                     <div className="flex flex-col items-center gap-4 opacity-10">
@@ -268,6 +238,47 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
                     </div>
                   </td>
                 </tr>
+              ) : (
+                filteredItems.map((item) => (
+                  <tr key={item.id} className="hover:bg-gray-50/50 transition-colors group">
+                    <td className="px-10 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-2 h-2 rounded-full shadow-sm ${item.talvez ? 'bg-amber-400' : 'bg-red-50'}`}></div>
+                        <span className="font-mono text-sm font-bold text-gray-700 tracking-tight uppercase">{item.codigo}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-6 text-center">
+                      <input
+                        type="checkbox"
+                        checked={item.nao_sep}
+                        onChange={() => toggleStatus(item.id, 'nao_sep')}
+                        className="w-8 h-8 rounded-lg border-2 border-gray-200 text-red-600 focus:ring-red-500 cursor-pointer transition-all hover:scale-110"
+                      />
+                    </td>
+                    <td className="px-6 py-6 text-center">
+                      <input
+                        type="checkbox"
+                        checked={item.talvez}
+                        onChange={() => toggleStatus(item.id, 'talvez')}
+                        className="w-8 h-8 rounded-lg border-2 border-gray-200 text-blue-600 focus:ring-blue-500 cursor-pointer transition-all hover:scale-110"
+                      />
+                    </td>
+                    <td className="px-6 py-6 text-center">
+                      <span className="text-[10px] font-bold text-gray-400 font-mono tracking-widest bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">{item.data_inclusao}</span>
+                    </td>
+                    <td className="px-10 py-6 text-right">
+                      {user.role === 'admin' && (
+                        <button
+                          onClick={() => handleRemove(item.id)}
+                          className="inline-flex items-center justify-center w-8 h-8 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 border border-red-100 shadow-sm"
+                          title="Remover da Blacklist"
+                        >
+                          <span className="text-[14px] font-black italic">✕</span>
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

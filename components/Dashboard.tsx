@@ -91,7 +91,7 @@ const Dashboard: React.FC = () => {
     return (
       <div className="h-full flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
         <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest animate-pulse">Sincronizando Dashboard com Supabase...</p>
+        <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest animate-pulse">Sincronizando Ecossistema...</p>
       </div>
     );
   }

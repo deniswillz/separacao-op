@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { UrgencyLevel } from '../types';
+import { UrgencyLevel, User } from '../types';
 import * as XLSX from 'xlsx';
 import { supabase, upsertBatched } from '../services/supabaseClient';
 
@@ -17,16 +17,11 @@ const Empenhos: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [globalWarehouse, setGlobalWarehouse] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
-  };
-
-  const handleRemove = (id: string) => {
-    setOps(prev => prev.filter(op => op.id !== id));
-    setSelectedIds(prev => prev.filter(i => i !== id));
   };
 
   const handlePriorityChange = (id: string, newPriority: UrgencyLevel) => {
@@ -47,8 +42,6 @@ const Empenhos: React.FC = () => {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
 
-        // Agrupar por OP (coluna A - index 0)
-        // Cabeçalho na Linha 2 (index 1), dados na Linha 3 (index 2)
         const opsMap: { [key: string]: PendingOP } = {};
         data.slice(2).filter(row => row[0]).forEach(row => {
           const opId = String(row[0]).trim();
@@ -85,9 +78,11 @@ const Empenhos: React.FC = () => {
   const handleGenerateList = async () => {
     if (selectedIds.length === 0 || !globalWarehouse) return;
 
+    setIsGenerating(true);
     const selectedOps = ops.filter(op => selectedIds.includes(op.id));
     const separacaoData = selectedOps.map(op => ({
       documento: op.id,
+      nome: `LISTA ${op.id}`,
       armazem: globalWarehouse,
       ordens: [op.id],
       itens: op.itens.map(item => ({
@@ -98,8 +93,6 @@ const Empenhos: React.FC = () => {
         separado: false,
         transferido: false
       })),
-      // 'urgencia' column does not exist in the DB, so we omit it or use another if needed.
-      // urgencia: op.prioridade, 
       status: 'pendente',
       data_criacao: new Date().toISOString(),
       usuario_atual: null
@@ -108,11 +101,12 @@ const Empenhos: React.FC = () => {
     try {
       await upsertBatched('separacao', separacaoData, 500);
       alert(`${separacaoData.length} listas de separação geradas com sucesso!`);
-      // Clear selected ops after generation
       setOps(prev => prev.filter(op => !selectedIds.includes(op.id)));
       setSelectedIds([]);
     } catch (error: any) {
       alert('Erro ao gerar lista: ' + error.message);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -130,7 +124,7 @@ const Empenhos: React.FC = () => {
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Botões de Ação Superiores */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden">
         <div className="flex flex-col lg:flex-row justify-between items-center gap-4">
           <h2 className="text-sm font-black text-gray-700 uppercase tracking-tight">
             SELECIONE AS ORDENS DE PRODUÇÃO
@@ -158,24 +152,32 @@ const Empenhos: React.FC = () => {
             </button>
             <button
               onClick={handleGenerateList}
-              disabled={selectedIds.length === 0 || !globalWarehouse}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${selectedIds.length > 0 && globalWarehouse
+              disabled={selectedIds.length === 0 || !globalWarehouse || isGenerating}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${selectedIds.length > 0 && globalWarehouse && !isGenerating
                 ? 'bg-[#10b981] text-white hover:bg-[#059669]'
                 : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
             >
-              <span className="text-base">✅</span> Gerar Lista de Separação
+              <span className="text-base">{isGenerating ? '⏳' : '✅'}</span>
+              {isGenerating ? 'GERANDO...' : 'GERAR LISTA'}
             </button>
             <button
               onClick={() => { setSelectedIds([]); setOps([]); }}
               className="flex items-center gap-2 px-4 py-2 bg-[#ef4444] text-white rounded-xl text-xs font-bold hover:bg-[#dc2626] transition-all"
             >
-              <span className="text-base">🗑️</span> Limpar Tudo
+              <span className="text-base">🗑️</span> LIMPAR
             </button>
           </div>
         </div>
 
-        {/* Grid de Cápsulas (Conforme Imagem) */}
+        {isGenerating && (
+          <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center space-y-4 animate-fadeIn">
+            <div className="w-10 h-10 border-4 border-[#10b981] border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest animate-pulse">Processando Ordens...</p>
+          </div>
+        )}
+
+        {/* Grid de OPs */}
         <div className="mt-6 relative">
           <div className="max-h-48 overflow-y-auto pr-4 custom-scrollbar border border-gray-100 rounded-2xl p-4 bg-gray-50/30">
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -192,7 +194,6 @@ const Empenhos: React.FC = () => {
                 </button>
               ))}
             </div>
-            {/* Indicador Lateral Verde da Imagem */}
             <div className="absolute top-0 right-0 w-1.5 h-full bg-[#006B47] rounded-full"></div>
           </div>
           {ops.length > 0 && (
@@ -203,9 +204,7 @@ const Empenhos: React.FC = () => {
         </div>
       </div>
 
-      {/* Controles de Destino e Tabela Detalhada */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Lado Esquerdo: Configuração Global */}
         <div className="lg:col-span-1 bg-white p-6 rounded-3xl border border-gray-200 shadow-sm h-fit space-y-4">
           <div className="space-y-2">
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Armazém (Destino)</label>
@@ -227,7 +226,6 @@ const Empenhos: React.FC = () => {
           </div>
         </div>
 
-        {/* Lado Direito: Lista de Priorização e Ações */}
         <div className="lg:col-span-3 bg-white rounded-3xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
