@@ -52,15 +52,35 @@ const App: React.FC = () => {
 
   // Session is now in-memory only (Supabase-only persistence for data)
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginData.username === 'admin' && loginData.password === '12dfe13dfe') {
-      const newUser: User = { id: 1, username: 'admin', nome: 'Administrador', role: 'admin', permissions: ['all'] };
-      setUser(newUser);
+    setError('');
+
+    try {
+      const { data, error: sbError } = await supabase
+        .from('usuarios')
+        .select('*')
+        .eq('username', loginData.username)
+        .eq('senha', loginData.password)
+        .single();
+
+      if (sbError || !data) {
+        setError('Credenciais inválidas ou usuário não encontrado.');
+        return;
+      }
+
+      const loggedUser: User = {
+        id: data.id,
+        username: data.username,
+        nome: data.nome,
+        role: data.role as any,
+        permissions: data.permissions ? JSON.parse(data.permissions) : ['all']
+      };
+
+      setUser(loggedUser);
       setIsAuthenticated(true);
-      setError('');
-    } else {
-      setError('Credenciais inválidas. Tente novamente.');
+    } catch (err: any) {
+      setError('Erro ao realizar login: ' + err.message);
     }
   };
 

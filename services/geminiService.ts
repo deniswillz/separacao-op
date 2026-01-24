@@ -1,9 +1,8 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
-import { SeparationList, OPItem } from "../types";
 
-// Initialize the Google GenAI client with the API key from environment variables.
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
+const ai = new GoogleGenAI({
+  apiKey: import.meta.env.VITE_GEMINI_API_KEY || ""
+});
 
 export const analyzeLogisticsEfficiency = async (history: any[]) => {
   const prompt = `
@@ -26,9 +25,8 @@ export const analyzeLogisticsEfficiency = async (history: any[]) => {
       return null;
     }
 
-    // Using gemini-1.5-flash for balanced speed and efficiency.
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-1.5-flash-latest",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -53,7 +51,6 @@ export const analyzeLogisticsEfficiency = async (history: any[]) => {
       }
     });
 
-    // Accessing the text property directly from the GenerateContentResponse.
     const resultText = response.text;
     if (!resultText) {
       throw new Error("No text response received from Gemini API");
@@ -61,7 +58,7 @@ export const analyzeLogisticsEfficiency = async (history: any[]) => {
 
     return JSON.parse(resultText.trim());
   } catch (error) {
-    console.error("AI Analysis Error:", error);
+    console.error("Error analyzing logistics efficiency:", error);
     return null;
   }
 };

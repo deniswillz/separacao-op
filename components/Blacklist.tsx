@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { BlacklistItem } from '../App';
 import { User } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { supabase, upsertBatched } from '../services/supabaseClient';
+import * as XLSX from 'xlsx';
 
 interface BlacklistProps {
   items: BlacklistItem[];
@@ -11,6 +12,8 @@ interface BlacklistProps {
 const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems, user }) => {
   const [search, setSearch] = useState('');
   const [newCode, setNewCode] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredItems = useMemo(() => {
     return items.filter(item =>
@@ -98,8 +101,56 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
           <button className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-100 text-gray-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">
             Modelo
           </button>
-          <button className="flex items-center gap-2 px-5 py-3 bg-emerald-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-800 transition-all shadow-lg shadow-emerald-50">
-            Importar
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              setIsImporting(true);
+              const reader = new FileReader();
+              reader.onload = async (evt) => {
+                try {
+                  const bstr = evt.target?.result;
+                  const wb = XLSX.read(bstr, { type: 'binary' });
+                  const wsname = wb.SheetNames[0];
+                  const ws = wb.Sheets[wsname];
+                  const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+
+                  // Mapeamento simplificado para Blacklist
+                  // Espera-se que a coluna A (index 0) seja o código
+                  const blacklistItems = data.slice(1).filter(row => row[0]).map((row) => ({
+                    codigo: String(row[0]).trim().toUpperCase(),
+                    naoSep: true,
+                    talvez: false,
+                    dataInclusao: new Date().toLocaleDateString('pt-BR')
+                  }));
+
+                  if (blacklistItems.length === 0) {
+                    alert('Nenhum dado válido encontrado.');
+                    return;
+                  }
+
+                  await upsertBatched('blacklist', blacklistItems, 500);
+                  alert(`${blacklistItems.length} itens adicionados à BlackList!`);
+                } catch (err: any) {
+                  alert('Erro na importação: ' + err.message);
+                } finally {
+                  setIsImporting(false);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }
+              };
+              reader.readAsBinaryString(file);
+            }}
+            accept=".xlsx, .xls"
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+            className={`flex items-center gap-2 px-5 py-3 bg-emerald-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-800 transition-all shadow-lg shadow-emerald-50 ${isImporting ? 'opacity-50' : ''}`}
+          >
+            {isImporting ? '⏳ Lendo...' : 'Importar'}
           </button>
           <button
             onClick={handleClearAll}

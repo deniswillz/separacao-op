@@ -1,6 +1,6 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '../types';
+import { supabase } from '../services/supabaseClient';
 
 interface SystemUser extends User {
   criadoEm: string;
@@ -17,7 +17,8 @@ const mockUsers: SystemUser[] = [
 ];
 
 const Configuracoes: React.FC = () => {
-  const [users, setUsers] = useState<SystemUser[]>(mockUsers);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isSyncing, setIsSyncing] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newUser, setNewUser] = useState({
     username: '',
@@ -36,10 +37,68 @@ const Configuracoes: React.FC = () => {
     }
   });
 
-  const handleDelete = (username: string) => {
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setIsSyncing(true);
+      const { data, error } = await supabase.from('usuarios').select('*');
+      if (data) setUsers(data as any);
+      setIsSyncing(false);
+    };
+    fetchUsers();
+
+    const channel = supabase.channel('users-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'usuarios' }, fetchUsers)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const handleDelete = async (username: string) => {
     if (username === 'admin') return;
     if (confirm(`Deseja realmente excluir o usuário ${username}?`)) {
-      setUsers(prev => prev.filter(u => u.username !== username));
+      const { error } = await supabase.from('usuarios').delete().eq('username', username);
+      if (error) alert('Erro ao excluir: ' + error.message);
+    }
+  };
+
+  const handleSaveUser = async () => {
+    if (!newUser.username || !newUser.nome || !newUser.senha) return;
+    if (newUser.senha !== newUser.confirmarSenha) {
+      alert('Senhas não conferem');
+      return;
+    }
+
+    const { error } = await supabase.from('usuarios').insert([{
+      username: newUser.username,
+      nome: newUser.nome,
+      senha: newUser.senha,
+      role: newUser.role,
+      permissions: JSON.stringify(newUser.permissions),
+      criadoEm: new Date().toISOString()
+    }]);
+
+    if (error) {
+      alert('Erro ao salvar usuário: ' + error.message);
+    } else {
+      setIsModalOpen(false);
+      setNewUser({
+        username: '',
+        nome: '',
+        senha: '',
+        confirmarSenha: '',
+        role: 'user',
+        permissions: {
+          dashboard: true,
+          enderecos: false,
+          empenhos: false,
+          blacklist: false,
+          separacao: true,
+          conferencia: false,
+          historico: false
+        }
+      });
     }
   };
 
@@ -80,8 +139,8 @@ const Configuracoes: React.FC = () => {
               <div className="space-y-2">
                 <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Nível de Hierarquia</label>
                 <div className="grid grid-cols-2 gap-3">
-                  <button type="button" onClick={() => setNewUser({...newUser, role: 'user'})} className={`py-3 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all ${newUser.role === 'user' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-gray-100 text-gray-300'}`}>Operador</button>
-                  <button type="button" onClick={() => setNewUser({...newUser, role: 'admin'})} className={`py-3 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all ${newUser.role === 'admin' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-100 text-gray-300'}`}>Administrador</button>
+                  <button type="button" onClick={() => setNewUser({ ...newUser, role: 'user' })} className={`py-3 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all ${newUser.role === 'user' ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-gray-100 text-gray-300'}`}>Operador</button>
+                  <button type="button" onClick={() => setNewUser({ ...newUser, role: 'admin' })} className={`py-3 rounded-xl border-2 font-black text-[10px] uppercase tracking-widest transition-all ${newUser.role === 'admin' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'bg-white border-gray-100 text-gray-300'}`}>Administrador</button>
                 </div>
               </div>
 
@@ -121,8 +180,8 @@ const Configuracoes: React.FC = () => {
           <p className="text-gray-400 font-bold text-[9px] uppercase tracking-[0.2em] mt-0.5">Gestão e Manutenção do Ecossistema</p>
         </div>
         <div className="hidden md:flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm">
-           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-           <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Base de Dados Supabase Conectada</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+          <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Base de Dados Supabase Conectada</span>
         </div>
       </div>
 
@@ -132,7 +191,7 @@ const Configuracoes: React.FC = () => {
           <span className="text-xl group-hover:scale-110 transition-transform">👤</span>
           <span className="text-[8px] font-black text-emerald-50 uppercase tracking-widest">Novo Usuário</span>
         </button>
-        
+
         <button className="bg-white p-4 rounded-[1.5rem] border border-gray-100 flex flex-col items-center justify-center gap-2 hover:bg-gray-50 transition-all shadow-sm">
           <span className="text-xl">📤</span>
           <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Exportar</span>

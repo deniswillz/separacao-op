@@ -40,7 +40,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
       const { data, error } = await supabase
         .from('historico')
         .select('*')
-        .order('data', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (data) {
         setHistory(data.map((item: any) => ({

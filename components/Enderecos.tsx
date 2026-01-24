@@ -1,6 +1,7 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, User } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { supabase, upsertBatched } from '../services/supabaseClient';
+import * as XLSX from 'xlsx';
 
 const initialItems: Product[] = [
   { id: 1, codigo: 'MP0210000000013', descricao: 'RESISTOR FILME ESP 220 K OHMS 5% 1/8W SMD 0805', endereco: 'A0010', armazem: '20', unidade: 'PC' },
@@ -11,6 +12,8 @@ const initialItems: Product[] = [
 const Enderecos: React.FC<{ user: User }> = ({ user }) => {
   const [items, setItems] = useState<Product[]>(initialItems);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchEnderecos = async () => {
@@ -74,10 +77,50 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
-  // Simulação de importação seguindo a regra das colunas Excel
-  const handleImportExcel = () => {
-    alert(`Regras de Importação ativas:\nLinha 2 (CABEÇALHO)\nCol A: Armazém\nCol D: Código\nCol E: Descrição\nCol I: Endereço\nCol N: Unidade`);
-    // Aqui viria a lógica real de leitura de arquivo (FileReader + biblioteca XLSX)
+  // Importação real batelada (500 por vez)
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+
+        // Mapeamento conforme documentacao_separacao.md
+        // Linha 2 (index 1) é o cabeçalho
+        // Col A (0): Armazém, Col D (3): Código, Col E (4): Descrição, Col I (8): Endereço, Col N (13): Unidade
+        const products: any[] = data.slice(2).filter(row => row[3]).map((row, index) => ({
+          armazem: String(row[0] || '').trim(),
+          codigo: String(row[3] || '').trim(),
+          descricao: String(row[4] || '').trim(),
+          endereco: String(row[8] || '').trim(),
+          unidade: String(row[13] || '').trim(),
+          id: `${row[3]}_${index}` // ID único temporário
+        }));
+
+        if (products.length === 0) {
+          alert('Nenhum dado válido encontrado no arquivo.');
+          setIsImporting(false);
+          return;
+        }
+
+        await upsertBatched('enderecos', products, 500);
+        alert(`${products.length} endereços importados com sucesso!`);
+        // O fetchEnderecos no useEffect cuidará da atualização via Realtime ou recarregue manual
+      } catch (error: any) {
+        alert('Erro ao processar Excel: ' + error.message);
+      } finally {
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
   };
 
   return (
@@ -107,11 +150,20 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
         </div>
 
         <div className="flex gap-4">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImportExcel}
+            accept=".xlsx, .xls"
+            className="hidden"
+          />
           <button
-            onClick={handleImportExcel}
-            className="flex items-center gap-3 px-8 py-4 bg-[#006B47] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-[#004D33] transition-all shadow-xl shadow-emerald-100"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+            className={`flex items-center gap-3 px-8 py-4 bg-[#006B47] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-[#004D33] transition-all shadow-xl shadow-emerald-100 ${isImporting ? 'opacity-50 cursor-wait' : ''}`}
           >
-            <span className="text-lg">📥</span> Importar Excel
+            <span className="text-lg">{isImporting ? '⏳' : '📥'}</span>
+            {isImporting ? 'Processando...' : 'Importar Excel'}
           </button>
           <button
             onClick={handleClearAll}

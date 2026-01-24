@@ -8,3 +8,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+export const upsertBatched = async (table: string, items: any[], batchSize = 500) => {
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const { error } = await supabase.from(table).upsert(batch);
+    if (error) throw error;
+  }
+};
