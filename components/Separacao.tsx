@@ -87,14 +87,13 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
   const calculateProgress = (itens: any[]) => {
     if (!itens || itens.length === 0) return 0;
 
-    const count = itens.filter(i => {
-      if (i.falta) return true;
-      const isLupaDone = i.composicao?.every((c: any) => c.concluido) &&
-        i.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0) >= i.quantidade;
-      return i.ok && isLupaDone && i.tr;
-    }).length;
+    const allPairs = itens.flatMap(i => i.composicao || []);
+    const total = allPairs.length;
+    if (total === 0) return 0;
 
-    return Math.round((count / itens.length) * 100);
+    const count = allPairs.filter((c: any) => c.concluido).length;
+
+    return Math.round((count / total) * 100);
   };
 
 
@@ -442,12 +441,9 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {ops.map((op, index) => {
             const styles = getUrgencyStyles(op.urgencia);
-            const total = op.totalItens;
-            const finalizedCount = op.rawItens.filter(i => {
-              if (i.falta) return true;
-              const isLupaDone = i.composicao?.every((c: any) => c.concluido);
-              return i.ok && isLupaDone && i.tr;
-            }).length;
+            const allPairsForStats = op.rawItens.flatMap(i => i.composicao || []);
+            const total = allPairsForStats.length;
+            const finalizedCount = allPairsForStats.filter((c: any) => c.concluido).length;
 
             const progress = total > 0 ? Math.round((finalizedCount / total) * 100) : 0;
             const opRange = getOPDisplayRange(op.ordens);

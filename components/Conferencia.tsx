@@ -464,54 +464,48 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
 
             <div className="space-y-6">
               {/* Info Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-                <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform">📊</div>
-                  <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-2">Progresso Geral</p>
-                  <div className="flex items-end gap-2">
-                    <p className="text-3xl font-black text-gray-900 leading-none">
-                      {(() => {
-                        const allPairs = selectedItem.itens.flatMap(i => i.composicao || []);
-                        const deliveredPairs = allPairs.filter((c: any) => (c.qtd_separada || 0) > 0);
-                        const verifiedCount = deliveredPairs.filter((c: any) => (c.ok_conf && c.ok2_conf) || c.falta_conf).length;
-                        return deliveredPairs.length > 0 ? Math.round((verifiedCount / deliveredPairs.length) * 100) : 0;
-                      })()}%
-                    </p>
+              <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+                <div className="p-10 bg-gray-50/50 border-b border-gray-100">
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div className="space-y-2">
+                      <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Resumo da Conferência</h3>
+                    </div>
+                    <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-8">
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Progresso Geral</p>
+                        <p className="text-2xl font-black text-gray-900 leading-none">
+                          {(() => {
+                            const allPairs = selectedItem.itens.flatMap(i => i.composicao || []);
+                            const deliveredPairs = allPairs.filter((c: any) => (c.qtd_separada || 0) > 0);
+                            const verifiedCount = deliveredPairs.filter((c: any) => (c.ok_conf && c.ok2_conf) || c.falta_conf).length;
+                            return deliveredPairs.length > 0 ? Math.round((verifiedCount / deliveredPairs.length) * 100) : 0;
+                          })()}%
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Itens OK</p>
+                        <p className="text-2xl font-black text-emerald-600 leading-none">
+                          {(() => {
+                            const allPairs = selectedItem.itens.flatMap(i => i.composicao || []);
+                            const deliveredPairs = allPairs.filter((c: any) => (c.qtd_separada || 0) > 0);
+                            const okCount = deliveredPairs.filter((c: any) => c.ok_conf && c.ok2_conf).length;
+                            return `${okCount}/${deliveredPairs.length}`;
+                          })()}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Divergências</p>
+                        <p className="text-2xl font-black text-orange-500 leading-none">
+                          {selectedItem.itens.reduce((acc, item) => acc + (item.composicao?.filter((c: any) => c.falta_conf).length || 0), 0)}
+                        </p>
+                      </div>
+                      <div className="bg-gray-900 px-6 py-4 rounded-[1.5rem] text-white flex flex-col justify-center">
+                        <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mb-1">Responsável</p>
+                        <p className="text-[11px] font-black tracking-tight truncate">{user.name}</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-
-                <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform text-emerald-600">✅</div>
-                  <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-2">Itens OK</p>
-                  <p className="text-3xl font-black text-emerald-600 leading-none">
-                    {(() => {
-                      const allPairs = selectedItem.itens.flatMap(i => i.composicao || []);
-                      const deliveredPairs = allPairs.filter((c: any) => (c.qtd_separada || 0) > 0);
-                      const okCount = deliveredPairs.filter((c: any) => c.ok_conf && c.ok2_conf).length;
-                      return `${okCount}/${deliveredPairs.length}`;
-                    })()}
-                  </p>
-                </div>
-
-                <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-110 transition-transform text-orange-500">⚠️</div>
-                  <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-2">Divergências</p>
-                  <p className="text-3xl font-black text-orange-500 leading-none">
-                    {selectedItem.itens.reduce((acc, item) => {
-                      return acc + (item.composicao?.filter((c: any) => c.falta_conf).length || 0);
-                    }, 0)}
-                  </p>
-                </div>
-
-                <div className="bg-[#111827] p-8 rounded-[2rem] shadow-xl relative overflow-hidden group">
-                  <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform text-white">👤</div>
-                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2">Responsável</p>
-                  <p className="text-lg font-black text-white leading-none truncate">{user.nome}</p>
-                </div>
-              </div>
-
-              <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
-                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Resumo da Conferência</h3>
 
                 {(() => {
                   const allComps = selectedItem.itens.flatMap(i => i.composicao || []);
