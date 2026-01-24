@@ -370,78 +370,114 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       )}
 
       {showLupaModal && lupaItem && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-[3rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-gray-100 flex flex-col max-h-[90vh]">
-            <div className="p-10 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center">
+        <div className="fixed inset-0 z-[100] flex justify-end animate-fadeIn">
+          {/* Overlay background */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => { setShowLupaModal(false); setLupaItem(null); }}
+          ></div>
+
+          {/* Side Panel (Drawer) */}
+          <div className="relative bg-white w-full max-w-md h-full shadow-2xl border-l border-gray-100 flex flex-col animate-slideInRight">
+            <div className="p-8 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter leading-none mb-2">Composição do Item</h3>
-                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">{lupaItem.codigo}</p>
+                <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter leading-none mb-1 text-emerald-600">Distribuição de Lote</h3>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{lupaItem.codigo}</p>
               </div>
               <button
                 onClick={() => { setShowLupaModal(false); setLupaItem(null); }}
-                className="w-12 h-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-all font-bold"
+                className="w-10 h-10 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-all font-bold"
               >
                 ✕
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-10 space-y-6">
-              <div className="bg-emerald-50 p-6 rounded-3xl border border-emerald-100 flex items-center gap-4">
+            <div className="flex-1 overflow-y-auto p-8 space-y-6">
+              <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 flex items-center gap-4">
                 <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center text-lg">🔍</div>
-                <p className="text-[10px] font-black text-emerald-700 uppercase leading-relaxed tracking-wider">
-                  Preencha a quantidade separada para cada OP deste lote.
+                <p className="text-[9px] font-black text-emerald-700 uppercase leading-relaxed tracking-wider">
+                  Distribua as quantidades separadas em cada OP original para garantir a rastreabilidade.
                 </p>
               </div>
 
               <div className="space-y-4">
                 {(lupaItem.composicao || []).map((comp: any, idx: number) => (
-                  <div key={idx} className="flex items-center justify-between p-6 bg-white border border-gray-100 rounded-[2rem] hover:border-emerald-200 transition-all group">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-gray-900 text-white rounded-2xl flex items-center justify-center text-[10px] font-black tracking-widest overflow-hidden">
-                        {comp.op.slice(-4)}
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">OP Original</p>
-                        <p className="text-sm font-black text-gray-900 font-mono tracking-tighter">{comp.op}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      <div className="text-right">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Quantidade</p>
-                        <p className="text-lg font-black text-gray-900">{comp.quantidade}</p>
+                  <div key={idx} className="p-6 bg-white border border-gray-100 rounded-2xl hover:border-emerald-200 transition-all group space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-gray-900 text-white rounded-xl flex items-center justify-center text-[9px] font-black tracking-widest overflow-hidden">
+                          {comp.op.slice(-4)}
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">OP Original</p>
+                          <p className="text-xs font-black text-gray-900 font-mono tracking-tighter">{comp.op}</p>
+                        </div>
                       </div>
                       <button
                         onClick={() => {
                           const newComp = [...lupaItem.composicao];
                           newComp[idx] = { ...newComp[idx], concluido: !newComp[idx].concluido };
+                          // If marked as done, auto-fill with max quantity if currently 0
+                          if (newComp[idx].concluido && !newComp[idx].qtd_separada) {
+                            newComp[idx].qtd_separada = comp.quantidade;
+                          }
                           const newItem = { ...lupaItem, composicao: newComp };
-                          // Auto mark as separado if all composicao are done
-                          if (newComp.every(c => c.concluido)) newItem.separado = true;
                           updateItem(lupaItem.codigo, 'composicao', newComp);
-                          if (newComp.every(c => c.concluido)) updateItem(lupaItem.codigo, 'separado', true);
                           setLupaItem(newItem);
                         }}
-                        className={`w-14 h-14 rounded-2xl flex items-center justify-center text-xl transition-all ${comp.concluido ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-gray-50 text-gray-300 border border-gray-100 group-hover:bg-white group-hover:border-emerald-100'}`}
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm transition-all ${comp.concluido ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-gray-50 text-gray-300 border border-gray-100 group-hover:bg-white group-hover:border-emerald-100'}`}
                       >
                         {comp.concluido ? '✅' : '○'}
                       </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-50">
+                      <div>
+                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Solicitada</p>
+                        <div className="bg-gray-50 px-4 py-2.5 rounded-xl text-sm font-black text-gray-400 border border-transparent">
+                          {comp.quantidade}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest mb-1.5">Separada (Lupa)</p>
+                        <input
+                          type="number"
+                          className="w-full bg-white border border-emerald-100 px-4 py-2 rounded-xl text-sm font-black text-emerald-600 focus:ring-4 focus:ring-emerald-50 outline-none transition-all"
+                          value={comp.qtd_separada || 0}
+                          onChange={(e) => {
+                            const val = Number(e.target.value);
+                            const newComp = [...lupaItem.composicao];
+                            newComp[idx] = { ...newComp[idx], qtd_separada: val, concluido: val > 0 };
+                            const newItem = { ...lupaItem, composicao: newComp };
+                            updateItem(lupaItem.codigo, 'composicao', newComp);
+                            setLupaItem(newItem);
+                          }}
+                        />
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="p-10 bg-gray-50/50 border-t border-gray-100 flex justify-center">
+            <div className="p-8 bg-gray-50/50 border-t border-gray-100 flex flex-col gap-4">
+              <div className="flex justify-between items-center px-2">
+                <p className="text-[10px] font-black text-gray-400 uppercase">Total Distribuído</p>
+                <p className="text-lg font-black text-emerald-600">
+                  {(lupaItem.composicao || []).reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0)}
+                </p>
+              </div>
               <button
                 onClick={() => { setShowLupaModal(false); setLupaItem(null); }}
-                className="px-16 py-5 bg-[#111827] text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black active:scale-95 transition-all"
+                className="w-full py-5 bg-[#111827] text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black active:scale-95 transition-all"
               >
-                Salvar Composição
+                Confirmar Distribuição
               </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 };
