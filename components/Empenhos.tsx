@@ -75,31 +75,58 @@ const Empenhos: React.FC = () => {
     setIsGenerating(true);
     const selectedOps = ops.filter(op => selectedIds.includes(op.id));
 
-    // Agora cada OP gera um card individual
-    const lotsToInsert = selectedOps.map(op => {
-      const formattedItens = op.itens.map(item => ({
-        ...item,
-        separado: false,
-        transferido: false,
-        falta: false,
-        qtd_separada: 0,
-        composicao: [{ op: op.id, quantidade: item.quantidade, concluido: false }]
-      }));
-
-      return {
-        documento: `OP-${op.id}`,
-        nome: op.id,
-        armazem: globalWarehouse,
-        ordens: [op.id],
-        itens: formattedItens,
-        status: 'pendente',
-        urgencia: op.prioridade, // Pass priority
-        data_criacao: new Date().toISOString()
-      };
+    // Consolidate Items
+    const consolidatedMap: { [key: string]: any } = {};
+    selectedOps.forEach(op => {
+      op.itens.forEach(item => {
+        if (!consolidatedMap[item.codigo]) {
+          consolidatedMap[item.codigo] = {
+            ...item,
+            separado: false,
+            transferido: false,
+            falta: false,
+            ok: false,
+            lupa: false,
+            tr: false,
+            qtd_separada: 0,
+            composicao: []
+          };
+        }
+        consolidatedMap[item.codigo].composicao.push({
+          op: op.id,
+          quantidade: item.quantidade,
+          separado: 0, // Individual quantity separated for this OP
+          concluido: false
+        });
+      });
     });
 
+    // Sum total quantities for consolidated items
+    const formattedItens = Object.values(consolidatedMap).map(item => ({
+      ...item,
+      quantidade: item.composicao.reduce((sum: number, c: any) => sum + c.quantidade, 0)
+    }));
+
+    const maxUrgency = selectedOps.some(o => o.prioridade === 'urgencia') ? 'urgencia' :
+      selectedOps.some(o => o.prioridade === 'alta') ? 'alta' : 'media';
+
+    const lotName = selectedOps.length > 1
+      ? `Lote-${selectedOps[0].id.slice(-4)}-G${selectedOps.length}`
+      : `OP-${selectedOps[0].id}`;
+
+    const lotToInsert = {
+      documento: lotName,
+      nome: lotName,
+      armazem: globalWarehouse,
+      ordens: selectedOps.map(op => op.id),
+      itens: formattedItens,
+      status: 'pendente',
+      urgencia: maxUrgency,
+      data_criacao: new Date().toISOString()
+    };
+
     try {
-      await upsertBatched('separacao', lotsToInsert, 900);
+      await upsertBatched('separacao', [lotToInsert], 900);
 
       // TEA Sync: Individual cards for TEA
       const teaRecords = selectedOps.map(op => ({
@@ -118,7 +145,7 @@ const Empenhos: React.FC = () => {
 
       await upsertBatched('historico', teaRecords, 900);
 
-      alert(`Sucesso! Geradas ${lotsToInsert.length} listas individuais.`);
+      alert(`Sucesso! Gerado 1 lote consolidado para as OPs selecionadas.`);
       setOps(prev => prev.filter(op => !selectedIds.includes(op.id)));
       setSelectedIds([]);
     } catch (error: any) {

@@ -31,6 +31,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
   const [isSaving, setIsSaving] = useState(false);
   const [showLupaModal, setShowLupaModal] = useState(false);
   const [lupaItem, setLupaItem] = useState<any | null>(null);
+  const [enderecos, setEnderecos] = useState<any[]>([]);
 
 
   const [showOpListModal, setShowOpListModal] = useState(false);
@@ -69,15 +70,28 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
     setIsSyncing(false);
   };
 
+  const fetchEnderecos = async () => {
+    const { data } = await supabase.from('enderecos').select('*');
+    if (data) setEnderecos(data);
+  };
+
   useEffect(() => {
     fetchOps();
+    fetchEnderecos();
     const channel = supabase.channel('separacao-live').on('postgres_changes', { event: '*', schema: 'public', table: 'separacao' }, fetchOps).subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
 
   const calculateProgress = (itens: any[]) => {
     if (!itens || itens.length === 0) return 0;
-    const count = itens.filter(i => i.separado || i.falta || i.transferido).length;
+
+    const count = itens.filter(i => {
+      if (i.falta) return true;
+      const isLupaDone = i.composicao?.every((c: any) => c.concluido) &&
+        i.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0) >= i.quantidade;
+      return i.ok && isLupaDone && i.tr;
+    }).length;
+
     return Math.round((count / itens.length) * 100);
   };
 
@@ -110,14 +124,19 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
     }
 
     const isComplete = selectedOP.rawItens.every(i => {
-      // Find item in blacklist to check if it's hidden
       const blacklistItem = blacklist.find(b => b.sku === i.codigo || (b as any).codigo === i.codigo);
-      if (blacklistItem?.nao_sep) return true; // Skip hidden items
-      return i.confirmado; // Must be checked 1 by 1
+      if (blacklistItem?.nao_sep) return true;
+
+      if (i.falta) return true; // OUT is a valid finished state
+
+      const isLupaDone = i.composicao?.every((c: any) => c.concluido) &&
+        i.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0) >= i.quantidade;
+
+      return i.ok && isLupaDone && i.tr; // Mandatory Flow
     });
 
     if (!isComplete) {
-      alert('❌ PROCESSO IMPEDIDO DE CONTINUAR\n\nTodos os itens devem ser marcados (CHECK) individualmente antes de enviar para conferência.');
+      alert('❌ PROCESSO IMPEDIDO DE CONTINUAR\n\nTodos os itens devem passar pelas 3 etapas obrigatórias (OK, Lupa, TR) ou serem marcados como OUT.');
       return;
     }
 
@@ -129,8 +148,12 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       armazem: selectedOP.armazem,
       ordens: selectedOP.ordens,
       itens: selectedOP.rawItens
-        .filter((item: any) => !item.falta) // Don't send OUT items to conference
-        .map((item: any) => ({ ...item, doc_transferencia: docTransferencia })),
+        .filter((item: any) => !item.falta) // EXCLUDE "OUT" items from conference
+        .map((item: any) => ({
+          ...item,
+          doc_transferencia: docTransferencia,
+          // Map separated quantity from composition if needed, but usually item.qtd_separada is already updated
+        })),
       status: 'Aguardando'
     };
 
@@ -199,7 +222,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
               <table className="w-full text-left">
                 <thead className="bg-gray-50 text-[10px] font-black uppercase tracking-widest text-gray-400">
                   <tr>
-                    <th className="px-8 py-5">CHECK</th>
+                    <th className="px-8 py-5 text-center">LUPA</th>
                     <th className="px-8 py-5">PRODUTO</th>
                     <th className="px-6 py-5 text-center">SOLICITADO</th>
                     <th className="px-6 py-5 text-center">SEPARADO</th>
@@ -218,19 +241,33 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                       const blacklistItem = blacklist.find(b => b.sku === item.codigo || (b as any).codigo === item.codigo);
                       const isTalvez = blacklistItem?.talvez;
 
-                      const rowClass = item.separado ? 'bg-emerald-50/50' :
-                        isTalvez ? 'border-l-4 border-amber-500' :
-                          item.transferido ? 'bg-blue-50/50' : '';
+                      const enderecoData = enderecos.find(e => e.codigo === item.codigo);
+                      const armazem = enderecoData?.armazem || selectedOP.armazem || '--';
+                      const endereco = enderecoData?.endereco || '--';
+
+                      const isOut = !!item.falta;
+                      const isLupaDone = item.composicao?.every((c: any) => c.concluido) &&
+                        item.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0) >= item.quantidade;
+
+                      const rowClass = isOut ? 'bg-red-50 border-l-4 border-red-500' :
+                        (item.ok && isLupaDone && item.tr) ? 'bg-emerald-50/50' :
+                          isTalvez ? 'border-l-4 border-amber-500' : '';
 
                       return (
-                        <tr key={idx} className={`group ${rowClass}`}>
-                          <td className="px-8 py-6">
-                            <input
-                              type="checkbox"
-                              checked={!!item.confirmado}
-                              onChange={() => updateItem(item.codigo, 'confirmado', !item.confirmado)}
-                              className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
-                            />
+                        <tr key={idx} className={`group ${rowClass} transition-colors`}>
+                          <td className="px-8 py-6 text-center">
+                            <button
+                              disabled={isOut}
+                              onClick={() => { setLupaItem(item); setShowLupaModal(true); }}
+                              className={`w-12 h-12 rounded-xl text-lg transition-all flex items-center justify-center border ${isOut ? 'opacity-20 cursor-not-allowed bg-gray-100' :
+                                isLupaDone
+                                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-100 font-bold'
+                                  : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'
+                                }`}
+                              title="LUPA - Distribuição p/ OP"
+                            >
+                              🔍
+                            </button>
                           </td>
                           <td className="px-8 py-6">
                             <p className="font-black text-[#111827] text-sm font-mono tracking-tighter flex items-center gap-2">
@@ -238,16 +275,17 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                               {isTalvez && <span className="px-2 py-0.5 bg-amber-500 text-white text-[8px] rounded-full uppercase">TALVEZ</span>}
                             </p>
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight mb-2">{item.descricao}</p>
-                            <div className="flex items-center gap-4 text-[9px] font-black uppercase text-gray-300">
-                              <p>.Armazém: <span className="text-gray-900">{selectedOP.armazem}</span></p>
-                              <p>Endereço: <span className="text-emerald-600 font-mono">{item.endereco || 'S/E'}</span></p>
+                            <div className="flex items-center gap-4 text-[9px] font-black uppercase text-gray-400">
+                              <p>.Armazém: <span className="text-gray-900">{armazem}</span></p>
+                              <p>Endereço: <span className="text-emerald-600 font-mono tracking-widest">{endereco}</span></p>
                             </div>
                           </td>
                           <td className="px-6 py-6 text-center text-lg font-black text-gray-900">{item.quantidade}</td>
                           <td className="px-6 py-6 text-center">
                             <input
                               type="number"
-                              className={`w-20 px-3 py-2 bg-white border rounded-xl text-center font-black text-sm outline-none transition-all ${item.qtd_separada > item.quantidade ? 'border-red-500 ring-4 ring-red-50' : 'border-gray-200 focus:ring-4 focus:ring-emerald-50'}`}
+                              disabled={isOut}
+                              className={`w-20 px-3 py-2 bg-white border rounded-xl text-center font-black text-sm outline-none transition-all ${isOut ? 'opacity-20 bg-gray-50' : item.qtd_separada > item.quantidade ? 'border-red-500 ring-4 ring-red-50' : 'border-gray-200 focus:ring-4 focus:ring-emerald-50'}`}
                               value={item.qtd_separada || 0}
                               onChange={(e) => updateItem(item.codigo, 'qtd_separada', Number(e.target.value))}
                             />
@@ -255,35 +293,35 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                           <td className="px-10 py-6">
                             <div className="flex justify-center gap-2">
                               <button
-                                onClick={() => updateItem(item.codigo, 'separado', !item.separado)}
-                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.separado ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50'}`}
-                                title="OK - Separação Manual"
+                                disabled={isOut}
+                                onClick={() => updateItem(item.codigo, 'ok', !item.ok)}
+                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : item.ok ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50'}`}
+                                title="1. OK - Separado"
                               >
                                 OK
                               </button>
                               <button
-                                onClick={() => updateItem(item.codigo, 'transferido', !item.transferido)}
-                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.transferido ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-gray-200 text-blue-600 hover:bg-blue-50'}`}
-                                title="TR - Transferência do Item"
+                                disabled={isOut}
+                                onClick={() => updateItem(item.codigo, 'tr', !item.tr)}
+                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : item.tr ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-gray-200 text-blue-600 hover:bg-blue-50'}`}
+                                title="3. TR - Transferido"
                               >
                                 TR
                               </button>
                               <button
-                                onClick={() => updateItem(item.codigo, 'falta', !item.falta)}
-                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.falta ? 'bg-amber-500 text-white shadow-lg shadow-amber-100' : 'bg-white border border-gray-200 text-amber-500 hover:bg-amber-50'}`}
-                                title="OUT - Falta/Blacklist"
+                                onClick={() => {
+                                  const newFalta = !item.falta;
+                                  // When turning on OUT, clear other flags
+                                  updateItem(item.codigo, 'falta', newFalta);
+                                  if (newFalta) {
+                                    updateItem(item.codigo, 'ok', false);
+                                    updateItem(item.codigo, 'tr', false);
+                                  }
+                                }}
+                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.falta ? 'bg-red-600 text-white shadow-lg shadow-red-100' : 'bg-white border border-gray-200 text-red-600 hover:bg-red-50'}`}
+                                title="OUT - Falta/Divergência"
                               >
                                 OUT
-                              </button>
-                              <button
-                                onClick={() => { setLupaItem(item); setShowLupaModal(true); }}
-                                className={`w-12 h-12 rounded-xl text-lg transition-all flex items-center justify-center border ${(item.composicao?.every((c: any) => c.concluido))
-                                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-100 font-bold'
-                                  : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'
-                                  }`}
-                                title="LUPA - Preencher Qtd p/ OP"
-                              >
-                                🔍
                               </button>
                             </div>
                           </td>
@@ -311,11 +349,14 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
           {ops.map((op, index) => {
             const styles = getUrgencyStyles(op.urgencia);
             const total = op.totalItens;
+            const finalizedCount = op.rawItens.filter(i => {
+              if (i.falta) return true;
+              const isLupaDone = i.composicao?.every((c: any) => c.concluido) &&
+                i.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0) >= i.quantidade;
+              return i.ok && isLupaDone && i.tr;
+            }).length;
 
-            // Progress: (Sep + Trans) / (Total * 2) - but let's stick to what's visible
-            const transCount = op.rawItens.filter((i: any) => i.transferido).length;
-            const progress = total > 0 ? Math.round(((op.separados + transCount + (op.faltas * 2)) / (total * 2)) * 100) : 0;
-
+            const progress = total > 0 ? Math.round((finalizedCount / total) * 100) : 0;
             const opRange = op.ordens.length > 1
               ? `${op.ordens[0].slice(-4)} até ${op.ordens[op.ordens.length - 1].slice(-4)}`
               : op.opCode;
@@ -394,20 +435,12 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-4 gap-2 py-3 border-y border-gray-50 relative z-10">
+                <div className="grid grid-cols-2 gap-2 py-3 border-y border-gray-50 relative z-10">
                   <div className="text-center">
-                    <p className="text-[8px] font-black text-gray-300 uppercase">Sep.</p>
-                    <p className="text-[10px] font-black text-gray-900">{op.separados}/{total}</p>
+                    <p className="text-[8px] font-black text-gray-300 uppercase">Concluídos</p>
+                    <p className="text-[10px] font-black text-gray-900">{finalizedCount}/{total}</p>
                   </div>
-                  <div className="text-center">
-                    <p className="text-[8px] font-black text-gray-300 uppercase">Tra.</p>
-                    <p className="text-[10px] font-black text-gray-900">{transCount}/{total}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-[8px] font-black text-gray-300 uppercase">Falta</p>
-                    <p className="text-[10px] font-black text-amber-500">{op.faltas}</p>
-                  </div>
-                  <div className="text-center">
+                  <div className="text-center border-l border-gray-50">
                     <p className="text-[8px] font-black text-gray-300 uppercase">Progresso</p>
                     <p className="text-[10px] font-black text-emerald-600">{progress}%</p>
                   </div>
@@ -486,9 +519,15 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                           if (newComp[idx].concluido && !newComp[idx].qtd_separada) {
                             newComp[idx].qtd_separada = comp.quantidade;
                           }
-                          const newItem = { ...lupaItem, composicao: newComp };
-                          updateItem(lupaItem.codigo, 'composicao', newComp);
-                          setLupaItem(newItem);
+
+                          const totalSep = newComp.reduce((sum, c) => sum + (c.qtd_separada || 0), 0);
+
+                          if (!selectedOP) return;
+                          const newItens = selectedOP.rawItens.map(i =>
+                            i.codigo === lupaItem.codigo ? { ...i, composicao: newComp, qtd_separada: totalSep } : i
+                          );
+                          setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
+                          setLupaItem({ ...lupaItem, composicao: newComp, qtd_separada: totalSep });
                         }}
                         className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm transition-all ${comp.concluido ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-gray-50 text-gray-300 border border-gray-100 group-hover:bg-white group-hover:border-emerald-100'}`}
                       >
@@ -513,9 +552,15 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                             const val = Number(e.target.value);
                             const newComp = [...lupaItem.composicao];
                             newComp[idx] = { ...newComp[idx], qtd_separada: val, concluido: val > 0 };
-                            const newItem = { ...lupaItem, composicao: newComp };
-                            updateItem(lupaItem.codigo, 'composicao', newComp);
-                            setLupaItem(newItem);
+
+                            const totalSep = newComp.reduce((sum, c) => sum + (c.qtd_separada || 0), 0);
+
+                            if (!selectedOP) return;
+                            const newItens = selectedOP.rawItens.map(i =>
+                              i.codigo === lupaItem.codigo ? { ...i, composicao: newComp, qtd_separada: totalSep } : i
+                            );
+                            setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
+                            setLupaItem({ ...lupaItem, composicao: newComp, qtd_separada: totalSep });
                           }}
                         />
                       </div>
