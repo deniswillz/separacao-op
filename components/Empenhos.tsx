@@ -80,31 +80,56 @@ const Empenhos: React.FC = () => {
 
     setIsGenerating(true);
     const selectedOps = ops.filter(op => selectedIds.includes(op.id));
-    const separacaoData = selectedOps.map(op => ({
-      documento: op.id,
-      nome: `LISTA ${op.id}`,
+
+    // Consolidate Items from multiple OPs into a single Lot
+    const consolidationMap: { [key: string]: any } = {};
+
+    selectedOps.forEach(op => {
+      op.itens.forEach(item => {
+        if (!consolidationMap[item.codigo]) {
+          consolidationMap[item.codigo] = {
+            codigo: item.codigo,
+            descricao: item.descricao,
+            quantidade: 0,
+            unidade: item.unidade,
+            separado: false,
+            transferido: false,
+            falta: false,
+            // Breakdown for splitting manually later (The "Lupa" view)
+            composicao: []
+          };
+        }
+        consolidationMap[item.codigo].quantidade += item.quantidade;
+        consolidationMap[item.codigo].composicao.push({
+          op: op.id,
+          quantidade: item.quantidade,
+          concluido: false
+        });
+      });
+    });
+
+    const consolidatedItens = Object.values(consolidationMap);
+    const lotId = `LOTE-${new Date().getTime().toString().slice(-6)}`;
+
+    const lotData = [{
+      documento: lotId,
+      nome: `LOTE ${selectedOps.length} OPS`,
       armazem: globalWarehouse,
-      ordens: [op.id],
-      itens: op.itens.map(item => ({
-        codigo: item.codigo,
-        descricao: item.descricao,
-        quantidade: item.quantidade,
-        unidade: item.unidade,
-        separado: false,
-        transferido: false
-      })),
+      ordens: selectedIds, // Array of original OPs
+      itens: consolidatedItens,
       status: 'pendente',
       data_criacao: new Date().toISOString(),
       usuario_atual: null
-    }));
+    }];
 
     try {
-      await upsertBatched('separacao', separacaoData, 500);
-      alert(`${separacaoData.length} listas de separação geradas com sucesso!`);
+      await upsertBatched('separacao', lotData, 500);
+      alert(`Lote ${lotId} gerado com ${selectedOps.length} OPs e ${consolidatedItens.length} itens únicos!`);
+      // Clear selected ops after generation
       setOps(prev => prev.filter(op => !selectedIds.includes(op.id)));
       setSelectedIds([]);
     } catch (error: any) {
-      alert('Erro ao gerar lista: ' + error.message);
+      alert('Erro ao gerar lote: ' + error.message);
     } finally {
       setIsGenerating(false);
     }
@@ -148,7 +173,7 @@ const Empenhos: React.FC = () => {
               disabled={isImporting}
               className={`flex items-center gap-2 px-4 py-2 bg-[#004d33] text-white rounded-xl text-xs font-bold hover:bg-[#003624] transition-all ${isImporting ? 'opacity-50' : ''}`}
             >
-              <span className="text-base">📥</span> {isImporting ? 'PROCES...' : 'IMPORTAR'}
+              <span className="text-base">📥</span> {isImporting ? 'PROCES...' : 'IMPORTAR (A,U,V,W,X)'}
             </button>
             <button
               onClick={handleGenerateList}

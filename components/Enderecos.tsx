@@ -163,7 +163,7 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
             className={`flex items-center gap-3 px-8 py-4 bg-[#006B47] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-[#004D33] transition-all shadow-xl shadow-emerald-100 ${isImporting ? 'opacity-50 cursor-wait' : ''}`}
           >
             <span className="text-lg">{isImporting ? '⏳' : '📥'}</span>
-            {isImporting ? 'Processando...' : 'Importar Excel'}
+            {isImporting ? 'Processando...' : 'Importar Endereços (A,D,E,I)'}
           </button>
           <button
             onClick={handleClearAll}

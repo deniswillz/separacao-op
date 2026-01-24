@@ -19,6 +19,7 @@ interface OPMock {
   separados: number;
   transferidos: number;
   naoSeparados: number;
+  rawItens: any[];
 }
 
 const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ blacklist, user }) => {
@@ -26,11 +27,12 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
   const [isSyncing, setIsSyncing] = useState(true);
   const [ops, setOps] = useState<OPMock[]>([]);
   const [selectedOP, setSelectedOP] = useState<OPMock | null>(null);
+
   useEffect(() => {
     const fetchOps = async () => {
       setIsSyncing(true);
       const { data, error } = await supabase
-        .from('separacao') // Note: assuming the table name from previous context or types
+        .from('separacao')
         .select('*')
         .order('data_criacao', { ascending: false });
 
@@ -45,13 +47,14 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
           totalItens: item.itens?.length || 0,
           data: item.data_criacao,
           progresso: calculateProgress(item.itens),
-          urgencia: item.urgencia,
+          urgencia: item.urgencia || 'media', // Default if missing
           status: item.status,
           usuarioAtual: item.usuario_atual,
           observacao: item.observacao,
           separados: item.itens?.filter((i: any) => i.separado).length || 0,
           transferidos: item.itens?.filter((i: any) => i.transferido).length || 0,
           naoSeparados: item.itens?.filter((i: any) => !i.separado).length || 0,
+          rawItens: item.itens || [],
         }));
         setOps(formattedOps);
       }
@@ -144,6 +147,83 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
     return 'border-emerald-500 ring-4 ring-emerald-50';
   };
 
+  const [selectedItemForBreakdown, setSelectedItemForBreakdown] = useState<any | null>(null);
+
+  const updateItemStatus = async (itemCodigo: string, field: 'separado' | 'transferido' | 'falta', value: boolean) => {
+    if (!selectedOP) return;
+
+    const updatedItens = selectedOP.rawItens.map((item: any) => {
+      if (item.codigo === itemCodigo) {
+        return { ...item, [field]: value, falta: field === 'falta' ? value : item.falta };
+      }
+      return item;
+    });
+
+    const { error } = await supabase
+      .from('separacao')
+      .update({ itens: updatedItens })
+      .eq('id', selectedOP.id);
+
+    if (error) {
+      alert('Erro ao atualizar item: ' + error.message);
+    } else {
+      setSelectedOP({ ...selectedOP, rawItens: updatedItens, separados: updatedItens.filter((i: any) => i.separado).length, transferidos: updatedItens.filter((i: any) => i.transferido).length, naoSeparados: updatedItens.filter((i: any) => !i.separado).length });
+    }
+  };
+
+  const handleFinalizeLot = async () => {
+    if (!selectedOP) return;
+    if (selectedOP.separados < selectedOP.totalItens) {
+      if (!confirm('Existem itens não separados. Deseja finalizar o lote mesmo assim?')) return;
+    }
+
+    const { error } = await supabase
+      .from('separacao')
+      .update({ status: 'concluido', usuario_atual: null })
+      .eq('id', selectedOP.id);
+
+    if (error) {
+      alert('Erro ao finalizar lote: ' + error.message);
+    } else {
+      alert('Lote finalizado com sucesso!');
+      setViewMode('list');
+      setSelectedOP(null);
+    }
+  };
+
+  const toggleBreakdownItem = (idx: number) => {
+    if (!selectedItemForBreakdown) return;
+    const newComposicao = [...selectedItemForBreakdown.composicao];
+    newComposicao[idx].concluido = !newComposicao[idx].concluido;
+    setSelectedItemForBreakdown({ ...selectedItemForBreakdown, composicao: newComposicao });
+  };
+
+  const saveBreakdown = async () => {
+    if (!selectedItemForBreakdown || !selectedOP) return;
+
+    // Check if everything is OK in breakdown
+    const allDone = selectedItemForBreakdown.composicao.every((c: any) => c.concluido);
+
+    const updatedItens = selectedOP.rawItens.map((item: any) => {
+      if (item.codigo === selectedItemForBreakdown.codigo) {
+        return { ...item, composicao: selectedItemForBreakdown.composicao, separado: allDone };
+      }
+      return item;
+    });
+
+    const { error } = await supabase
+      .from('separacao')
+      .update({ itens: updatedItens })
+      .eq('id', selectedOP.id);
+
+    if (error) {
+      alert('Erro ao salvar distribuição: ' + error.message);
+    } else {
+      setSelectedOP({ ...selectedOP, rawItens: updatedItens, separados: updatedItens.filter((i: any) => i.separado).length });
+      setSelectedItemForBreakdown(null);
+    }
+  };
+
   if (isSyncing && ops.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
@@ -155,51 +235,171 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
 
   if (viewMode === 'detail' && selectedOP) {
     return (
-      <div className="space-y-6 animate-fadeIn pb-10">
+      <div className="space-y-6 animate-fadeIn pb-20">
+        {/* Modal Lupa (Breakdown per OP) */}
+        {selectedItemForBreakdown && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <div className="bg-white rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-scaleIn flex flex-col max-h-[90vh]">
+              <div className="bg-gray-900 px-8 py-5 flex justify-between items-center text-white shrink-0">
+                <h3 className="text-base font-extrabold uppercase tracking-tight">Distribuição por OP</h3>
+                <button onClick={() => setSelectedItemForBreakdown(null)} className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all text-sm">✕</button>
+              </div>
+              <div className="p-8 space-y-6 overflow-y-auto">
+                <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                  <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase">Produto Selecionado</p>
+                    <p className="text-sm font-black text-gray-900">{selectedItemForBreakdown.codigo}</p>
+                    <p className="text-[11px] font-bold text-gray-500 uppercase">{selectedItemForBreakdown.descricao}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black text-gray-400 uppercase">Total do Lote</p>
+                    <p className="text-2xl font-black text-emerald-600">{selectedItemForBreakdown.quantidade} <span className="text-xs font-bold text-gray-400">{selectedItemForBreakdown.unidade}</span></p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {selectedItemForBreakdown.composicao?.map((comp: any, idx: number) => (
+                    <div key={idx} className={`flex justify-between items-center p-4 rounded-2xl border transition-all ${comp.concluido ? 'bg-emerald-50 border-emerald-100' : 'bg-gray-50 border-gray-100'}`}>
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black shadow-sm border transition-all ${comp.concluido ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-white text-gray-400 border-gray-100'}`}>
+                          {comp.concluido ? '✓' : `#${idx + 1}`}
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase">Ordem de Produção</p>
+                          <p className="text-sm font-black text-gray-900">{comp.op}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <div className="text-right">
+                          <p className="text-[10px] font-black text-gray-400 uppercase">Qtd solicitada</p>
+                          <p className="text-base font-black text-gray-900">{comp.quantidade} {selectedItemForBreakdown.unidade}</p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={comp.concluido}
+                          onChange={() => toggleBreakdownItem(idx)}
+                          className="w-7 h-7 rounded-lg text-emerald-600 focus:ring-emerald-500 border-gray-300 cursor-pointer shadow-sm transition-all hover:scale-110"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-gray-50 p-6 flex justify-end gap-3 shrink-0 border-t border-gray-100">
+                <button onClick={() => setSelectedItemForBreakdown(null)} className="px-6 py-3 bg-white border border-gray-200 text-gray-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all">Cancelar</button>
+                <button onClick={saveBreakdown} className="px-10 py-3 bg-emerald-600 text-white rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100">
+                  Salvar Distribuição
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col gap-4">
           <button onClick={handleBack} className="w-fit px-6 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-bold text-gray-500 uppercase flex items-center gap-2 hover:bg-gray-50 transition-all">
-            ← Voltar
+            ← Voltar para Lista
           </button>
-          <div className="space-y-1">
-            <h2 className="text-2xl font-black text-gray-900 uppercase">OP {selectedOP.opCode}</h2>
-            <p className="text-[11px] font-bold text-gray-400 uppercase">Armazém: {selectedOP.armazem} | Criado em: {new Date(selectedOP.data).toLocaleString('pt-BR')}</p>
-          </div>
-        </div>
-
-        <div className="bg-white p-8 rounded-[1.5rem] border border-gray-100 shadow-sm flex flex-col md:flex-row gap-6">
-          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white border border-gray-100 rounded-2xl p-6 flex flex-col justify-center">
-              <p className="text-3xl font-black text-gray-900 leading-none mb-2">{selectedOP.totalItens}</p>
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total de Itens</p>
+          <div className="flex justify-between items-end">
+            <div className="space-y-1">
+              <h2 className="text-3xl font-black text-gray-900 uppercase tracking-tighter">{selectedOP.opCode}</h2>
+              <p className="text-[11px] font-bold text-gray-400 uppercase">Armazém: <span className="text-emerald-600">{selectedOP.armazem}</span> | {selectedOP.ordens} Ordens no Lote</p>
             </div>
-            <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-6 flex flex-col justify-center">
-              <p className="text-3xl font-black text-emerald-600 leading-none mb-2">{selectedOP.separados}</p>
-              <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Separados</p>
-            </div>
-            <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6 flex flex-col justify-center">
-              <p className="text-3xl font-black text-blue-600 leading-none mb-2">{selectedOP.transferidos}</p>
-              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Transferidos</p>
-            </div>
-            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-6 flex flex-col justify-center">
-              <p className="text-3xl font-black text-amber-600 leading-none mb-2">{selectedOP.naoSeparados}</p>
-              <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Não Separados</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-4 w-full md:w-auto min-w-[320px]">
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-              <p className="text-[10px] font-black text-gray-400 uppercase mb-2 ml-1 tracking-widest">Documento (Transferência)</p>
-              <input type="text" placeholder="Nº do documento" className="w-full text-sm font-bold bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none uppercase placeholder-gray-300 focus:bg-white focus:ring-2 focus:ring-emerald-500/10" />
-            </div>
-            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
-              <p className="text-[10px] font-black text-gray-400 uppercase mb-2 ml-1 tracking-widest">Responsável (Separação)</p>
-              <div className="w-full text-sm font-black text-gray-800 uppercase bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">{currentResponsavel}</div>
+            <div className="flex gap-3">
+              <div className="bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-100 flex flex-col items-center">
+                <span className="text-xs font-black text-emerald-700 leading-none">{selectedOP.separados}/{selectedOP.totalItens}</span>
+                <span className="text-[8px] font-black text-emerald-400 uppercase mt-1">Status Geral</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-32 rounded-[3.5rem] text-center border-2 border-dashed border-gray-100 font-black text-gray-200 uppercase tracking-widest text-sm shadow-inner">
-          Lista de Produtos Ativa
+        {/* Tabela de Produtos Ativa */}
+        <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-gray-50/50 border-b border-gray-100 text-[10px] font-black text-gray-300 uppercase tracking-widest">
+                  <th className="px-8 py-6">CÓDIGO</th>
+                  <th className="px-6 py-6">DESCRIÇÃO / LOCALIZAÇÃO</th>
+                  <th className="px-6 py-6 text-center">QTD SOL.</th>
+                  <th className="px-6 py-6 text-center">QTD SEP.</th>
+                  <th className="px-6 py-6 text-center">AÇÕES</th>
+                  <th className="px-8 py-6">OBSERVAÇÕES</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {selectedOP.rawItens?.map((item: any, idx: number) => {
+                  const isBlacklist = blacklist.some(b => b.codigo === item.codigo);
+                  return (
+                    <tr key={idx} className={`group hover:bg-gray-50/50 transition-all ${item.falta ? 'bg-amber-50/50' : ''}`}>
+                      <td className="px-8 py-5">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-[10px] font-black transition-all ${item.separado ? 'bg-emerald-500 shadow-lg shadow-emerald-100' : 'bg-gray-100 text-gray-300'}`}>
+                            {item.separado ? '✓' : idx + 1}
+                          </div>
+                          <button
+                            onClick={() => setSelectedItemForBreakdown(item)}
+                            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-all border shadow-sm ${item.separado ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-white text-gray-400 border-gray-100 hover:bg-gray-50'}`}
+                          >
+                            <span className="text-base">🔍</span>
+                          </button>
+                          <div>
+                            <span className="font-mono text-xs font-black text-gray-700 tracking-tighter uppercase">{item.codigo}</span>
+                            {isBlacklist && <span className="block text-[8px] text-red-500 font-bold uppercase mt-0.5">⚠️ Restrição</span>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <p className="text-xs font-bold text-gray-500 uppercase leading-snug truncate max-w-xs">{item.descricao}</p>
+                        <span className="inline-block mt-1 px-2 py-0.5 bg-gray-100 text-[9px] font-black text-gray-400 border border-gray-200 rounded-md">A-12-01</span>
+                      </td>
+                      <td className="px-6 py-5 text-center font-black text-sm text-gray-400 italic">
+                        {item.quantidade}
+                      </td>
+                      <td className="px-6 py-5 text-center">
+                        <div className={`mx-auto w-12 h-10 flex items-center justify-center rounded-xl font-black text-sm border-2 transition-all ${item.separado ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' : 'bg-gray-50 border-gray-100 text-gray-300'}`}>
+                          {item.separado ? item.quantidade : '0'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-5">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => updateItemStatus(item.codigo, 'separado', !item.separado)}
+                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${item.separado ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-white text-emerald-600 border-emerald-100 hover:bg-emerald-50'}`}
+                          >
+                            OK
+                          </button>
+                          <button
+                            onClick={() => updateItemStatus(item.codigo, 'transferido', !item.transferido)}
+                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${item.transferido ? 'bg-blue-600 text-white border-blue-500' : 'bg-white text-blue-600 border-blue-100 hover:bg-blue-50'}`}
+                          >
+                            TRNS
+                          </button>
+                          <button
+                            onClick={() => updateItemStatus(item.codigo, 'falta', !item.falta)}
+                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${item.falta ? 'bg-amber-500 text-white border-amber-400' : 'bg-white text-amber-500 border-amber-100 hover:bg-amber-50'}`}
+                          >
+                            FLT
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-8 py-5">
+                        <input type="text" placeholder="..." className="w-full bg-gray-50/50 border-b border-gray-100 px-2 py-1 text-[10px] font-bold outline-none focus:border-emerald-500" />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="p-10 bg-gray-50/50 flex justify-center border-t border-gray-100">
+            <button
+              onClick={handleFinalizeLot}
+              className="px-20 py-5 bg-emerald-800 text-white rounded-[1.5rem] font-black uppercase tracking-[0.2em] text-sm hover:bg-emerald-900 transition-all shadow-2xl shadow-emerald-100 active:scale-95"
+            >
+              Finalizar Lote de Separação
+            </button>
+          </div>
         </div>
       </div>
     );

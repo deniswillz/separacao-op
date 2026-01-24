@@ -11,11 +11,17 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export const upsertBatched = async (table: string, items: any[], batchSize = 500) => {
   for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    const cleanBatch = batch.map(({ id, ...rest }) => rest);
-
-    // Logic: for addresses and blacklist, conflict is on 'codigo'. Others use 'id'.
+    const rawBatch = items.slice(i, i + batchSize);
     const onConflict = table === 'enderecos' || table === 'blacklist' ? 'codigo' : 'id';
+
+    // De-duplicate locally within the batch to avoid "ON CONFLICT command cannot affect row a second time"
+    const uniqueMap = new Map();
+    rawBatch.forEach(item => {
+      const { id, ...rest } = item;
+      uniqueMap.set(rest[onConflict] || id, rest);
+    });
+
+    const cleanBatch = Array.from(uniqueMap.values());
 
     const { error } = await supabase
       .from(table)

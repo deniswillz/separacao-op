@@ -215,9 +215,10 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isImporting}
-          className={`px-10 py-5 bg-emerald-700 text-white rounded-[1.75rem] text-[11px] font-black uppercase tracking-widest hover:bg-emerald-800 transition-all shadow-lg shadow-emerald-50 ${isImporting ? 'opacity-50' : ''}`}
+          className={`flex items-center gap-3 px-8 py-4 bg-[#006B47] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-[#004D33] transition-all shadow-xl shadow-emerald-100 ${isImporting ? 'opacity-50 cursor-wait' : ''}`}
         >
-          {isImporting ? '⏳ ...' : '📥 IMPORTAR'}
+          <span className="text-lg">{isImporting ? '⏳' : '📥'}</span>
+          {isImporting ? 'Processando...' : 'Importar Matriz (A,B,C,H)'}
         </button>
       </div>
     </div>
