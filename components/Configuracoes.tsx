@@ -102,6 +102,15 @@ const Configuracoes: React.FC = () => {
     }
   };
 
+  if (isSyncing) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
+        <div className="w-12 h-12 border-4 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-[10px] font-black text-gray-900 uppercase tracking-widest animate-pulse">Sincronizando Usuários...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fadeIn pb-16">
       {/* Modal Novo Usuário */}

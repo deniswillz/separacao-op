@@ -1,288 +1,166 @@
-import React, { useState, useMemo, useRef } from 'react';
-import { BlacklistItem } from '../App';
+import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import { supabase, upsertBatched } from '../services/supabaseClient';
 import * as XLSX from 'xlsx';
 
-interface BlacklistProps {
-  items: BlacklistItem[];
-  setItems: React.Dispatch<React.SetStateAction<BlacklistItem[]>>;
+interface BlacklistItem {
+  id: string;
+  codigo: string;
+  descricao: string;
+  nao_sep: boolean;
+  talvez: boolean;
 }
 
-const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems, user }) => {
-  const [search, setSearch] = useState('');
-  const [newCode, setNewCode] = useState('');
+const Blacklist: React.FC<{ user: User }> = ({ user }) => {
+  const [items, setItems] = useState<BlacklistItem[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [isImporting, setIsImporting] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const filteredItems = useMemo(() => {
-    return items.filter(item =>
-      item.codigo.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [items, search]);
-
-  const handleAdd = async () => {
-    if (!newCode) return;
-    const newItem = {
-      codigo: newCode.toUpperCase().trim(),
-      nao_sep: true,
-      talvez: false,
-      data_inclusao: new Date().toLocaleDateString('pt-BR')
-    };
-
-    const { error } = await supabase.from('blacklist').insert(newItem);
-    if (error) alert('Erro ao adicionar à BlackList: ' + error.message);
-    setNewCode('');
+  const fetchBlacklist = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase.from('blacklist').select('*');
+    if (error) console.error(error);
+    else setItems(data || []);
+    setIsLoading(false);
   };
 
-  const toggleStatus = async (id: string, field: 'nao_sep' | 'talvez') => {
-    const item = items.find(i => i.id === id);
-    if (!item) return;
+  useEffect(() => {
+    fetchBlacklist();
+  }, []);
 
+  const handleToggle = async (id: string, field: 'nao_sep' | 'talvez', value: boolean) => {
     const { error } = await supabase
       .from('blacklist')
-      .update({ [field]: !item[field as keyof BlacklistItem] })
+      .update({ [field]: value })
       .eq('id', id);
 
-    if (error) alert('Erro ao atualizar status: ' + error.message);
+    if (error) {
+      alert('Erro ao atualizar: ' + error.message);
+    } else {
+      setItems(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
+    }
   };
 
-  const markAll = (field: 'nao_sep' | 'talvez') => {
-    const allChecked = filteredItems.every(item => item[field as keyof BlacklistItem]);
-    const targetIds = new Set(filteredItems.map(i => i.id));
-    setItems(items.map(item =>
-      targetIds.has(item.id) ? { ...item, [field]: !allChecked } : item
-    ));
-    // Note: This only updates locally. For true sync, you'd need to update Supabase.
-  };
-
-  const handleRemove = async (id: string) => {
-    if (confirm('Deseja remover este item da BlackList?')) {
+  const handleDelete = async (id: string) => {
+    if (confirm('Deseja excluir este item da blacklist?')) {
       const { error } = await supabase.from('blacklist').delete().eq('id', id);
-      if (error) alert('Erro ao remover: ' + error.message);
+      if (error) alert(error.message);
+      else setItems(prev => prev.filter(item => item.id !== id));
     }
   };
 
-  const handleClearAll = async () => {
-    if (confirm('Deseja limpar toda a BlackList?')) {
-      const { error } = await supabase.from('blacklist').delete().neq('id', '0');
-      if (error) alert('Erro ao limpar: ' + error.message);
-    }
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+
+        const blacklistData = data.slice(1).filter(row => row[0]).map(row => ({
+          codigo: String(row[0]).trim(),
+          descricao: String(row[1] || '').trim(),
+          nao_sep: String(row[2]).toLowerCase() === 'sim',
+          talvez: String(row[3]).toLowerCase() === 'sim'
+        }));
+
+        await upsertBatched('blacklist', blacklistData, 500);
+        alert('Blacklist importada com sucesso!');
+        fetchBlacklist();
+      } catch (error: any) {
+        alert('Erro: ' + error.message);
+      } finally {
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
   };
 
-  const downloadModelo = () => {
-    const ws = XLSX.utils.aoa_to_sheet([
-      ["BLACK LIST"],
-      ["CÓDIGO"],
-      ["MP0210000000013"]
-    ]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "ModeloBlacklist");
-    XLSX.writeFile(wb, "modelo_blacklist.xlsx");
-  };
+  const filtered = items.filter(i =>
+    i.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    i.descricao.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
+        <div className="w-12 h-12 border-4 border-gray-900 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-[10px] font-black text-gray-900 uppercase tracking-widest animate-pulse">Sincronizando Blacklist...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-12">
-      <div className="mb-2">
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase">BlackList</h1>
-        <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest mt-1">Gestão de Restrições e Exceções</p>
-      </div>
-
-      {/* Toolbar Ajustada */}
-      <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col lg:flex-row items-center gap-6">
-        <div className="flex items-center gap-3 w-full lg:w-auto flex-1">
-          <input
-            type="text"
-            placeholder="CÓDIGO DO PRODUTO"
-            value={newCode}
-            onChange={(e) => setNewCode(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
-            className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl outline-none focus:ring-2 focus:ring-red-500 focus:bg-white font-bold text-sm transition-all shadow-inner uppercase placeholder-gray-300"
-          />
-          <button
-            onClick={handleAdd}
-            className="px-8 py-4 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-100 flex items-center gap-2 active:scale-95 shrink-0"
-          >
-            <span>+</span> ADICIONAR
-          </button>
+    <div className="space-y-6 animate-fadeIn">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">Blacklist de Separação</h1>
+          <p className="text-gray-400 font-bold text-[11px] uppercase tracking-widest mt-1">Produtos bloqueados ou em auditoria</p>
         </div>
-
-        <div className="h-10 w-px bg-gray-100 hidden lg:block"></div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={downloadModelo}
-            className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-100 text-gray-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">
-            MODELO
-          </button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              setIsImporting(true);
-              const reader = new FileReader();
-              reader.onload = async (evt) => {
-                try {
-                  const bstr = evt.target?.result;
-                  const wb = XLSX.read(bstr, { type: 'binary' });
-                  const wsname = wb.SheetNames[0];
-                  const ws = wb.Sheets[wsname];
-                  const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
-
-                  // Mapeamento: Col A (0) Código. Linha 2 cabeçalho, Linha 3 dados.
-                  const blacklistItems = data.slice(2).filter(row => row[0]).map((row) => ({
-                    codigo: String(row[0]).trim().toUpperCase(),
-                    nao_sep: true,
-                    talvez: false,
-                    data_inclusao: new Date().toLocaleDateString('pt-BR')
-                  }));
-
-                  if (blacklistItems.length === 0) {
-                    alert('Nenhum dado válido encontrado (verifique a partir da linha 3).');
-                    return;
-                  }
-
-                  await upsertBatched('blacklist', blacklistItems, 500);
-                  alert(`${blacklistItems.length} itens adicionados à BlackList!`);
-                } catch (err: any) {
-                  alert('Erro na importação: ' + err.message);
-                } finally {
-                  setIsImporting(false);
-                  if (fileInputRef.current) fileInputRef.current.value = '';
-                }
-              };
-              reader.readAsBinaryString(file);
-            }}
-            accept=".xlsx, .xls"
-            className="hidden"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isImporting}
-            className={`flex items-center gap-2 px-5 py-3 bg-emerald-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-800 transition-all shadow-lg shadow-emerald-50 ${isImporting ? 'opacity-50' : ''}`}
-          >
-            {isImporting ? '⏳ ...' : 'IMPORTAR'}
-          </button>
-          <button
-            onClick={handleClearAll}
-            className="flex items-center gap-2 px-5 py-3 bg-gray-50 border border-gray-100 text-gray-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all"
-          >
-            LIMPAR
-          </button>
-        </div>
-
-        <div className="relative w-full lg:w-64">
-          <input
-            type="text"
-            placeholder="PESQUISAR..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-6 py-4 bg-gray-100 border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-gray-200 outline-none text-[11px] font-bold shadow-inner uppercase tracking-wider"
-          />
-          <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 text-xl">🔍</span>
+        <div className="flex gap-4">
+          <input type="file" ref={fileInputRef} className="hidden" onChange={handleImportExcel} />
+          <button onClick={() => fileInputRef.current?.click()} className="px-6 py-3 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all">Importar Excel</button>
         </div>
       </div>
 
-      {/* Tabela Ajustada para padrão do projeto */}
+      <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm mb-6">
+        <input
+          type="text"
+          placeholder="Buscar produto..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl outline-none focus:ring-2 focus:ring-emerald-500/10 font-bold text-sm transition-all"
+        />
+      </div>
+
       <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-white border-b border-gray-100 text-[10px] font-black text-gray-300 uppercase tracking-widest">
-                <th className="px-10 py-8 w-[35%]">CÓDIGO</th>
-                <th className="px-6 py-8 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <button
-                      onClick={() => markAll('nao_sep')}
-                      className="text-[8px] bg-red-50 text-red-600 px-3 py-1.5 rounded-lg border border-red-100 hover:bg-red-600 hover:text-white transition-all font-black uppercase tracking-widest shadow-sm"
-                    >
-                      Todos
-                    </button>
-                    <span className="text-red-500 font-black">NÃO SEP</span>
-                  </div>
-                </th>
-                <th className="px-6 py-8 text-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <button
-                      onClick={() => markAll('talvez')}
-                      className="text-[8px] bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg border border-blue-100 hover:bg-blue-600 hover:text-white transition-all font-black uppercase tracking-widest shadow-sm"
-                    >
-                      Todos
-                    </button>
-                    <span className="text-blue-500 font-black">TALVEZ</span>
-                  </div>
-                </th>
-                <th className="px-6 py-8 text-center">DATA INCLUSÃO</th>
-                <th className="px-10 py-8 text-right">AÇÕES</th>
+        <table className="w-full text-left">
+          <thead>
+            <tr className="bg-gray-50 text-[10px] font-black text-gray-300 uppercase tracking-widest border-b border-gray-100">
+              <th className="px-8 py-6">PRODUTO</th>
+              <th className="px-6 py-6 text-center">NÃO SEPARAR</th>
+              <th className="px-6 py-6 text-center">AUDITORIA</th>
+              <th className="px-8 py-6 text-right">AÇÕES</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {filtered.map(item => (
+              <tr key={item.id} className="hover:bg-gray-50/50 transition-all">
+                <td className="px-8 py-6">
+                  <p className="font-mono text-sm font-black text-gray-800">{item.codigo}</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase">{item.descricao}</p>
+                </td>
+                <td className="px-6 py-6 text-center">
+                  <input
+                    type="checkbox"
+                    checked={item.nao_sep}
+                    onChange={(e) => handleToggle(item.id, 'nao_sep', e.target.checked)}
+                    className="w-6 h-6 rounded-lg border-gray-200 text-red-600 focus:ring-red-500"
+                  />
+                </td>
+                <td className="px-6 py-6 text-center">
+                  <input
+                    type="checkbox"
+                    checked={item.talvez}
+                    onChange={(e) => handleToggle(item.id, 'talvez', e.target.checked)}
+                    className="w-6 h-6 rounded-lg border-gray-200 text-amber-500 focus:ring-amber-500"
+                  />
+                </td>
+                <td className="px-8 py-6 text-right">
+                  <button onClick={() => handleDelete(item.id)} className="p-2 text-red-300 hover:text-red-600 transition-all">🗑️</button>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-10 py-20 text-center text-gray-400 font-black uppercase tracking-widest text-xs">
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                      Carregando Blacklist...
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredItems.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-10 py-20 text-center">
-                    <div className="flex flex-col items-center gap-4 opacity-10">
-                      <span className="text-6xl">🚫</span>
-                      <p className="text-gray-900 font-black uppercase tracking-widest text-[10px]">Lista Vazia</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredItems.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50/50 transition-colors group">
-                    <td className="px-10 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-2 h-2 rounded-full shadow-sm ${item.talvez ? 'bg-amber-400' : 'bg-red-50'}`}></div>
-                        <span className="font-mono text-sm font-bold text-gray-700 tracking-tight uppercase">{item.codigo}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-6 text-center">
-                      <input
-                        type="checkbox"
-                        checked={item.nao_sep}
-                        onChange={() => toggleStatus(item.id, 'nao_sep')}
-                        className="w-8 h-8 rounded-lg border-2 border-gray-200 text-red-600 focus:ring-red-500 cursor-pointer transition-all hover:scale-110"
-                      />
-                    </td>
-                    <td className="px-6 py-6 text-center">
-                      <input
-                        type="checkbox"
-                        checked={item.talvez}
-                        onChange={() => toggleStatus(item.id, 'talvez')}
-                        className="w-8 h-8 rounded-lg border-2 border-gray-200 text-blue-600 focus:ring-blue-500 cursor-pointer transition-all hover:scale-110"
-                      />
-                    </td>
-                    <td className="px-6 py-6 text-center">
-                      <span className="text-[10px] font-bold text-gray-400 font-mono tracking-widest bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">{item.data_inclusao}</span>
-                    </td>
-                    <td className="px-10 py-6 text-right">
-                      {user.role === 'admin' && (
-                        <button
-                          onClick={() => handleRemove(item.id)}
-                          className="inline-flex items-center justify-center w-8 h-8 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 border border-red-100 shadow-sm"
-                          title="Remover da Blacklist"
-                        >
-                          <span className="text-[14px] font-black italic">✕</span>
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

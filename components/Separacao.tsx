@@ -227,13 +227,18 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
     setIsSaving(true);
     const { error } = await supabase
       .from('separacao')
-      .update({ itens: selectedOP.rawItens }) // Removida coluna 'observacao' inexistente
+      .update({
+        itens: selectedOP.rawItens,
+        // Também atualizar o status local no banco se necessário
+      })
       .eq('id', selectedOP.id);
 
     if (error) {
       notify('Erro ao salvar pendência: ' + error.message, 'error');
     } else {
-      notify('Alterações salvas como pendentes!', 'success');
+      notify('Alterações salvas com sucesso!', 'success');
+      // Atualizar a lista principal para refletir os novos dados
+      setOps(prev => prev.map(op => op.id === selectedOP.id ? { ...op, rawItens: selectedOP.rawItens, progresso: calculateProgress(selectedOP.rawItens) } : op));
     }
     setIsSaving(false);
   };
@@ -269,7 +274,8 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       status: 'Aguardando',
       data_conferencia: new Date().toISOString(),
       responsavel_conferencia: null,
-      transferencia_doc: docTransferencia
+      // Ajustado para o nome de coluna correto sugerido pela falha de cache
+      documento_transferencia: docTransferencia
     };
 
     try {
@@ -346,9 +352,17 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
 
   return (
     <div className="space-y-6">
+      {/* Full screen saving overlay */}
+      {isSaving && (
+        <div className="fixed inset-0 bg-white/60 backdrop-blur-sm z-[2000] flex flex-col items-center justify-center animate-fadeIn">
+          <div className="w-16 h-16 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-xs font-black text-emerald-900 uppercase tracking-[0.3em] animate-pulse">Processando Operação...</p>
+        </div>
+      )}
+
       {/* Custom Notification (Toast) */}
       {notification.show && (
-        <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[1000] px-8 py-4 rounded-2xl shadow-2xl animate-slideUp flex items-center gap-4 border backdrop-blur-md ${notification.type === 'success' ? 'bg-emerald-600/90 border-emerald-400 text-white' : notification.type === 'error' ? 'bg-red-600/90 border-red-400 text-white' : 'bg-amber-500/90 border-amber-300 text-white'
+        <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-[1000] px-8 py-4 rounded-2xl shadow-2xl animate-slideUp flex items-center gap-4 border ${notification.type === 'success' ? 'bg-emerald-600 border-emerald-400 text-white' : notification.type === 'error' ? 'bg-red-600 border-red-400 text-white' : 'bg-amber-500 border-amber-300 text-white'
           }`}>
           <span className="text-xl">{notification.type === 'success' ? '✅' : notification.type === 'error' ? '❌' : '⚠️'}</span>
           <p className="text-xs font-black uppercase tracking-widest">{notification.message}</p>
@@ -357,7 +371,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
 
       {/* Custom Modal for OP List */}
       {showOPListModal.open && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[900] flex items-center justify-center p-6 animate-fadeIn">
+        <div className="fixed inset-0 bg-black/40 z-[900] flex items-center justify-center p-6 animate-fadeIn">
           <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-2xl overflow-hidden animate-scaleIn border border-gray-100">
             <div className="bg-gray-900 p-8 flex justify-between items-center text-white">
               <div>
@@ -472,16 +486,16 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Itens</p>
               </div>
               <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-6 flex flex-col justify-center">
-                <p className="text-4xl font-black text-emerald-600 leading-none mb-2">{selectedOP.separados}</p>
+                <p className="text-4xl font-black text-emerald-600 leading-none mb-2">{selectedOP.separados}/{selectedOP.totalItens}</p>
                 <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Separados</p>
               </div>
               <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-6 flex flex-col justify-center">
-                <p className="text-4xl font-black text-blue-600 leading-none mb-2">{selectedOP.transferidos}</p>
+                <p className="text-4xl font-black text-blue-600 leading-none mb-2">{selectedOP.transferidos}/{selectedOP.totalItens}</p>
                 <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Transferidos</p>
               </div>
               <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-6 flex flex-col justify-center">
-                <p className="text-4xl font-black text-amber-600 leading-none mb-2">{selectedOP.naoSeparados}</p>
-                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Faltam</p>
+                <p className="text-4xl font-black text-amber-600 leading-none mb-2">{selectedOP.totalItens - (selectedOP.separados + selectedOP.naoSeparados)}</p>
+                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Pendentes</p>
               </div>
             </div>
 
@@ -551,7 +565,6 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                             type="number"
                             value={item.qtd_separada || ''}
                             onChange={(e) => handleUpdateQtd(item.codigo, e.target.value)}
-                            disabled={isBlocked}
                             className={`w-16 h-10 text-center rounded-xl font-black text-sm border-2 transition-all outline-none ${tooMuch ? 'bg-red-50 border-red-500 text-red-600 animate-pulse' : 'bg-gray-50 border-gray-100 text-gray-800 focus:bg-white focus:border-emerald-500'}`}
                             placeholder="0"
                           />
@@ -559,16 +572,14 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                         <td className="px-6 py-5">
                           <div className="flex items-center justify-center gap-2">
                             <button
-                              disabled={isBlocked}
                               onClick={() => updateItemStatus(item.codigo, 'separado', !item.separado)}
-                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${item.separado ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-white text-emerald-600 border-emerald-100 hover:bg-emerald-50'} ${isBlocked ? 'opacity-30' : ''}`}
+                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${item.separado ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-white text-emerald-600 border-emerald-100 hover:bg-emerald-50'}`}
                             >
                               PICK
                             </button>
                             <button
-                              disabled={isBlocked}
                               onClick={() => updateItemStatus(item.codigo, 'transferido', !item.transferido)}
-                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${item.transferido ? 'bg-blue-600 text-white border-blue-500' : 'bg-white text-blue-600 border-blue-100 hover:bg-blue-50'} ${isBlocked ? 'opacity-30' : ''}`}
+                              className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${item.transferido ? 'bg-blue-600 text-white border-blue-500' : 'bg-white text-blue-600 border-blue-100 hover:bg-blue-50'}`}
                             >
                               TRA
                             </button>
@@ -666,15 +677,15 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                       <span className="text-[6px] font-black text-gray-400 uppercase mt-0.5">Total</span>
                     </div>
                     <div className="flex flex-col items-center border-l border-gray-100">
-                      <span className="text-xs font-black text-emerald-600 leading-none">{op.separados}</span>
+                      <span className="text-xs font-black text-emerald-600 leading-none">{op.separados}/{op.totalItens}</span>
                       <span className="text-[6px] font-black text-emerald-400 uppercase mt-0.5">Sep.</span>
                     </div>
                     <div className="flex flex-col items-center border-l border-gray-100">
-                      <span className="text-xs font-black text-blue-600 leading-none">{op.transferidos}</span>
+                      <span className="text-xs font-black text-blue-600 leading-none">{op.transferidos}/{op.totalItens}</span>
                       <span className="text-[6px] font-black text-blue-400 uppercase mt-0.5">Tra.</span>
                     </div>
                     <div className="flex flex-col items-center border-l border-gray-100">
-                      <span className="text-xs font-black text-amber-600 leading-none">{op.naoSeparados}</span>
+                      <span className="text-xs font-black text-amber-600 leading-none">{op.naoSeparados}/{op.totalItens}</span>
                       <span className="text-[6px] font-black text-amber-400 uppercase mt-0.5">Falta</span>
                     </div>
                   </div>

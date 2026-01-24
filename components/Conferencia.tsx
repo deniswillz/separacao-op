@@ -46,14 +46,16 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
         const formattedConfs: ConferenceMock[] = data.map((item: any) => ({
           id: item.id,
           armazem: item.armazem,
-          documento: item.documento,
+          documento: item.documento, // Este é o ID do Lote
           totalItens: item.itens?.length || 0,
           data: item.data_conferencia,
           status: item.status,
           opsConferidas: item.ops_conferidas || '0/0',
-          itensOk: item.itens_ok || '0/0',
+          itensOk: item.itens_ok || '0/0', // Será calculado dinamicamente no detalhe
           usuarioAtual: item.responsavel_conferencia,
           itens: item.itens || [],
+          // Campo novo
+          docTransferencia: item.documento_transferencia || ''
         }));
         setConferences(formattedConfs);
       }

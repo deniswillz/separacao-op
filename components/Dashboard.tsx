@@ -18,7 +18,7 @@ const Dashboard: React.FC = () => {
     const fetchDashboardData = async () => {
       setIsSyncing(true);
 
-      const { data: sepData } = await supabase.from('separacao').select('id, status, usuario_atras, usuario_atual, data_criacao, nome, ordens');
+      const { data: sepData } = await supabase.from('separacao').select('id, status, usuario_atual, data_criacao, nome, ordens');
       const { data: confData } = await supabase.from('conferencia').select('id, status, responsavel_conferencia, data_conferencia, documento');
 
       const pending = (sepData?.filter(d => d.status?.toLowerCase() === 'pendente' || d.status?.toLowerCase() === 'em_separacao').length || 0) +
@@ -41,7 +41,7 @@ const Dashboard: React.FC = () => {
           ordens: d.ordens || [],
           type: 'Separação' as const,
           status: d.status,
-          usuario: d.usuario_atras || d.usuario_atual,
+          usuario: d.usuario_atual,
           data: d.data_criacao
         })),
         ...(confData || []).map(d => ({

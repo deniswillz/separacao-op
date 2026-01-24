@@ -160,6 +160,23 @@ const Empenhos: React.FC = () => {
     XLSX.writeFile(wb, "modelo_empenhos.xlsx");
   };
 
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Simular carregamento inicial ou buscar dados se necessário
+    const timer = setTimeout(() => setIsLoading(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
+        <div className="w-12 h-12 border-4 border-[#004d33] border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest animate-pulse">Inicializando Empenhos...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Botões de Ação Superiores */}
