@@ -88,11 +88,42 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
     return Math.round((separados / itens.length) * 100);
   };
 
+  const getStatusBorder = (op: OPMock) => {
+    if (op.urgencia === 'urgencia') return 'border-red-500 ring-4 ring-red-50';
+    if (op.urgencia === 'alta') return 'border-orange-500 ring-4 ring-orange-50';
+    return 'border-emerald-500 ring-4 ring-emerald-50';
+  };
+
+  const getLockIndicator = (op: OPMock) => {
+    if (op.usuarioAtual && op.usuarioAtual !== currentResponsavel) {
+      return (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-gray-900/90 backdrop-blur-sm rounded-full border border-white/10 flex items-center gap-2 z-30 shadow-2xl animate-bounce">
+          <span className="text-[10px] font-black text-white uppercase tracking-widest whitespace-nowrap">👀 Aberto por: {op.usuarioAtual}</span>
+        </div>
+      );
+    }
+    return null;
+  };
+
   const handleStart = async (op: OPMock) => {
     if (op.usuarioAtual && op.usuarioAtual !== currentResponsavel) {
-      alert(`Bloqueio de Segurança: O usuário "${op.usuarioAtual}" já está trabalhando nesta OP.`);
+      alert(`⚠️ BLOQUEIO DE SEGURANÇA: Esta lista já está sendo processada por "${op.usuarioAtual}".`);
       return;
     }
+
+    // Sort items by location (Picking Path) before opening
+    const sortedItens = [...op.rawItens].sort((a, b) => {
+      const addrA = a.endereco || 'ZZ';
+      const addrB = b.endereco || 'ZZ';
+      return addrA.localeCompare(addrB);
+    }).map(item => {
+      // Auto-mark Blacklist NÃO SEP
+      const bl = blacklist.find(b => b.codigo === item.codigo);
+      if (bl?.nao_sep) {
+        return { ...item, falta: true, separado: false, transferido: false };
+      }
+      return item;
+    });
 
     // Set lock in Supabase
     const { error } = await supabase
@@ -105,7 +136,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       return;
     }
 
-    setSelectedOP({ ...op, usuarioAtual: currentResponsavel });
+    setSelectedOP({ ...op, rawItens: sortedItens, usuarioAtual: currentResponsavel });
     setViewMode('detail');
   };
 
@@ -141,13 +172,9 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
     }
   };
 
-  const getStatusBorder = (op: OPMock) => {
-    if (op.urgencia === 'urgencia') return 'border-red-500 ring-4 ring-red-50';
-    if (op.urgencia === 'alta') return 'border-orange-500 ring-4 ring-orange-50';
-    return 'border-emerald-500 ring-4 ring-emerald-50';
-  };
-
   const [selectedItemForBreakdown, setSelectedItemForBreakdown] = useState<any | null>(null);
+  const [docTransferencia, setDocTransferencia] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const updateItemStatus = async (itemCodigo: string, field: 'separado' | 'transferido' | 'falta', value: boolean) => {
     if (!selectedOP) return;
@@ -159,36 +186,75 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       return item;
     });
 
+    setSelectedOP({
+      ...selectedOP,
+      rawItens: updatedItens,
+      separados: updatedItens.filter((i: any) => i.separado).length,
+      transferidos: updatedItens.filter((i: any) => i.transferido).length,
+      naoSeparados: updatedItens.filter((i: any) => i.falta).length
+    });
+  };
+
+  const handleUpdateQtd = (itemCodigo: string, newQtd: string) => {
+    if (!selectedOP) return;
+    const qtdNum = Number(newQtd) || 0;
+    const updatedItens = selectedOP.rawItens.map((item: any) => {
+      if (item.codigo === itemCodigo) {
+        return { ...item, qtd_separada: qtdNum };
+      }
+      return item;
+    });
+    setSelectedOP({ ...selectedOP, rawItens: updatedItens });
+  };
+
+  const handleSavePending = async () => {
+    if (!selectedOP) return;
+    setIsSaving(true);
     const { error } = await supabase
       .from('separacao')
-      .update({ itens: updatedItens })
+      .update({ itens: selectedOP.rawItens, observacao: docTransferencia })
       .eq('id', selectedOP.id);
 
     if (error) {
-      alert('Erro ao atualizar item: ' + error.message);
+      alert('Erro ao salvar pendência: ' + error.message);
     } else {
-      setSelectedOP({ ...selectedOP, rawItens: updatedItens, separados: updatedItens.filter((i: any) => i.separado).length, transferidos: updatedItens.filter((i: any) => i.transferido).length, naoSeparados: updatedItens.filter((i: any) => !i.separado).length });
+      alert('Alterações salvas como pendentes!');
     }
+    setIsSaving(false);
   };
 
   const handleFinalizeLot = async () => {
     if (!selectedOP) return;
-    if (selectedOP.separados < selectedOP.totalItens) {
-      if (!confirm('Existem itens não separados. Deseja finalizar o lote mesmo assim?')) return;
+    if (!docTransferencia) {
+      alert('⚠️ CAMPO OBRIGATÓRIO: Informe o Nº do documento de transferência.');
+      return;
     }
 
+    const hasPending = selectedOP.rawItens.some(i => !i.separado || !i.transferido);
+    if (hasPending) {
+      alert('❌ BLOQUEIO: Não é possível finalizar. Todos os itens devem estar marcados como SEPARADO e TRANSFERIDO.');
+      return;
+    }
+
+    setIsSaving(true);
     const { error } = await supabase
       .from('separacao')
-      .update({ status: 'concluido', usuario_atual: null })
+      .update({
+        status: 'em_conferencia',
+        usuario_atual: null,
+        itens: selectedOP.rawItens,
+        observacao: docTransferencia
+      })
       .eq('id', selectedOP.id);
 
     if (error) {
       alert('Erro ao finalizar lote: ' + error.message);
     } else {
-      alert('Lote finalizado com sucesso!');
+      alert('Lote enviado para CONFERÊNCIA com sucesso!');
       setViewMode('list');
       setSelectedOP(null);
     }
+    setIsSaving(false);
   };
 
   const toggleBreakdownItem = (idx: number) => {
@@ -312,6 +378,40 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
           </div>
         </div>
 
+        <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col md:flex-row gap-6">
+          <div className="flex-1 grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white border border-gray-50 rounded-2xl p-6 flex flex-col justify-center">
+              <p className="text-4xl font-black text-gray-900 leading-none mb-2">{selectedOP.totalItens}</p>
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Itens</p>
+            </div>
+            <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-6 flex flex-col justify-center">
+              <p className="text-4xl font-black text-emerald-600 leading-none mb-2">{selectedOP.separados}</p>
+              <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Separados</p>
+            </div>
+            <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-6 flex flex-col justify-center">
+              <p className="text-4xl font-black text-blue-600 leading-none mb-2">{selectedOP.transferidos}</p>
+              <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Transferidos</p>
+            </div>
+            <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-6 flex flex-col justify-center">
+              <p className="text-4xl font-black text-amber-600 leading-none mb-2">{selectedOP.naoSeparados}</p>
+              <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">Faltam</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-4 w-full lg:w-96 shrink-0 text-left">
+            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+              <label className="text-[10px] font-black text-gray-400 uppercase mb-2 ml-1 block tracking-widest">Documento de Transferência</label>
+              <input
+                type="text"
+                value={docTransferencia}
+                onChange={(e) => setDocTransferencia(e.target.value.toUpperCase())}
+                placeholder="Ex: TRNS-999"
+                className="w-full text-sm font-black text-gray-800 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3.5 outline-none focus:ring-2 focus:ring-emerald-500/10 placeholder-gray-300"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Tabela de Produtos Ativa */}
         <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
@@ -320,70 +420,82 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                 <tr className="bg-gray-50/50 border-b border-gray-100 text-[10px] font-black text-gray-300 uppercase tracking-widest">
                   <th className="px-8 py-6">CÓDIGO</th>
                   <th className="px-6 py-6">DESCRIÇÃO / LOCALIZAÇÃO</th>
-                  <th className="px-6 py-6 text-center">QTD SOL.</th>
-                  <th className="px-6 py-6 text-center">QTD SEP.</th>
+                  <th className="px-6 py-6 text-center">SOLIC.</th>
+                  <th className="px-6 py-6 text-center">SEP.</th>
                   <th className="px-6 py-6 text-center">AÇÕES</th>
                   <th className="px-8 py-6">OBSERVAÇÕES</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {selectedOP.rawItens?.map((item: any, idx: number) => {
-                  const isBlacklist = blacklist.some(b => b.codigo === item.codigo);
+                  const bl = blacklist.find(b => b.codigo === item.codigo);
+                  const isBlocked = bl?.nao_sep || false;
+                  const isMaybe = bl?.talvez || false;
+                  const tooMuch = (item.qtd_separada || 0) > item.quantidade;
+
                   return (
-                    <tr key={idx} className={`group hover:bg-gray-50/50 transition-all ${item.falta ? 'bg-amber-50/50' : ''}`}>
+                    <tr key={idx} className={`group hover:bg-gray-50/30 transition-all ${isBlocked ? 'bg-red-50/60' : isMaybe ? 'bg-amber-50/60' : item.falta ? 'bg-amber-50/20' : ''}`}>
                       <td className="px-8 py-5">
                         <div className="flex items-center gap-4">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-[10px] font-black transition-all ${item.separado ? 'bg-emerald-500 shadow-lg shadow-emerald-100' : 'bg-gray-100 text-gray-300'}`}>
-                            {item.separado ? '✓' : idx + 1}
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-[10px] font-black transition-all ${item.separado ? 'bg-emerald-500 shadow-lg shadow-emerald-100' : isBlocked ? 'bg-red-500' : 'bg-gray-100 text-gray-300'}`}>
+                            {item.separado ? '✓' : isBlocked ? '✕' : idx + 1}
                           </div>
                           <button
                             onClick={() => setSelectedItemForBreakdown(item)}
-                            className={`w-7 h-7 flex items-center justify-center rounded-lg transition-all border shadow-sm ${item.separado ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-white text-gray-400 border-gray-100 hover:bg-gray-50'}`}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all border shadow-sm ${item.separado ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-white text-gray-400 border-gray-100 hover:bg-gray-50'}`}
                           >
-                            <span className="text-base">🔍</span>
+                            <span className="text-base font-black">🔍</span>
                           </button>
                           <div>
                             <span className="font-mono text-xs font-black text-gray-700 tracking-tighter uppercase">{item.codigo}</span>
-                            {isBlacklist && <span className="block text-[8px] text-red-500 font-bold uppercase mt-0.5">⚠️ Restrição</span>}
+                            {isBlocked && <span className="block text-[8px] text-red-600 font-extrabold uppercase mt-0.5">⚠️ NÃO SEPARAR</span>}
+                            {isMaybe && <span className="block text-[8px] text-amber-600 font-extrabold uppercase mt-0.5">❓ AUDITORIA</span>}
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-5">
-                        <p className="text-xs font-bold text-gray-500 uppercase leading-snug truncate max-w-xs">{item.descricao}</p>
-                        <span className="inline-block mt-1 px-2 py-0.5 bg-gray-100 text-[9px] font-black text-gray-400 border border-gray-200 rounded-md">A-12-01</span>
+                        <p className="text-xs font-bold text-gray-500 uppercase leading-snug line-clamp-1 max-w-sm">{item.descricao}</p>
+                        <span className="inline-block mt-1.5 px-3 py-1 bg-gray-900 border border-gray-800 text-[11px] font-black text-white rounded-lg shadow-sm">📍 {item.endereco || 'S/N'}</span>
                       </td>
-                      <td className="px-6 py-5 text-center font-black text-sm text-gray-400 italic">
+                      <td className="px-6 py-5 text-center font-black text-base text-gray-400">
                         {item.quantidade}
                       </td>
                       <td className="px-6 py-5 text-center">
-                        <div className={`mx-auto w-12 h-10 flex items-center justify-center rounded-xl font-black text-sm border-2 transition-all ${item.separado ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' : 'bg-gray-50 border-gray-100 text-gray-300'}`}>
-                          {item.separado ? item.quantidade : '0'}
-                        </div>
+                        <input
+                          type="number"
+                          value={item.qtd_separada || ''}
+                          onChange={(e) => handleUpdateQtd(item.codigo, e.target.value)}
+                          disabled={isBlocked}
+                          className={`w-16 h-10 text-center rounded-xl font-black text-sm border-2 transition-all outline-none ${tooMuch ? 'bg-red-50 border-red-500 text-red-600 animate-pulse' : 'bg-gray-50 border-gray-100 text-gray-800 focus:bg-white focus:border-emerald-500'}`}
+                          placeholder="0"
+                        />
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex items-center justify-center gap-2">
                           <button
+                            disabled={isBlocked}
                             onClick={() => updateItemStatus(item.codigo, 'separado', !item.separado)}
-                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${item.separado ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-white text-emerald-600 border-emerald-100 hover:bg-emerald-50'}`}
+                            className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${item.separado ? 'bg-emerald-600 text-white border-emerald-500' : 'bg-white text-emerald-600 border-emerald-100 hover:bg-emerald-50'} ${isBlocked ? 'opacity-30' : ''}`}
                           >
-                            OK
+                            PICK
                           </button>
                           <button
+                            disabled={isBlocked}
                             onClick={() => updateItemStatus(item.codigo, 'transferido', !item.transferido)}
-                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${item.transferido ? 'bg-blue-600 text-white border-blue-500' : 'bg-white text-blue-600 border-blue-100 hover:bg-blue-50'}`}
+                            className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${item.transferido ? 'bg-blue-600 text-white border-blue-500' : 'bg-white text-blue-600 border-blue-100 hover:bg-blue-50'} ${isBlocked ? 'opacity-30' : ''}`}
                           >
-                            TRNS
+                            TRA
                           </button>
                           <button
                             onClick={() => updateItemStatus(item.codigo, 'falta', !item.falta)}
-                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border ${item.falta ? 'bg-amber-500 text-white border-amber-400' : 'bg-white text-amber-500 border-amber-100 hover:bg-amber-50'}`}
+                            className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border ${item.falta ? 'bg-amber-500 text-white border-amber-400' : 'bg-white text-amber-500 border-amber-100 hover:bg-amber-50'}`}
                           >
-                            FLT
+                            OUT
                           </button>
                         </div>
                       </td>
                       <td className="px-8 py-5">
-                        <input type="text" placeholder="..." className="w-full bg-gray-50/50 border-b border-gray-100 px-2 py-1 text-[10px] font-bold outline-none focus:border-emerald-500" />
+                        <input type="text" placeholder="Observação..." className="w-full bg-transparent border-b border-gray-100 px-2 py-1 text-[10px] font-bold outline-none focus:border-gray-300" />
                       </td>
                     </tr>
                   );
@@ -392,12 +504,20 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
             </table>
           </div>
 
-          <div className="p-10 bg-gray-50/50 flex justify-center border-t border-gray-100">
+          <div className="p-10 bg-gray-50/50 flex flex-col md:flex-row justify-center gap-4 border-t border-gray-100">
+            <button
+              onClick={handleSavePending}
+              disabled={isSaving}
+              className="px-12 py-5 bg-white border border-gray-200 text-gray-600 rounded-[1.5rem] font-black uppercase tracking-[0.2em] text-sm hover:bg-gray-50 transition-all shadow-sm active:scale-95"
+            >
+              {isSaving ? 'Processando...' : 'Salvar Pendência'}
+            </button>
             <button
               onClick={handleFinalizeLot}
+              disabled={isSaving}
               className="px-20 py-5 bg-emerald-800 text-white rounded-[1.5rem] font-black uppercase tracking-[0.2em] text-sm hover:bg-emerald-900 transition-all shadow-2xl shadow-emerald-100 active:scale-95"
             >
-              Finalizar Lote de Separação
+              {isSaving ? 'Processando...' : 'Finalizar e Enviar p/ Conferência'}
             </button>
           </div>
         </div>
@@ -433,7 +553,18 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
               )}
 
               <div>
-                <h4 className="text-[22px] font-black text-gray-900 uppercase leading-none tracking-tight">OP {op.opCode}</h4>
+                <div className="flex items-center gap-3">
+                  <h4 className="text-[22px] font-black text-gray-900 uppercase leading-none tracking-tight">OP {op.opCode}</h4>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      alert(`Lista de OPs do Lote:\n${op.ordens.length > 0 ? op.ordens.join('\n') : 'OP Única'}`);
+                    }}
+                    className="w-7 h-7 flex items-center justify-center bg-gray-100 text-gray-400 rounded-lg hover:bg-emerald-50 hover:text-emerald-600 transition-all border border-gray-100 shadow-sm"
+                  >
+                    <span className="text-base">🔍</span>
+                  </button>
+                </div>
                 <div className="mt-4 space-y-1.5 text-[10px] font-bold text-gray-500 uppercase">
                   <p className="flex items-center gap-2">📍 Armazém: <span className="text-gray-900 font-black">{op.armazem}</span></p>
                   <p className="flex items-center gap-2">📦 Ordens: <span className="text-gray-900 font-black">{op.ordens}</span></p>

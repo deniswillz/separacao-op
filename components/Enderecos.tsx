@@ -19,16 +19,34 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
   useEffect(() => {
     const fetchEnderecos = async () => {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from('enderecos')
-        .select('*')
-        .order('codigo', { ascending: true });
+      let allData: Product[] = [];
+      let from = 0;
+      let to = 999;
+      let hasMore = true;
 
-      if (error) {
-        console.error('Erro ao buscar endereços:', error);
-      } else if (data) {
-        setItems(data);
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('enderecos')
+          .select('*')
+          .range(from, to)
+          .order('codigo', { ascending: true });
+
+        if (error) {
+          console.error('Erro ao buscar endereços:', error);
+          hasMore = false;
+        } else if (data && data.length > 0) {
+          allData = [...allData, ...data];
+          if (data.length < 1000) {
+            hasMore = false;
+          } else {
+            from += 1000;
+            to += 1000;
+          }
+        } else {
+          hasMore = false;
+        }
       }
+      setItems(allData);
       setIsLoading(false);
     };
 
