@@ -278,7 +278,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       status: 'Aguardando',
       data_conferencia: new Date().toISOString(),
       responsavel_conferencia: null,
-      transferencia: docTransferencia // Testando 'transferencia' no lugar de 'transf'
+      transf: docTransferencia // Ajustado de 'transferencia' para 'transf' conforme logs
     };
 
     try {
@@ -292,7 +292,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       if (updateError) throw updateError;
 
       notify('Lote enviado para CONFERÊNCIA!', 'success');
-      setViewMode('list'); selectedOP(null);
+      setViewMode('list'); setSelectedOP(null);
     } catch (e: any) {
       notify('Erro: ' + e.message, 'error');
     } finally { setIsSaving(false); }

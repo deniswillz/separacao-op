@@ -67,6 +67,9 @@ const Dashboard: React.FC = () => {
     window.addEventListener('falta-detectada', handleFaltaAlert);
 
     const fetchAI = async () => {
+      // Evitar chamadas se já tivermos insights carregados nesta sessão
+      if (insights) return;
+
       setLoadingAI(true);
       try {
         const mockHistory = [{ item: 'PARAF-01', falta: true, data: '2023-10-01' }];
@@ -74,7 +77,9 @@ const Dashboard: React.FC = () => {
         setInsights(data);
       } catch (error: any) {
         console.error('Error in Dashboard fetchAI:', error);
-        setInsights({ resumo: 'Limite de cota de análise atingido (429). Tente novamente em 1 minuto.' });
+        setInsights({
+          resumo: 'As análises de IA estão temporariamente indisponíveis devido ao limite de cota (429). Os dados operacionais continuam sincronizados.'
+        });
       } finally {
         setLoadingAI(false);
       }
