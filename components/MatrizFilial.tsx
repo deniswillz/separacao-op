@@ -34,18 +34,23 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
     if (error) {
       console.error(error);
     } else if (data) {
-      const formattedData = data.map((item: any) => ({
-        ...item,
-        produto: item.produto || 'PA00000000000',
-        descricao: item.descricao || 'DESCRIÇÃO NÃO CADASTRADA',
-        quantidade: item.quantidade || 0,
-        prioridade: item.prioridade || 'Média',
-        status_atual: item.status_atual || 'Aguardando',
-        ultima_atualizacao: item.updated_at || item.data_finalizacao || item.data_conferencia || new Date().toISOString(),
-        itens: Array.isArray(item.itens) ? item.itens : []
-      }));
+      const formattedData = data.map((item: any) => {
+        const itensArr = Array.isArray(item.itens) ? item.itens : [];
+        const firstItem = itensArr[0] || {};
+        return {
+          ...item,
+          produto: firstItem.produto || item.produto || 'PA00000000000',
+          descricao: firstItem.descricao || item.descricao || 'DESCRIÇÃO NÃO CADASTRADA',
+          quantidade: firstItem.quantidade || item.quantidade || 0,
+          prioridade: firstItem.prioridade || item.prioridade || 'Média',
+          status_atual: firstItem.status_atual || item.status_atual || 'Aguardando',
+          ultima_atualizacao: item.updated_at || item.data_finalizacao || item.data_conferencia || new Date().toISOString(),
+          itens: itensArr
+        };
+      });
       setHistory(formattedData);
     }
+
     setIsLoading(false);
   };
 
@@ -70,20 +75,26 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
 
-        // Mapeamento: A=OP, B=Produto, C=Descricao, H=Qtd
+        // Mapeamento: A=OP, U=Produto, V=Descricao, W=Qtd (mesmo Excel do Empenhos)
         // Linha 2 é cabeçalho, dados começam na 3 (index 2)
+        // Usando apenas colunas que existem no banco: documento, nome, armazem, itens
         const teaData = data.slice(2).filter(row => row[0]).map(row => ({
           documento: String(row[0]).trim(),
-          produto: String(row[1] || '').trim(),
-          descricao: String(row[2] || '').trim(),
-          quantidade: Number(row[7]) || 0,
-          prioridade: 'Média',
+          nome: String(row[0]).trim(),
           armazem: 'MATRIZ',
-          status_atual: 'Aguardando Separação...',
-          itens: [
-            { status: 'Matriz', icon: '🏢', data: new Date().toLocaleDateString('pt-BR') }
-          ]
+          itens: [{
+            status: 'Matriz',
+            icon: '🏢',
+            data: new Date().toLocaleDateString('pt-BR'),
+            produto: String(row[20] || '').trim(),
+            descricao: String(row[21] || '').trim(),
+            quantidade: Number(row[22]) || 0,
+            prioridade: 'Média',
+            status_atual: 'Aguardando Separação...'
+          }]
         }));
+
+
 
         await upsertBatched('historico', teaData, 500);
         alert(`${teaData.length} OPs importadas para TEA!`);

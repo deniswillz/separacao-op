@@ -98,19 +98,23 @@ const Empenhos: React.FC = () => {
     try {
       await upsertBatched('separacao', lotsToInsert, 500);
 
-      // TEA Sync: Individual cards for TEA
+      // TEA Sync: Individual cards for TEA - using only existing columns
       const teaRecords = selectedOps.map(op => ({
         documento: op.id,
+        nome: op.id,
         armazem: globalWarehouse,
-        produto: op.itens[0]?.codigo || 'DIVERSOS',
-        descricao: op.itens[0]?.descricao || 'LISTA DE EMPENHOS',
-        quantidade: op.itens.reduce((sum, i) => sum + i.quantidade, 0),
-        prioridade: 'Média',
-        status_atual: 'Aguardando Separação...',
-        itens: [{ status: 'Logística', icon: '🏢', data: new Date().toLocaleDateString('pt-BR') }]
+        itens: [{
+          status: 'Logística',
+          icon: '🏢',
+          data: new Date().toLocaleDateString('pt-BR'),
+          produto: op.itens[0]?.codigo || 'DIVERSOS',
+          descricao: op.itens[0]?.descricao || 'LISTA DE EMPENHOS',
+          quantidade: op.itens.reduce((sum, i) => sum + i.quantidade, 0)
+        }]
       }));
 
       await upsertBatched('historico', teaRecords, 500);
+
 
       alert(`Geradas ${lotsToInsert.length} listas individuais e TEA atualizado.`);
       setOps(prev => prev.filter(op => !selectedIds.includes(op.id)));
@@ -163,8 +167,8 @@ const Empenhos: React.FC = () => {
                 key={op.id}
                 onClick={() => toggleSelect(op.id)}
                 className={`px-4 py-3 rounded-xl border-2 text-[10px] font-black transition-all ${selectedIds.includes(op.id)
-                    ? 'bg-white border-[#10B981] text-[#10B981] shadow-lg shadow-emerald-50'
-                    : 'bg-white border-gray-100 text-gray-300'
+                  ? 'bg-white border-[#10B981] text-[#10B981] shadow-lg shadow-emerald-50'
+                  : 'bg-white border-gray-100 text-gray-300'
                   }`}
               >
                 {op.id}

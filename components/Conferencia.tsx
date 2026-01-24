@@ -13,8 +13,8 @@ interface ConfItem {
   status: string;
   data_conferencia: string;
   responsavel_conferencia: string | null;
-  transf: string;
 }
+
 
 const Conferencia: React.FC<{ user: User }> = ({ user }) => {
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
@@ -102,8 +102,9 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-base">📋</span>
-                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">DOC: <span className="text-blue-600 font-mono italic">{item.transf || 'S/N'}</span></p>
+                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">DOC: <span className="text-blue-600 font-mono italic">{item.itens?.[0]?.doc_transferencia || 'S/N'}</span></p>
                       </div>
+
                       <div className="flex items-center gap-3">
                         <span className="text-base">👤</span>
                         <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Responsável: <span className={item.responsavel_conferencia ? 'text-emerald-600' : 'text-gray-300 italic'}>{item.responsavel_conferencia || 'DISPONÍVEL'}</span></p>

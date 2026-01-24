@@ -104,10 +104,10 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       nome: selectedOP.opCode,
       armazem: selectedOP.armazem,
       ordens: selectedOP.ordens,
-      itens: selectedOP.rawItens,
-      status: 'Aguardando',
-      transf: docTransferencia
+      itens: selectedOP.rawItens.map((item: any) => ({ ...item, doc_transferencia: docTransferencia })),
+      status: 'Aguardando'
     };
+
 
     try {
       const { error: confErr } = await supabase.from('conferencia').insert([conferenceData]);
