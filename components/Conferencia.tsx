@@ -274,20 +274,21 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
 
   const getOPDisplayRange = (ordens: string[]) => {
     if (!ordens || ordens.length === 0) return 'S/N';
-    if (ordens.length === 1) return ordens[0];
-    const first = ordens[0];
-    const last = ordens[ordens.length - 1];
-    let commonPrefix = '';
-    for (let i = 0; i < first.length; i++) {
-      if (first[i] === last[i]) commonPrefix += first[i];
-      else break;
+    if (ordens.length === 1) {
+      const match = ordens[0].match(/00(\d{4})01001/);
+      return match ? match[1] : ordens[0].slice(-6);
     }
-    if (commonPrefix.length >= 4) {
-      const start = first.slice(commonPrefix.length);
-      const end = last.slice(commonPrefix.length);
-      return `${commonPrefix}(${start}-${end})`;
+
+    const formatted = ordens.map(op => {
+      const match = op.match(/00(\d{4})01001/);
+      return match ? match[1] : op.slice(-6);
+    });
+
+    const unique = Array.from(new Set(formatted)).sort();
+    if (unique.length > 1) {
+      return `${unique[0]} - ${unique[unique.length - 1]}`;
     }
-    return `${first.slice(-4)}...${last.slice(-4)}`;
+    return unique[0];
   };
 
   if (isLoading && items.length === 0) {
@@ -554,7 +555,9 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                     </div>
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">🔢 Itens</p>
-                      <p className="text-xs font-black text-gray-900">{item.itens?.length || 0} SKU/OP</p>
+                      <p className="text-xs font-black text-gray-900">
+                        {item.itens?.filter((i: any) => i.composicao?.every((c: any) => c.ok_conf && c.ok2_conf)).length || 0}/{item.itens?.length || 0} ITENS
+                      </p>
                     </div>
                   </div>
                 </div>

@@ -128,24 +128,22 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
 
   const getOPDisplayRange = (ordens: string[]) => {
     if (!ordens || ordens.length === 0) return 'S/N';
-    if (ordens.length === 1) return ordens[0];
-
-    const first = ordens[0];
-    const last = ordens[ordens.length - 1];
-
-    let commonPrefix = '';
-    for (let i = 0; i < first.length; i++) {
-      if (first[i] === last[i]) commonPrefix += first[i];
-      else break;
+    if (ordens.length === 1) {
+      // If matches 00XXXX01001 pattern, extract XXXX
+      const match = ordens[0].match(/00(\d{4})01001/);
+      return match ? match[1] : ordens[0].slice(-6);
     }
 
-    if (commonPrefix.length >= 4) {
-      const start = first.slice(commonPrefix.length);
-      const end = last.slice(commonPrefix.length);
-      return `${commonPrefix}(${start}-${end})`;
-    }
+    const formatted = ordens.map(op => {
+      const match = op.match(/00(\d{4})01001/);
+      return match ? match[1] : op.slice(-6);
+    });
 
-    return `${first.slice(-4)}...${last.slice(-4)}`;
+    const unique = Array.from(new Set(formatted)).sort();
+    if (unique.length > 1) {
+      return `${unique[0]} - ${unique[unique.length - 1]}`;
+    }
+    return unique[0];
   };
 
   const handleFinalize = async () => {
@@ -170,7 +168,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       return;
     }
 
-    setIsSaving(true);
+    setIsFinalizing(true);
 
     const conferenceData = {
       documento: `CC-${selectedOP.opCode}`,
@@ -210,7 +208,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       setViewMode('list'); setSelectedOP(null);
     } catch (e: any) {
       alert('Erro ao finalizar: ' + e.message);
-    } finally { setIsSaving(false); }
+    } finally { setIsFinalizing(false); }
   };
 
   const handleSaveObs = async (sku: string, op: string, text: string) => {
@@ -393,13 +391,36 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
             </div>
 
             <div className="p-10 bg-gray-50/80 border-t border-gray-100 flex justify-center">
-              <button
-                onClick={handleFinalize}
-                disabled={isSaving}
-                className="px-12 py-5 bg-[#006B47] text-white rounded-[2rem] text-xs font-black uppercase tracking-[0.2em] shadow-2xl shadow-emerald-100 hover:bg-[#004D33] active:scale-95 transition-all flex items-center gap-4"
-              >
-                {isSaving ? 'PROCESSANDO...' : 'Finalizar Separação'}
-              </button>
+              <div className="flex gap-4">
+                <button
+                  onClick={async () => {
+                    if (!selectedOP) return;
+                    await supabase.from('separacao').update({
+                      status: 'Pendente',
+                      usuario_atual: null
+                    }).eq('id', selectedOP.id);
+                    setSelectedOP(null);
+                    setViewMode('list');
+                  }}
+                  className="flex-1 py-5 bg-white border-2 border-gray-100 text-gray-500 rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-gray-50 active:scale-95 transition-all"
+                >
+                  Salvar como Pendência
+                </button>
+                <button
+                  onClick={handleFinalize}
+                  disabled={isFinalizing}
+                  className="flex-[1.5] py-5 bg-[#111827] text-white rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl hover:bg-black active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                >
+                  {isFinalizing ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                      Sincronizando...
+                    </>
+                  ) : (
+                    'Finalizar Lote de Separação'
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -477,7 +498,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                     </div>
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">📋 Itens</p>
-                      <p className="text-xs font-black text-gray-900">{total} ITENS</p>
+                      <p className="text-xs font-black text-gray-900">{finalizedCount}/{total} ITENS</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">👤 Resp.</p>
