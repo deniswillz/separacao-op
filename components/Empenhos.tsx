@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { UrgencyLevel, User } from '../types';
+import { UrgencyLevel } from '../types';
 import * as XLSX from 'xlsx';
 import { supabase, upsertBatched } from '../services/supabaseClient';
 
@@ -37,7 +37,6 @@ const Empenhos: React.FC = () => {
         const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
 
         const opsMap: { [key: string]: PendingOP } = {};
-        // Dados começam na linha 3 (index 2)
         data.slice(2).filter(row => row[0]).forEach(row => {
           const opId = String(row[0]).trim();
           if (!opsMap[opId]) {
@@ -59,7 +58,6 @@ const Empenhos: React.FC = () => {
         const importedOps = Object.values(opsMap);
         setOps(prev => [...prev, ...importedOps]);
         setSelectedIds(prev => [...prev, ...importedOps.map(op => op.id)]);
-        alert(`${importedOps.length} OPs importadas.`);
       } catch (error: any) {
         alert('Erro: ' + error.message);
       } finally {
@@ -124,68 +122,134 @@ const Empenhos: React.FC = () => {
     }
   };
 
+  const removeOp = (id: string) => {
+    setOps(prev => prev.filter(op => op.id !== id));
+    setSelectedIds(prev => prev.filter(i => i !== id));
+  };
+
   return (
-    <div className="p-4 space-y-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Cargas de Empenhos</h2>
-        <div className="flex gap-2">
-          <input type="file" ref={fileInputRef} className="hidden" onChange={handleImportExcel} />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold"
-          >
-            IMPORTAR EXCEL
-          </button>
-          <button
-            onClick={handleGenerateList}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold"
-            disabled={selectedIds.length === 0 || !globalWarehouse}
-          >
-            GERAR LISTA SEPARAÇÃO
-          </button>
+    <div className="space-y-8 animate-fadeIn pb-20">
+      <div className="flex justify-between items-center bg-white p-4 rounded-xl border-l-4 border-[#006B47]">
+        <h1 className="text-sm font-black text-[#006B47] uppercase tracking-widest">Empenhos</h1>
+        <div className="text-[10px] font-bold text-gray-400 uppercase">
+          Data do Sistema: <span className="text-[#006B47]">{new Date().toLocaleDateString('pt-BR')}</span>
         </div>
       </div>
 
-      <div className="bg-white rounded shadow p-6">
-        <div className="mb-4">
-          <label className="block text-sm font-bold text-gray-700 mb-2">Armazém Destino</label>
-          <select
-            value={globalWarehouse}
-            onChange={(e) => setGlobalWarehouse(e.target.value)}
-            className="w-full p-2 border rounded"
-          >
-            <option value="">Selecione...</option>
-            <option value="CHICOTE">CHICOTE</option>
-            <option value="MECANICA">MECÂNICA</option>
-            <option value="ELETRONICA">ELETRÔNICA</option>
-          </select>
+      <div className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-8">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+          <h2 className="text-xs font-black text-gray-600 uppercase tracking-widest">Selecione as Ordens de Produção</h2>
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => { }} className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl text-[9px] font-black uppercase text-gray-500 flex items-center gap-2 hover:bg-gray-50 transition-all">
+              📄 Baixar Modelo Excel
+            </button>
+            <input type="file" ref={fileInputRef} className="hidden" onChange={handleImportExcel} />
+            <button onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="px-5 py-2.5 bg-[#004D33] text-white rounded-xl text-[9px] font-black uppercase flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all">
+              🕹️ {isImporting ? 'Importando...' : 'Importar Ordens (Excel)'}
+            </button>
+            <button onClick={handleGenerateList} disabled={selectedIds.length === 0 || !globalWarehouse || isGenerating} className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl text-[9px] font-black uppercase text-gray-400 flex items-center gap-2 hover:bg-gray-50 disabled:opacity-50">
+              ✅ {isGenerating ? 'Processando...' : 'Gerar Lista de Separação'}
+            </button>
+            <button onClick={() => { setOps([]); setSelectedIds([]); }} className="px-5 py-2.5 bg-[#EF4444] text-white rounded-xl text-[9px] font-black uppercase flex items-center gap-2 hover:opacity-90 transition-all">
+              🗑️ Limpar Tudo
+            </button>
+          </div>
         </div>
 
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead>
-            <tr>
-              <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OP</th>
-              <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Itens</th>
-              <th className="px-6 py-3 bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Selecionar</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+        <div className="bg-gray-50/50 p-8 rounded-[2.5rem] border border-gray-100 min-h-[180px]">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {ops.map((op) => (
-              <tr key={op.id}>
-                <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900">{op.id}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-gray-500">{op.itens.length} itens</td>
-                <td className="px-6 py-4 whitespace-nowrap text-center">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(op.id)}
-                    onChange={() => toggleSelect(op.id)}
-                    className="h-5 w-5 text-blue-600"
-                  />
-                </td>
-              </tr>
+              <button
+                key={op.id}
+                onClick={() => toggleSelect(op.id)}
+                className={`px-4 py-3 rounded-xl border-2 text-[10px] font-black transition-all ${selectedIds.includes(op.id)
+                    ? 'bg-white border-[#10B981] text-[#10B981] shadow-lg shadow-emerald-50'
+                    : 'bg-white border-gray-100 text-gray-300'
+                  }`}
+              >
+                {op.id}
+              </button>
             ))}
-          </tbody>
-        </table>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-xs">✨</span>
+          <p className="text-[10px] font-black text-[#10B981] uppercase tracking-widest">
+            {selectedIds.length} OPS SELECIONADAS PARA EMPENHO
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <div className="space-y-6">
+          <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
+            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Armazém (Destino)</h3>
+            <select
+              value={globalWarehouse}
+              onChange={(e) => setGlobalWarehouse(e.target.value)}
+              className="w-full bg-gray-50 border-none rounded-2xl py-4 px-6 text-xs font-black text-gray-600 outline-none focus:ring-2 focus:ring-emerald-50 transition-all"
+            >
+              <option value="">Selecione...</option>
+              <option value="CHICOTE">CHICOTE</option>
+              <option value="MECANICA">MECÂNICA</option>
+              <option value="ELETRONICA">ELETRÔNICA</option>
+            </select>
+          </div>
+
+          <div className="bg-emerald-50 p-8 rounded-[2.5rem] border border-emerald-100 space-y-3">
+            <p className="text-[10px] font-black text-[#006B47] uppercase leading-relaxed">
+              DICA: O ARMAZÉM SELECIONADO SERÁ APLICADO A TODO O LOTE DE SEPARAÇÃO.
+            </p>
+          </div>
+        </div>
+
+        <div className="lg:col-span-3 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-gray-50/50 text-[10px] font-black text-gray-300 uppercase tracking-widest border-b border-gray-100">
+                  <th className="px-8 py-6 flex items-center gap-2">📋 ORDEM DE PRODUÇÃO</th>
+                  <th className="px-6 py-6 text-center">DATA</th>
+                  <th className="px-6 py-6 text-center">PRIORIDADE (EDITÁVEL)</th>
+                  <th className="px-8 py-6 text-right">AÇÕES</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {ops.filter(o => selectedIds.includes(o.id)).map((op) => (
+                  <tr key={op.id} className="group hover:bg-gray-50/50 transition-colors">
+                    <td className="px-8 py-6 font-black text-[#111827] text-xs">
+                      {op.id}
+                    </td>
+                    <td className="px-6 py-6 text-center text-[10px] font-bold text-gray-400">
+                      {op.data}
+                    </td>
+                    <td className="px-6 py-6 text-center">
+                      <span className="px-4 py-1.5 bg-gray-50 text-gray-500 rounded-full text-[9px] font-black uppercase">
+                        {op.prioridade.toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="px-8 py-6 text-right">
+                      <div className="flex items-center justify-end gap-6">
+                        <button className="text-[10px] font-black text-[#10B981] uppercase tracking-tighter hover:opacity-70">Adc +</button>
+                        <button onClick={() => removeOp(op.id)} className="flex items-center gap-2 text-[10px] font-black text-[#EF4444] uppercase tracking-tighter hover:opacity-70 transition-all">
+                          Excluir 🗑️
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {selectedIds.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-8 py-16 text-center text-[10px] font-black text-gray-300 uppercase tracking-[0.3em]">
+                      Nenhuma OP selecionada para listagem
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
