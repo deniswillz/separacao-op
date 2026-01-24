@@ -113,8 +113,7 @@ const Empenhos: React.FC = () => {
           produto: op.itens[0]?.codigo || 'DIVERSOS',
           descricao: op.itens[0]?.descricao || 'INÍCIO LOGÍSTICA',
           quantidade: op.itens.reduce((sum, i) => sum + i.quantidade, 0)
-        }],
-        status_atual: 'Aguardando Separação...'
+        }]
       }));
 
       await upsertBatched('historico', teaRecords, 900);
@@ -168,7 +167,7 @@ const Empenhos: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-gray-50/50 p-8 rounded-[2.5rem] border border-gray-100 min-h-[180px]">
+        <div className="bg-gray-50/50 p-4 rounded-[2rem] border border-gray-100">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {ops.map((op) => (
               <button
