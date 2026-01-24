@@ -78,59 +78,92 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-white p-12 rounded-[3.5rem] border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center space-y-6 group hover:shadow-2xl transition-all">
-          <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-[2rem] flex items-center justify-center text-5xl group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm">📥</div>
-          <div>
-            <h3 className="text-xl font-black text-gray-900 uppercase">Receber da Matriz</h3>
-            <p className="text-gray-400 font-bold text-xs uppercase mt-2">Clique para importar novas OPs via TEA</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center gap-6 group hover:shadow-xl transition-all">
+          <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center text-3xl group-hover:bg-blue-600 group-hover:text-white transition-all shadow-sm shrink-0">📥</div>
+          <div className="flex-1 text-left">
+            <h3 className="text-sm font-black text-gray-900 uppercase">Receber Matriz</h3>
+            <p className="text-gray-400 font-bold text-[10px] uppercase mt-0.5">Importar/Sincronizar TEA</p>
+            <input type="file" ref={fileInputRef} className="hidden" onChange={handleImportExcel} />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-black uppercase text-[9px] tracking-widest hover:bg-blue-700 transition-all"
+            >
+              {isImporting ? 'Lendo...' : 'Carregar Excel'}
+            </button>
           </div>
-          <input type="file" ref={fileInputRef} className="hidden" onChange={handleImportExcel} />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isImporting}
-            className="px-10 py-5 bg-blue-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all"
-          >
-            {isImporting ? 'Processando...' : 'Carregar Excel TEA'}
-          </button>
         </div>
 
-        <div className="bg-white p-12 rounded-[3.5rem] border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center space-y-6 group hover:shadow-2xl transition-all">
-          <div className="w-24 h-24 bg-emerald-50 text-emerald-600 rounded-[2rem] flex items-center justify-center text-5xl group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm">🕒</div>
-          <div>
-            <h3 className="text-xl font-black text-gray-900 uppercase">Histórico de Fluxo</h3>
-            <p className="text-gray-400 font-bold text-xs uppercase mt-2">Veja o rastreio completo das ordens</p>
+        <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex items-center gap-6 group hover:shadow-xl transition-all">
+          <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center text-3xl group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm shrink-0">🕒</div>
+          <div className="flex-1 text-left">
+            <h3 className="text-sm font-black text-gray-900 uppercase">Rastreio Fluxo</h3>
+            <p className="text-gray-400 font-bold text-[10px] uppercase mt-0.5">Histórico completo TEA</p>
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="mt-2 px-4 py-2 bg-gray-900 text-white rounded-xl font-black uppercase text-[9px] tracking-widest hover:bg-black transition-all"
+            >
+              {showHistory ? 'Ocultar' : 'Ver Fluxo'}
+            </button>
           </div>
-          <button
-            onClick={() => setShowHistory(!showHistory)}
-            className="px-10 py-5 bg-gray-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl shadow-gray-200 hover:bg-black transition-all"
-          >
-            {showHistory ? 'Ocultar Histórico' : 'Ver Histórico TEA'}
-          </button>
         </div>
       </div>
 
       {showHistory && (
-        <div className="bg-white rounded-[3rem] border border-gray-100 shadow-sm mt-8 overflow-hidden animate-fadeIn">
+        <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm mt-6 overflow-hidden animate-fadeIn">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-gray-50 text-[10px] font-black text-gray-300 uppercase tracking-widest border-b border-gray-100">
-                <th className="px-10 py-8">OP</th>
-                <th className="px-10 py-8">FLUXO ATUAL</th>
+                <th className="px-8 py-6">OP</th>
+                <th className="px-8 py-6">FLUXO ATUAL & AÇÕES</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {history.map(item => (
-                <tr key={item.id} className="hover:bg-gray-50/50 transition-all">
-                  <td className="px-10 py-8 font-black text-gray-800 font-mono italic">{item.op}</td>
-                  <td className="px-10 py-8">
-                    <div className="flex gap-4">
-                      {item.fluxo?.map((f: any, idx: number) => (
-                        <div key={idx} className="flex flex-col items-center">
-                          <span className="text-2xl">{f.icon}</span>
-                          <span className="text-[10px] font-black text-gray-400 uppercase mt-1">{f.status}</span>
-                        </div>
-                      ))}
+                <tr key={item.id} className="hover:bg-gray-50/30 transition-all">
+                  <td className="px-8 py-6">
+                    <span className="font-black text-gray-800 font-mono italic text-sm">{item.op}</span>
+                  </td>
+                  <td className="px-8 py-6">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <div className="flex gap-2 mr-6 border-r border-gray-100 pr-6">
+                        {item.fluxo?.map((f: any, idx: number) => (
+                          <div key={idx} className="flex flex-col items-center opacity-60">
+                            <span className="text-xl">{f.icon}</span>
+                            <span className="text-[8px] font-black text-gray-400 uppercase mt-1">{f.status}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Ações manuais TEA */}
+                      <div className="flex gap-2">
+                        {['Endereçar', 'Em Transito', 'Finalizar'].map((step) => {
+                          const icon = step === 'Endereçar' ? '📍' : step === 'Em Transito' ? '🚚' : '🏁';
+                          const alreadyOn = item.fluxo?.some((f: any) => f.status === step);
+                          return (
+                            <button
+                              key={step}
+                              disabled={alreadyOn}
+                              onClick={async () => {
+                                const newFluxo = [...(item.fluxo || []), {
+                                  status: step,
+                                  icon,
+                                  data: new Date().toLocaleDateString('pt-BR')
+                                }];
+                                const { error } = await supabase
+                                  .from('historico')
+                                  .update({ fluxo: newFluxo })
+                                  .eq('id', item.id);
+                                if (!error) fetchHistory();
+                              }}
+                              className={`px-3 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all ${alreadyOn ? 'bg-gray-50 text-gray-300 border-gray-100' : 'bg-white border-blue-100 text-blue-600 hover:bg-blue-50'}`}
+                            >
+                              {icon} {step}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </td>
                 </tr>

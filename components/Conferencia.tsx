@@ -259,7 +259,7 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
             .from('historico')
             .select('*')
             .eq('op', opCode)
-            .single();
+            .maybeSingle();
 
           if (teaRecord) {
             const newFluxo = [...(teaRecord.fluxo || []), {

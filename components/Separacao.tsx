@@ -127,6 +127,20 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
     return null;
   };
 
+  const handlePriorityChange = async (id: string, newPriority: UrgencyLevel, e: React.ChangeEvent<HTMLSelectElement>) => {
+    e.stopPropagation();
+    const { error } = await supabase
+      .from('separacao')
+      .update({ urgencia: newPriority })
+      .eq('id', id);
+
+    if (error) {
+      notify('Erro ao atualizar prioridade: ' + error.message, 'error');
+    } else {
+      setOps(prev => prev.map(op => op.id === id ? { ...op, urgencia: newPriority } : op));
+    }
+  };
+
   const handleStart = async (op: OPMock) => {
     if (op.usuarioAtual && op.usuarioAtual !== currentResponsavel) {
       alert(`⚠️ BLOQUEIO DE SEGURANÇA: Esta lista já está sendo processada por "${op.usuarioAtual}".`);
@@ -295,7 +309,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       status: 'Aguardando',
       data_conferencia: new Date().toISOString(),
       responsavel_conferencia: null,
-      numero_transferencia: docTransferencia
+      transf: docTransferencia
     };
 
     try {
@@ -317,6 +331,25 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
         .eq('id', selectedOP.id);
 
       if (updateError) throw updateError;
+
+      // 3. TEA AUTOMATIC UPDATE: Update TEA to "Qualidade"
+      const { data: teaData } = await supabase
+        .from('historico')
+        .select('*')
+        .eq('op', selectedOP.opCode) // Using opCode which might be the OP or part of it
+        .maybeSingle();
+
+      if (teaData) {
+        const newFluxo = [...(teaData.fluxo || []), {
+          status: 'Qualidade',
+          icon: '🔍',
+          data: new Date().toLocaleDateString('pt-BR')
+        }];
+        await supabase
+          .from('historico')
+          .update({ fluxo: newFluxo })
+          .eq('op', selectedOP.opCode);
+      }
 
       notify('Lote enviado para CONFERÊNCIA!', 'success');
       setViewMode('list');
@@ -657,9 +690,20 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                   <div className="flex justify-between items-center text-left mb-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-black text-gray-400 tracking-tighter shrink-0">ID {op.id.toString().slice(0, 5)}</span>
-                      <span className={`text-[7px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${op.urgencia === 'urgencia' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                        {op.urgencia}
-                      </span>
+                      <select
+                        value={op.urgencia}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => handlePriorityChange(op.id, e.target.value as UrgencyLevel, e)}
+                        className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest outline-none border-none cursor-pointer transition-all ${op.urgencia === 'urgencia' ? 'bg-red-600 text-white shadow-lg shadow-red-200' :
+                          op.urgencia === 'alta' ? 'bg-orange-500 text-white shadow-lg shadow-orange-100' :
+                            'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                          }`}
+                      >
+                        <option value="baixa">Baixa</option>
+                        <option value="media">Média</option>
+                        <option value="alta">Alta</option>
+                        <option value="urgencia">Urgência</option>
+                      </select>
                     </div>
                   </div>
 
