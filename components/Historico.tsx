@@ -45,12 +45,12 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
       const { data, error } = await supabase
         .from('historico')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('data_finalizacao', { ascending: false });
 
       if (data) {
         setHistory(data.map((item: any) => ({
           ...item,
-          dataFinalizacao: item.data // Mapeando 'data' do DB para 'dataFinalizacao' do estado
+          dataFinalizacao: item.data_finalizacao || item.data // Mapeando campos do DB
         })));
       }
       setIsSyncing(false);
@@ -66,6 +66,16 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const filteredHistory = history.filter(item => {
+    if (!dateFilter) return true;
+    try {
+      const itemDate = new Date(item.dataFinalizacao).toISOString().split('T')[0];
+      return itemDate === dateFilter;
+    } catch (e) {
+      return false;
+    }
+  });
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -87,7 +97,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
-  if (isSyncing) {
+  if (isSyncing && history.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
         <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
@@ -161,13 +171,24 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
         </div>
       )}
 
-      <div className="mb-4">
-        <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">Auditoria Logística</h1>
-        <p className="text-gray-400 font-bold text-[11px] uppercase tracking-widest mt-1">Registros consolidados e finalizados</p>
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 mb-8">
+        <div>
+          <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">Auditoria Logística</h1>
+          <p className="text-gray-400 font-bold text-[11px] uppercase tracking-widest mt-1">Registros consolidados e finalizados</p>
+        </div>
+        <div className="flex items-center gap-4 bg-white p-2 rounded-2xl border border-gray-100 shadow-sm self-stretch lg:self-auto">
+          <span className="pl-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Filtro Data:</span>
+          <input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="px-4 py-2 rounded-xl bg-gray-50 border border-transparent font-bold text-xs uppercase focus:bg-white focus:ring-2 focus:ring-emerald-50 outline-none transition-all"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {history.map((item) => (
+        {filteredHistory.map((item) => (
           <div
             key={item.id}
             onClick={() => setSelectedItem(item)}

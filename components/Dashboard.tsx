@@ -68,10 +68,16 @@ const Dashboard: React.FC = () => {
 
     const fetchAI = async () => {
       setLoadingAI(true);
-      const mockHistory = [{ item: 'PARAF-01', falta: true, data: '2023-10-01' }];
-      const data = await analyzeLogisticsEfficiency(mockHistory);
-      setInsights(data);
-      setLoadingAI(false);
+      try {
+        const mockHistory = [{ item: 'PARAF-01', falta: true, data: '2023-10-01' }];
+        const data = await analyzeLogisticsEfficiency(mockHistory);
+        setInsights(data);
+      } catch (error: any) {
+        console.error('Error in Dashboard fetchAI:', error);
+        setInsights({ resumo: 'Limite de cota de análise atingido (429). Tente novamente em 1 minuto.' });
+      } finally {
+        setLoadingAI(false);
+      }
     };
     fetchAI();
 

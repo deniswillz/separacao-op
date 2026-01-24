@@ -17,9 +17,9 @@ import { supabase } from './services/supabaseClient';
 export interface BlacklistItem {
   id: string;
   codigo: string;
-  naoSep: boolean;
+  nao_sep: boolean;
   talvez: boolean;
-  dataInclusao: string;
+  data_inclusao: string;
 }
 
 const App: React.FC = () => {

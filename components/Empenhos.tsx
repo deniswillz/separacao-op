@@ -48,6 +48,7 @@ const Empenhos: React.FC = () => {
         const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
 
         // Agrupar por OP (coluna A - index 0)
+        // Cabeçalho na Linha 2 (index 1), dados na Linha 3 (index 2)
         const opsMap: { [key: string]: PendingOP } = {};
         data.slice(2).filter(row => row[0]).forEach(row => {
           const opId = String(row[0]).trim();
@@ -60,17 +61,17 @@ const Empenhos: React.FC = () => {
             };
           }
           opsMap[opId].itens.push({
-            codigo: String(row[20] || '').trim(),  // U
-            descricao: String(row[21] || '').trim(), // V
-            quantidade: Number(row[22]) || 0,       // W
-            unidade: String(row[23] || '').trim()   // X
+            codigo: String(row[20] || '').trim(),  // Col U (20)
+            descricao: String(row[21] || '').trim(), // Col V (21)
+            quantidade: Number(row[22]) || 0,       // Col W (22)
+            unidade: String(row[23] || '').trim()   // Col X (23)
           });
         });
 
         const importedOps = Object.values(opsMap);
         setOps(prev => [...prev, ...importedOps]);
         setSelectedIds(prev => [...prev, ...importedOps.map(op => op.id)]);
-        alert(`${importedOps.length} OPs importadas com ${Object.values(opsMap).reduce((t, o) => t + o.itens.length, 0)} itens!`);
+        alert(`${importedOps.length} OPs importadas com sucesso!`);
       } catch (error: any) {
         alert('Erro ao processar Excel: ' + error.message);
       } finally {
@@ -97,7 +98,8 @@ const Empenhos: React.FC = () => {
         separado: false,
         transferido: false
       })),
-      urgencia: op.prioridade,
+      // 'urgencia' column does not exist in the DB, so we omit it or use another if needed.
+      // urgencia: op.prioridade, 
       status: 'pendente',
       data_criacao: new Date().toISOString(),
       usuario_atual: null
@@ -114,6 +116,17 @@ const Empenhos: React.FC = () => {
     }
   };
 
+  const downloadModelo = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["RELATÓRIO DE ORDENS"],
+      ["Ordem Produção", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "Produto", "Descrição", "Quantidade", "Unidade"],
+      ["00662701001", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "PA0902000000026", "CABO DE 14 LINHAS", "5", "PC"]
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Modelo");
+    XLSX.writeFile(wb, "modelo_empenhos.xlsx");
+  };
+
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Botões de Ação Superiores */}
@@ -124,8 +137,10 @@ const Empenhos: React.FC = () => {
           </h2>
 
           <div className="flex flex-wrap gap-2">
-            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-50 transition-all">
-              <span className="text-base">📄</span> Baixar Modelo Excel
+            <button
+              onClick={downloadModelo}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-50 transition-all">
+              <span className="text-base">📄</span> MODELO
             </button>
             <input
               type="file"
@@ -139,7 +154,7 @@ const Empenhos: React.FC = () => {
               disabled={isImporting}
               className={`flex items-center gap-2 px-4 py-2 bg-[#004d33] text-white rounded-xl text-xs font-bold hover:bg-[#003624] transition-all ${isImporting ? 'opacity-50' : ''}`}
             >
-              <span className="text-base">📥</span> {isImporting ? 'Importando...' : 'Importar Ordens (Excel)'}
+              <span className="text-base">📥</span> {isImporting ? 'PROCES...' : 'IMPORTAR'}
             </button>
             <button
               onClick={handleGenerateList}
@@ -182,7 +197,7 @@ const Empenhos: React.FC = () => {
           </div>
           {ops.length > 0 && (
             <p className="text-[10px] font-black text-emerald-600 mt-3 flex items-center gap-2 uppercase tracking-widest">
-              ✨ {selectedIds.length === ops.length ? 'Todas as OPs já foram selecionadas' : `${selectedIds.length} OPs selecionadas para empenho`}
+              ✨ {selectedIds.length === ops.length ? 'Todas as OPs selecionadas' : `${selectedIds.length} selecionadas`}
             </p>
           )}
         </div>

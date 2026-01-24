@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { supabase, upsertBatched } from '../services/supabaseClient';
+import * as XLSX from 'xlsx';
 
 interface ShipmentHistory {
   id: string;
@@ -11,28 +12,12 @@ interface ShipmentHistory {
   fluxo: { status: string; icon: string; data: string }[];
 }
 
-const mockHistory: ShipmentHistory[] = [
-  {
-    id: '1',
-    op: '00661601001',
-    produto: 'PA090200001263',
-    qtd: 1,
-    data: '21/01/2026',
-    fluxo: [
-      { status: 'Em Separação', icon: '📦', data: '21/01/2026' },
-      { status: 'Em Conferência', icon: '🔍', data: '21/01/2026' },
-      { status: 'Em Qualidade', icon: '🔬', data: '21/01/2026' },
-      { status: 'Endereçar', icon: '📍', data: '21/01/2026' },
-      { status: 'Em Trânsito', icon: '🚚', data: '21/01/2026' },
-      { status: 'Recebido', icon: '✅', data: '22/01/2026' }
-    ]
-  }
-];
-
 const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [history, setHistory] = useState<ShipmentHistory[]>([]);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -40,7 +25,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
       const { data, error } = await supabase
         .from('historico')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('data_finalizacao', { ascending: false });
 
       if (data) {
         setHistory(data.map((item: any) => ({
@@ -55,6 +40,64 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
       fetchHistory();
     }
   }, [showHistory]);
+
+  const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsImporting(true);
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
+
+        // Mapeamento: A(0)=OP, B(1)=Código, C(2)=Descrição, H(7)=Qtd
+        // Linha 2 é o cabeçalho, dados começam na Linha 3 (index 2)
+        const importedData = data.slice(2).filter(row => row[0]).map(row => ({
+          op: String(row[0]).trim(),
+          produto: String(row[1] || '').trim(),
+          descricao: String(row[2] || '').trim(),
+          qtd: Number(row[7]) || 0,
+          data: new Date().toLocaleDateString('pt-BR'),
+          fluxo: [
+            { status: 'Importado', icon: '📥', data: new Date().toLocaleDateString('pt-BR') }
+          ]
+        }));
+
+        if (importedData.length === 0) {
+          alert('Nenhum dado válido encontrado (verifique a partir da linha 3).');
+          setIsImporting(false);
+          return;
+        }
+
+        await upsertBatched('historico', importedData, 500);
+        alert(`${importedData.length} registros TEA importados com sucesso!`);
+        if (showHistory) {
+          // Refetch
+        }
+      } catch (error: any) {
+        alert('Erro ao processar Excel: ' + error.message);
+      } finally {
+        setIsImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
+  const downloadModelo = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["RELATÓRIO TEA"],
+      ["Ordem Produção", "Produto", "Descrição", "", "", "", "", "Qtde. a Prod."],
+      ["00662701001", "PA0902000000026", "CABO DE 14 LINHAS", "", "", "", "", "5"]
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "ModeloTEA");
+    XLSX.writeFile(wb, "modelo_tea.xlsx");
+  };
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -152,15 +195,31 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   }
 
   return (
-    <div className="p-32 bg-white rounded-[4rem] border border-gray-100 shadow-sm text-center space-y-8 flex flex-col items-center justify-center border-dashed">
+    <div className="p-32 bg-white rounded-[4rem] border border-gray-100 shadow-sm text-center space-y-8 flex flex-col items-center justify-center border-dashed relative">
       <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-[2.5rem] flex items-center justify-center text-4xl mb-4">🚚</div>
       <div className="space-y-2">
         <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Gestão Logística TEA</h2>
         <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Painel de controle e auditoria de transferências</p>
       </div>
-      <button onClick={() => setShowHistory(true)} className="px-12 py-5 bg-gray-900 text-white rounded-[1.75rem] text-[11px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-2xl shadow-gray-200 hover:scale-105 active:scale-95">
-        Abrir Histórico Completo
-      </button>
+
+      <div className="flex flex-wrap gap-4 justify-center">
+        <button onClick={() => setShowHistory(true)} className="px-12 py-5 bg-gray-900 text-white rounded-[1.75rem] text-[11px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all shadow-2xl shadow-gray-200 hover:scale-105 active:scale-95">
+          Abrir Histórico Completo
+        </button>
+
+        <button onClick={downloadModelo} className="px-10 py-5 bg-white border border-gray-200 text-gray-500 rounded-[1.75rem] text-[11px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all shadow-sm">
+          📄 MODELO
+        </button>
+
+        <input type="file" ref={fileInputRef} onChange={handleImportExcel} accept=".xlsx, .xls" className="hidden" />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isImporting}
+          className={`px-10 py-5 bg-emerald-700 text-white rounded-[1.75rem] text-[11px] font-black uppercase tracking-widest hover:bg-emerald-800 transition-all shadow-lg shadow-emerald-50 ${isImporting ? 'opacity-50' : ''}`}
+        >
+          {isImporting ? '⏳ ...' : '📥 IMPORTAR'}
+        </button>
+      </div>
     </div>
   );
 };

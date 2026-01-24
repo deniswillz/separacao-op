@@ -25,9 +25,9 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
     if (!newCode) return;
     const newItem = {
       codigo: newCode.toUpperCase().trim(),
-      naoSep: true,
+      nao_sep: true,
       talvez: false,
-      dataInclusao: new Date().toLocaleDateString('pt-BR')
+      data_inclusao: new Date().toLocaleDateString('pt-BR')
     };
 
     const { error } = await supabase.from('blacklist').insert(newItem);
@@ -35,24 +35,25 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
     setNewCode('');
   };
 
-  const toggleStatus = async (id: string, field: 'naoSep' | 'talvez') => {
+  const toggleStatus = async (id: string, field: 'nao_sep' | 'talvez') => {
     const item = items.find(i => i.id === id);
     if (!item) return;
 
     const { error } = await supabase
       .from('blacklist')
-      .update({ [field]: !item[field] })
+      .update({ [field]: !item[field as keyof BlacklistItem] })
       .eq('id', id);
 
     if (error) alert('Erro ao atualizar status: ' + error.message);
   };
 
-  const markAll = (field: 'naoSep' | 'talvez') => {
-    const allChecked = filteredItems.every(item => item[field]);
+  const markAll = (field: 'nao_sep' | 'talvez') => {
+    const allChecked = filteredItems.every(item => item[field as keyof BlacklistItem]);
     const targetIds = new Set(filteredItems.map(i => i.id));
     setItems(items.map(item =>
       targetIds.has(item.id) ? { ...item, [field]: !allChecked } : item
     ));
+    // Note: This only updates locally. For true sync, you'd need to update Supabase.
   };
 
   const handleRemove = async (id: string) => {
@@ -67,6 +68,17 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
       const { error } = await supabase.from('blacklist').delete().neq('id', '0');
       if (error) alert('Erro ao limpar: ' + error.message);
     }
+  };
+
+  const downloadModelo = () => {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["BLACK LIST"],
+      ["CÓDIGO"],
+      ["MP0210000000013"]
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "ModeloBlacklist");
+    XLSX.writeFile(wb, "modelo_blacklist.xlsx");
   };
 
   return (
@@ -91,15 +103,17 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
             onClick={handleAdd}
             className="px-8 py-4 bg-red-600 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-red-700 transition-all shadow-lg shadow-red-100 flex items-center gap-2 active:scale-95 shrink-0"
           >
-            <span>+</span> Adicionar
+            <span>+</span> ADICIONAR
           </button>
         </div>
 
         <div className="h-10 w-px bg-gray-100 hidden lg:block"></div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <button className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-100 text-gray-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">
-            Modelo
+          <button
+            onClick={downloadModelo}
+            className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-100 text-gray-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">
+            MODELO
           </button>
           <input
             type="file"
@@ -117,17 +131,16 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
                   const ws = wb.Sheets[wsname];
                   const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
 
-                  // Mapeamento simplificado para Blacklist
-                  // Espera-se que a coluna A (index 0) seja o código
-                  const blacklistItems = data.slice(1).filter(row => row[0]).map((row) => ({
+                  // Mapeamento: Col A (0) Código. Linha 2 cabeçalho, Linha 3 dados.
+                  const blacklistItems = data.slice(2).filter(row => row[0]).map((row) => ({
                     codigo: String(row[0]).trim().toUpperCase(),
-                    naoSep: true,
+                    nao_sep: true,
                     talvez: false,
-                    dataInclusao: new Date().toLocaleDateString('pt-BR')
+                    data_inclusao: new Date().toLocaleDateString('pt-BR')
                   }));
 
                   if (blacklistItems.length === 0) {
-                    alert('Nenhum dado válido encontrado.');
+                    alert('Nenhum dado válido encontrado (verifique a partir da linha 3).');
                     return;
                   }
 
@@ -150,13 +163,13 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
             disabled={isImporting}
             className={`flex items-center gap-2 px-5 py-3 bg-emerald-700 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-800 transition-all shadow-lg shadow-emerald-50 ${isImporting ? 'opacity-50' : ''}`}
           >
-            {isImporting ? '⏳ Lendo...' : 'Importar'}
+            {isImporting ? '⏳ ...' : 'IMPORTAR'}
           </button>
           <button
             onClick={handleClearAll}
             className="flex items-center gap-2 px-5 py-3 bg-gray-50 border border-gray-100 text-gray-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all"
           >
-            Limpar
+            LIMPAR
           </button>
         </div>
 
@@ -182,7 +195,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
                 <th className="px-6 py-8 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <button
-                      onClick={() => markAll('naoSep')}
+                      onClick={() => markAll('nao_sep')}
                       className="text-[8px] bg-red-50 text-red-600 px-3 py-1.5 rounded-lg border border-red-100 hover:bg-red-600 hover:text-white transition-all font-black uppercase tracking-widest shadow-sm"
                     >
                       Todos
@@ -217,8 +230,8 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
                   <td className="px-6 py-6 text-center">
                     <input
                       type="checkbox"
-                      checked={item.naoSep}
-                      onChange={() => toggleStatus(item.id, 'naoSep')}
+                      checked={item.nao_sep}
+                      onChange={() => toggleStatus(item.id, 'nao_sep')}
                       className="w-8 h-8 rounded-lg border-2 border-gray-200 text-red-600 focus:ring-red-500 cursor-pointer transition-all hover:scale-110"
                     />
                   </td>
@@ -231,7 +244,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
                     />
                   </td>
                   <td className="px-6 py-6 text-center">
-                    <span className="text-[10px] font-bold text-gray-400 font-mono tracking-widest bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">{item.dataInclusao}</span>
+                    <span className="text-[10px] font-bold text-gray-400 font-mono tracking-widest bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">{item.data_inclusao}</span>
                   </td>
                   <td className="px-10 py-6 text-right">
                     {user.role === 'admin' && (

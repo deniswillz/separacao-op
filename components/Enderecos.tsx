@@ -92,20 +92,17 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
         const ws = wb.Sheets[wsname];
         const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
 
-        // Mapeamento conforme documentacao_separacao.md
-        // Linha 2 (index 1) é o cabeçalho
-        // Col A (0): Armazém, Col D (3): Código, Col E (4): Descrição, Col I (8): Endereço, Col N (13): Unidade
-        const products: any[] = data.slice(2).filter(row => row[3]).map((row, index) => ({
+        // Mapeamento: Col A(0): Armazém, Col D(3): Código, Col E(4): Descrição, Col I(8): Endereço.
+        // Linha 2 é o cabeçalho (index 1), dados começam na Linha 3 (index 2).
+        const products: any[] = data.slice(2).filter(row => row[3]).map((row) => ({
           armazem: String(row[0] || '').trim(),
           codigo: String(row[3] || '').trim(),
           descricao: String(row[4] || '').trim(),
-          endereco: String(row[8] || '').trim(),
-          unidade: String(row[13] || '').trim(),
-          id: `${row[3]}_${index}` // ID único temporário
+          endereco: String(row[8] || '').trim()
         }));
 
         if (products.length === 0) {
-          alert('Nenhum dado válido encontrado no arquivo.');
+          alert('Nenhum dado válido encontrado (verifique a partir da linha 3).');
           setIsImporting(false);
           return;
         }
@@ -195,7 +192,6 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
                   </td>
                   <td className="px-6 py-6">
                     <p className="text-xs font-bold text-gray-500 uppercase leading-snug line-clamp-1 max-w-xl">{item.descricao}</p>
-                    <span className="text-[9px] font-black text-emerald-600/50 uppercase">UNI: {item.unidade}</span>
                   </td>
                   <td className="px-6 py-6 text-center">
                     <span className="font-black text-sm text-gray-800 tracking-tight">{item.endereco}</span>

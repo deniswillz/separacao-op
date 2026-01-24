@@ -57,7 +57,11 @@ export const analyzeLogisticsEfficiency = async (history: any[]) => {
     }
 
     return JSON.parse(resultText.trim());
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message?.includes('429') || error.status === 429) {
+      console.warn("Gemini API Rate Limit reached (429).");
+      throw new Error("Quota exceeded. Please retry in 1 minute.");
+    }
     console.error("Error analyzing logistics efficiency:", error);
     return null;
   }
