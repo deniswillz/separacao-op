@@ -33,6 +33,9 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
   const [lupaItem, setLupaItem] = useState<any | null>(null);
 
 
+  const [showOpListModal, setShowOpListModal] = useState(false);
+  const [selectedOpForList, setSelectedOpForList] = useState<any>(null);
+
   const fetchOps = async () => {
     setIsSyncing(true);
     const { data, error } = await supabase.from('separacao').select('*').order('data_criacao', { ascending: false });
@@ -200,35 +203,29 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                 <tbody className="divide-y divide-gray-100">
                   {selectedOP.rawItens
                     .sort((a, b) => a.codigo.localeCompare(b.codigo))
+                    .filter(item => {
+                      const blacklistItem = blacklist.find(b => b.sku === item.codigo || (b as any).codigo === item.codigo);
+                      return !blacklistItem?.nao_sep; // Hide if NÃO SEPARAR
+                    })
                     .map((item, idx) => {
                       const blacklistItem = blacklist.find(b => b.sku === item.codigo || (b as any).codigo === item.codigo);
-                      const isNaoSeparar = blacklistItem?.nao_sep;
                       const isTalvez = blacklistItem?.talvez;
 
-                      const isOUT = item.falta || isNaoSeparar;
                       const rowClass = item.separado ? 'bg-emerald-50/50' :
-                        isNaoSeparar ? 'bg-red-50/50 border-l-4 border-red-500' :
-                          isTalvez ? 'bg-amber-50/50' :
-                            item.transferido ? 'bg-blue-50/50' : '';
+                        isTalvez ? 'border-l-4 border-amber-500' :
+                          item.transferido ? 'bg-blue-50/50' : '';
 
                       return (
                         <tr key={idx} className={`group ${rowClass}`}>
                           <td className="px-8 py-6">
                             <p className="font-black text-[#111827] text-sm font-mono tracking-tighter flex items-center gap-2">
                               {item.codigo}
-                              {isNaoSeparar && <span className="px-2 py-0.5 bg-red-500 text-white text-[8px] rounded-full">NÃO SEPARAR</span>}
-                              {isTalvez && <span className="px-2 py-0.5 bg-amber-500 text-white text-[8px] rounded-full">TALVEZ</span>}
+                              {isTalvez && <span className="px-2 py-0.5 bg-amber-500 text-white text-[8px] rounded-full uppercase">TALVEZ</span>}
                             </p>
-                            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-tight mb-2">{item.descricao}</p>
-                            <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                                <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Armazém: <span className="text-gray-900">{selectedOP.armazem}</span></p>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Endereço: <span className="text-gray-900">{item.endereco || 'S/E'}</span></p>
-                              </div>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight mb-2">{item.descricao}</p>
+                            <div className="flex items-center gap-4 text-[9px] font-black uppercase text-gray-300">
+                              <p>.Armazém: <span className="text-gray-900">{selectedOP.armazem}</span></p>
+                              <p>Endereço: <span className="text-emerald-600 font-mono">{item.endereco || 'S/E'}</span></p>
                             </div>
                           </td>
                           <td className="px-6 py-6 text-center text-lg font-black text-gray-900">{item.quantidade}</td>
@@ -237,7 +234,6 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                               type="number"
                               className={`w-20 px-3 py-2 bg-white border rounded-xl text-center font-black text-sm outline-none transition-all ${item.qtd_separada > item.quantidade ? 'border-red-500 ring-4 ring-red-50' : 'border-gray-200 focus:ring-4 focus:ring-emerald-50'}`}
                               value={item.qtd_separada || 0}
-                              disabled={isNaoSeparar}
                               onChange={(e) => updateItem(item.codigo, 'qtd_separada', Number(e.target.value))}
                             />
                           </td>
@@ -245,16 +241,14 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                             <div className="flex justify-center gap-2">
                               <button
                                 onClick={() => updateItem(item.codigo, 'separado', !item.separado)}
-                                disabled={isNaoSeparar}
-                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.separado ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50 disabled:opacity-30 disabled:grayscale'}`}
+                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.separado ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50'}`}
                                 title="OK - Separação Manual"
                               >
                                 OK
                               </button>
                               <button
                                 onClick={() => updateItem(item.codigo, 'transferido', !item.transferido)}
-                                disabled={isNaoSeparar}
-                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.transferido ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-gray-200 text-blue-600 hover:bg-blue-50 disabled:opacity-30 disabled:grayscale'}`}
+                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.transferido ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-gray-200 text-blue-600 hover:bg-blue-50'}`}
                                 title="TR - Transferência do Item"
                               >
                                 TR
@@ -268,8 +262,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                               </button>
                               <button
                                 onClick={() => { setLupaItem(item); setShowLupaModal(true); }}
-                                disabled={isNaoSeparar}
-                                className={`w-12 h-12 rounded-xl text-lg transition-all flex items-center justify-center bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-30 disabled:grayscale ${(item.composicao?.every((c: any) => c.concluido)) ? 'border-emerald-500 text-emerald-500 shadow-lg shadow-emerald-50 font-bold' : 'text-gray-400'}`}
+                                className={`w-12 h-12 rounded-xl text-lg transition-all flex items-center justify-center bg-white border border-gray-200 hover:bg-gray-50 ${(item.composicao?.every((c: any) => c.concluido)) ? 'border-emerald-500 text-emerald-500 shadow-lg shadow-emerald-50 font-bold' : 'text-gray-400'}`}
                                 title="LUPA - Preencher Qtd p/ OP"
                               >
                                 🔍{(item.composicao?.every((c: any) => c.concluido)) && <span className="absolute mt-5 ml-5 text-[10px] bg-white rounded-full">✅</span>}
@@ -296,93 +289,118 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {ops.map((op, index) => {
             const styles = getUrgencyStyles(op.urgencia);
             const total = op.totalItens;
-            // Progress is 100% only if ALL items are separated AND ALL are transferred (or OUT)
-            // But usually, progress reflects current status.
-            // User: "Se tudo foi separado e transferido o card mostra o processo 100%"
-            // We'll show progress based on (sep + trans) / (total * 2)
-            const progress = total > 0 ? Math.round(((op.separados + op.rawItens.filter((i: any) => i.transferido).length + (op.faltas * 2)) / (total * 2)) * 100) : 0;
+
+            // Progress: (Sep + Trans) / (Total * 2) - but let's stick to what's visible
+            const transCount = op.rawItens.filter((i: any) => i.transferido).length;
+            const progress = total > 0 ? Math.round(((op.separados + transCount + (op.faltas * 2)) / (total * 2)) * 100) : 0;
+
+            const opRange = op.ordens.length > 1
+              ? `${op.ordens[0].slice(-4)} até ${op.ordens[op.ordens.length - 1].slice(-4)}`
+              : op.opCode;
 
             return (
-              <div key={op.id} className={`bg-white rounded-[2.5rem] border-2 ${styles.border} p-8 space-y-6 flex flex-col justify-between hover:shadow-2xl hover:translate-y-[-8px] transition-all duration-500 group relative overflow-hidden h-[34rem]`}>
-                {/* Admin Delete Button */}
-                {user.role === 'admin' && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (confirm(`Excluir lista ${op.opCode}?`)) {
-                        supabase.from('separacao').delete().eq('id', op.id).then(() => fetchOps());
-                      }
-                    }}
-                    className="absolute top-6 right-6 z-20 w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center font-black transition-all hover:bg-red-500 hover:text-white border border-red-100 shadow-sm"
-                  >
-                    ✕
-                  </button>
-                )}
-
-                <div className="space-y-6 relative z-10">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[44px] font-black text-gray-100 group-hover:text-emerald-50 transition-colors leading-none">{(index + 1).toString().padStart(2, '0')}</span>
-                    <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase ${styles.bg} ${styles.text}`}>
+              <div key={op.id} className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 space-y-4 flex flex-col justify-between hover:shadow-md transition-all group relative overflow-hidden">
+                {/* Top Row: ID, Priority, X */}
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-black text-gray-400">ID {(index + 1).toString().padStart(2, '0')}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${styles.bg} ${styles.text}`}>
                       {op.urgencia.toUpperCase()}
                     </span>
                   </div>
+                  {user.role === 'admin' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`Excluir ${op.opCode}?`)) {
+                          supabase.from('separacao').delete().eq('id', op.id).then(() => fetchOps());
+                        }
+                      }}
+                      className="text-gray-300 hover:text-red-500 font-black text-xs transition-colors"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
 
-                  <div className="space-y-4">
-                    <h3 className="text-2xl font-black text-[#111827] tracking-tighter uppercase leading-none" onClick={() => handleStart(op)}>OP {op.opCode}</h3>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs">📍</span>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Armazém: <span className="text-gray-900">{op.armazem}</span></p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs">📋</span>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Ordens: <span className="text-gray-900">{op.ordens.length}</span></p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-3 pt-2">
-                      <span className="text-xs">👤</span>
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Responsável: <span className={op.usuarioAtual ? 'text-emerald-600' : 'text-gray-300 italic'}>{op.usuarioAtual || 'AGUARDANDO'}</span></p>
-                    </div>
+                {/* OP Section */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black text-gray-900 uppercase">OP Lote: {opRange}</h3>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedOpForList(op);
+                        setShowOpListModal(true);
+                      }}
+                      className="text-blue-500 text-xs hover:scale-110 transition-transform"
+                      title="Ver lista de OPs"
+                    >
+                      🔍
+                    </button>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-3 pt-2">
-                    <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 text-center space-y-1">
-                      <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Separados</p>
-                      <p className="text-sm font-black text-emerald-600">{op.separados}/{total}</p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px]">📍</span>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase">Armazém: <span className="text-gray-900">{op.armazem}</span></p>
                     </div>
-                    <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 text-center space-y-1">
-                      <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Transferidos</p>
-                      <p className="text-sm font-black text-blue-600">{op.rawItens.filter((i: any) => i.transferido).length}/{total}</p>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px]">📦</span>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase">Ordens: <span className="text-gray-900">{op.ordens.length}</span></p>
                     </div>
-                  </div>
-
-                  <div className="space-y-4 pt-4">
-                    <div className="flex justify-between items-end">
-                      <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Progresso Total</p>
-                      <p className="text-base font-black text-gray-900 leading-none">{progress}%</p>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px]">📋</span>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase">Itens: <span className="text-gray-900">{total} ITENS</span></p>
                     </div>
-                    <div className="w-full h-2 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
-                      <div className="h-full bg-[#10B981] shadow-[0_0_12px_rgba(16,185,129,0.3)] transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px]">👤</span>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase truncate">Resp: <span className={op.usuarioAtual ? 'text-emerald-600' : 'text-gray-300'}>{op.usuarioAtual || 'Aguardando'}</span></p>
                     </div>
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleStart(op)}
-                  className="w-full py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all active:scale-95 shadow-xl shadow-gray-200 z-10"
-                >
-                  Continuar Separação
-                </button>
+                {/* Stats Grid */}
+                <div className="grid grid-cols-4 gap-2 py-3 border-y border-gray-50">
+                  <div className="text-center">
+                    <p className="text-[8px] font-black text-gray-300 uppercase">Sep.</p>
+                    <p className="text-[10px] font-black text-gray-900">{op.separados}/{total}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[8px] font-black text-gray-300 uppercase">Tra.</p>
+                    <p className="text-[10px] font-black text-gray-900">{transCount}/{total}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[8px] font-black text-gray-300 uppercase">Falta</p>
+                    <p className="text-[10px] font-black text-amber-500">{op.faltas}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[8px] font-black text-gray-300 uppercase">Progresso</p>
+                    <p className="text-[10px] font-black text-emerald-600">{progress}%</p>
+                  </div>
+                </div>
+
+                {/* Footer and Button */}
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center text-[8px] font-black text-gray-300 uppercase">
+                    <span>{op.status.toUpperCase()}</span>
+                    <span>{new Date(op.data).toLocaleDateString()}</span>
+                  </div>
+                  <button
+                    onClick={() => handleStart(op)}
+                    className="w-full py-3 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black active:scale-95 transition-all"
+                  >
+                    Iniciar Separação
+                  </button>
+                </div>
               </div>
             );
           })}
         </div>
+
       )}
 
       {showLupaModal && lupaItem && (
@@ -496,9 +514,38 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       )
       }
 
+      {showOpListModal && selectedOpForList && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center animate-fadeIn">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowOpListModal(false)}></div>
+          <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-10 space-y-8 animate-slideInUp">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black text-gray-900 uppercase">Lista de OPs</h3>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{selectedOpForList.ordens.length} ordens neste lote</p>
+              </div>
+              <button onClick={() => setShowOpListModal(false)} className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-xs font-black text-gray-300 hover:bg-gray-100 hover:text-gray-900 transition-all">✕</button>
+            </div>
+
+            <div className="max-h-96 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+              {selectedOpForList.ordens.map((opCode: string, i: number) => (
+                <div key={i} className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl hover:bg-emerald-50 transition-colors group">
+                  <span className="text-xs font-black text-gray-600 group-hover:text-emerald-700">{opCode}</span>
+                  <span className="px-3 py-1 bg-white border border-gray-100 rounded-lg text-[8px] font-black text-gray-300 uppercase">Pendente</span>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowOpListModal(false)}
+              className="w-full py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+            >
+              Fechar Lista
+            </button>
+          </div>
+        </div>
+      )}
     </div >
   );
 };
 
 export default Separacao;
-

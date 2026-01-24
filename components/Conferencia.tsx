@@ -55,10 +55,77 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
     setViewMode('list'); setSelectedItem(null);
   };
 
+  const handleToggleCheck = (sku: string, op: string, field: 'ok' | 'falta') => {
+    if (!selectedItem) return;
+    const newItens = selectedItem.itens.map(item => {
+      if (item.codigo === sku && item.op === op) {
+        if (field === 'falta' && !item.falta) {
+          // Play alarm sound (placeholder)
+          console.log('🚨 ALARME: Divergência detectada!');
+        }
+        return { ...item, ok: field === 'ok' ? !item.ok : false, falta: field === 'falta' ? !item.falta : false };
+      }
+      return item;
+    });
+    setSelectedItem({ ...selectedItem, itens: newItens });
+  };
+
+  const handleFinalize = async () => {
+    if (!selectedItem) return;
+
+    const hasFalta = selectedItem.itens.some(i => i.falta);
+    if (hasFalta) {
+      alert('🚨 Não é possível finalizar com itens em FALTA. Use "Salvar com Pendências".');
+      return;
+    }
+
+    const allChecked = selectedItem.itens.every(i => i.ok);
+    if (!allChecked) {
+      alert('⚠️ Verifique todos os itens antes de finalizar.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // 1. Move conference to finished (status update)
+      await supabase.from('conferencia').update({
+        status: 'Finalizado',
+        data_conferencia: new Date().toISOString(),
+        responsavel_conferencia: user.nome
+      }).eq('id', selectedItem.id);
+
+      // 2. Update TEA (historico table) to "Qualidade" for each OP
+      const uniqueOps = [...new Set(selectedItem.itens.map(i => i.op))];
+      for (const opCode of uniqueOps) {
+        // Find the record in historico for this OP
+        const { data: histData } = await supabase.from('historico').select('*').eq('documento', opCode).single();
+        if (histData) {
+          const newFluxo = [...(histData.itens || []), {
+            status: 'Qualidade',
+            icon: '🔍',
+            data: new Date().toLocaleDateString('pt-BR')
+          }];
+          await supabase.from('historico').update({
+            itens: newFluxo,
+            status_atual: 'Qualidade'
+          }).eq('id', histData.id);
+        }
+      }
+
+      alert('Conferência finalizada e TEA atualizado!');
+      setViewMode('list');
+      setSelectedItem(null);
+      fetchItems();
+    } catch (error: any) {
+      alert('Erro ao finalizar: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (isLoading && items.length === 0) {
     return <Loading message="Sincronizando Conferência..." />;
   }
-
 
   return (
     <div className="space-y-8 animate-fadeIn pb-20">
@@ -71,10 +138,102 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
 
       {viewMode === 'detail' && selectedItem ? (
         <div className="space-y-6 animate-fadeIn">
-          <button onClick={handleBack} className="px-6 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">← Voltar</button>
-          <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-10 text-center space-y-4">
-            <h2 className="text-2xl font-black uppercase">Módulo de Conferência em Desenvolvimento</h2>
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Aguardando implementação dos detalhes de conferência conforme mockup original.</p>
+          <div className="flex justify-between items-center">
+            <button onClick={handleBack} className="px-6 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">← Voltar</button>
+            <div className="flex gap-4">
+              <div className="text-right">
+                <p className="text-[10px] font-black text-gray-400 uppercase">Documento</p>
+                <p className="text-xs font-black text-gray-900">{selectedItem.itens[0]?.doc_transferencia || 'N/A'}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-black text-gray-400 uppercase">Responsável</p>
+                <p className="text-xs font-black text-[#006B47]">{user.nome}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+            <div className="lg:col-span-3 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead className="bg-gray-50 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    <tr>
+                      <th className="px-8 py-5">PRODUTO / OP</th>
+                      <th className="px-6 py-5 text-center">SEPARADO</th>
+                      <th className="px-6 py-5 text-center">CONFERIDO</th>
+                      <th className="px-10 py-5 text-center">AÇÃO RÁPIDA</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {selectedItem.itens.map((item, idx) => (
+                      <tr key={idx} className={`group transition-all ${item.ok ? 'bg-emerald-50/30' : item.falta ? 'bg-red-50/30' : ''}`}>
+                        <td className="px-8 py-6">
+                          <p className="text-xs font-black text-gray-900 font-mono">{item.codigo}</p>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase truncate max-w-xs">{item.descricao}</p>
+                          <p className="text-[9px] font-black text-blue-600 mt-1">OP: {item.op}</p>
+                        </td>
+                        <td className="px-6 py-6 text-center text-sm font-black text-gray-400">
+                          {item.quantidade}
+                        </td>
+                        <td className="px-6 py-6 text-center text-sm font-black text-gray-900">
+                          {item.ok ? item.quantidade : 0}
+                        </td>
+                        <td className="px-10 py-6">
+                          <div className="flex justify-center gap-2">
+                            <button
+                              onClick={() => handleToggleCheck(item.codigo, item.op, 'ok')}
+                              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${item.ok ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-gray-100 text-gray-400 hover:bg-emerald-50 hover:text-emerald-600'}`}
+                            >
+                              OK
+                            </button>
+                            <button
+                              onClick={() => handleToggleCheck(item.codigo, item.op, 'falta')}
+                              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${item.falta ? 'bg-red-600 text-white shadow-lg shadow-red-100' : 'bg-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-600'}`}
+                            >
+                              FALTA
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
+                <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Resumo da Conferência</h3>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-end">
+                    <p className="text-[9px] font-black text-emerald-600 uppercase">Progresso Geral</p>
+                    <p className="text-2xl font-black text-gray-900">{Math.round((selectedItem.itens.filter(i => i.ok).length / selectedItem.itens.length) * 100)}%</p>
+                  </div>
+                  <div className="w-full h-2 bg-gray-50 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(selectedItem.itens.filter(i => i.ok).length / selectedItem.itens.length) * 100}%` }}></div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 pt-4 border-t">
+                  <div className="bg-emerald-50 p-4 rounded-2xl flex justify-between items-center">
+                    <p className="text-[10px] font-black text-emerald-600 uppercase">Itens OK</p>
+                    <p className="text-xl font-black text-emerald-700">{selectedItem.itens.filter(i => i.ok).length}</p>
+                  </div>
+                  <div className="bg-amber-50 p-4 rounded-2xl flex justify-between items-center">
+                    <p className="text-[10px] font-black text-amber-600 uppercase">Divergências</p>
+                    <p className="text-xl font-black text-amber-700">{selectedItem.itens.filter(i => i.falta).length}</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleFinalize}
+                  className="w-full py-5 bg-[#006B47] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-100 hover:bg-[#004D33] active:scale-95 transition-all mt-4"
+                >
+                  Finalizar e Salvar
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       ) : (

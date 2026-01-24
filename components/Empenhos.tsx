@@ -37,6 +37,7 @@ const Empenhos: React.FC = () => {
         const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
 
         const opsMap: { [key: string]: PendingOP } = {};
+        // Data starts at row 3 (index 2)
         data.slice(2).filter(row => row[0]).forEach(row => {
           const opId = String(row[0]).trim();
           if (!opsMap[opId]) {
@@ -48,10 +49,10 @@ const Empenhos: React.FC = () => {
             };
           }
           opsMap[opId].itens.push({
-            codigo: String(row[20] || '').trim(),
-            descricao: String(row[21] || '').trim(),
-            quantidade: Number(row[22]) || 0,
-            unidade: String(row[23] || '').trim()
+            codigo: String(row[1] || '').trim(), // Coluna B
+            descricao: String(row[2] || '').trim(), // Coluna C
+            quantidade: Number(row[7]) || 0, // Coluna H
+            unidade: 'UN'
           });
         });
 
@@ -74,71 +75,51 @@ const Empenhos: React.FC = () => {
     setIsGenerating(true);
     const selectedOps = ops.filter(op => selectedIds.includes(op.id));
 
-    // 1. Consolidação: Agrupar todos os itens de todas as OPs selecionadas
-    const consolidatedMap: { [key: string]: any } = {};
+    // Agora cada OP gera um card individual
+    const lotsToInsert = selectedOps.map(op => {
+      const formattedItens = op.itens.map(item => ({
+        ...item,
+        separado: false,
+        transferido: false,
+        falta: false,
+        qtd_separada: 0,
+        composicao: [{ op: op.id, quantidade: item.quantidade, concluido: false }]
+      }));
 
-    selectedOps.forEach(op => {
-      op.itens.forEach(item => {
-        if (!consolidatedMap[item.codigo]) {
-          consolidatedMap[item.codigo] = {
-            ...item,
-            separado: false,
-            transferido: false,
-            falta: false,
-            qtd_separada: 0,
-            composicao: []
-          };
-        }
-        consolidatedMap[item.codigo].quantidade += item.quantidade;
-        consolidatedMap[item.codigo].composicao.push({
-          op: op.id,
-          quantidade: item.quantidade,
-          concluido: false
-        });
-      });
+      return {
+        documento: `OP-${op.id}`,
+        nome: op.id,
+        armazem: globalWarehouse,
+        ordens: [op.id],
+        itens: formattedItens,
+        status: 'pendente',
+        urgencia: op.prioridade, // Pass priority
+        data_criacao: new Date().toISOString()
+      };
     });
 
-    // 2. Ordenar A-Z por código
-    const consolidatedItens = Object.values(consolidatedMap).sort((a, b) =>
-      a.codigo.localeCompare(b.codigo)
-    );
-
-    // 3. Criar registro ÚNICO de lote no banco
-    const opCodes = selectedOps.map(op => op.id);
-    const firstOp = opCodes[0];
-    const lotName = opCodes.length > 1 ? `${firstOp}... (+${opCodes.length - 1})` : firstOp;
-
-    const lotToInsert = {
-      documento: opCodes.length > 1 ? `LOTE-${new Date().getTime().toString().slice(-6)}` : `OP-${firstOp}`,
-      nome: lotName,
-      armazem: globalWarehouse,
-      ordens: opCodes,
-      itens: consolidatedItens,
-      status: 'pendente',
-      data_criacao: new Date().toISOString()
-    };
-
     try {
-      await upsertBatched('separacao', [lotToInsert], 900);
+      await upsertBatched('separacao', lotsToInsert, 900);
 
-      // TEA Sync: Registro no histórico simplificado
-      const teaRecord = {
-        documento: lotToInsert.documento,
-        nome: lotName,
+      // TEA Sync: Individual cards for TEA
+      const teaRecords = selectedOps.map(op => ({
+        documento: op.id,
+        nome: op.id,
         armazem: globalWarehouse,
         itens: [{
           status: 'Logística',
           icon: '🏢',
           data: new Date().toLocaleDateString('pt-BR'),
-          produto: consolidatedItens[0]?.codigo || 'DIVERSOS',
-          descricao: consolidatedItens[0]?.descricao || 'LOTE CONSOLIDADO',
-          quantidade: consolidatedItens.reduce((sum, i) => sum + i.quantidade, 0)
-        }]
-      };
+          produto: op.itens[0]?.codigo || 'DIVERSOS',
+          descricao: op.itens[0]?.descricao || 'INÍCIO LOGÍSTICA',
+          quantidade: op.itens.reduce((sum, i) => sum + i.quantidade, 0)
+        }],
+        status_atual: 'Aguardando Separação...'
+      }));
 
-      await upsertBatched('historico', [teaRecord], 900);
+      await upsertBatched('historico', teaRecords, 900);
 
-      alert(`Sucesso! Lote gerado com ${consolidatedItens.length} itens consolidados de ${selectedOps.length} OPs.`);
+      alert(`Sucesso! Geradas ${lotsToInsert.length} listas individuais.`);
       setOps(prev => prev.filter(op => !selectedIds.includes(op.id)));
       setSelectedIds([]);
     } catch (error: any) {
@@ -146,6 +127,10 @@ const Empenhos: React.FC = () => {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const updateOpPriority = (id: string, prio: UrgencyLevel) => {
+    setOps(prev => prev.map(op => op.id === id ? { ...op, prioridade: prio } : op));
   };
 
 
@@ -252,9 +237,18 @@ const Empenhos: React.FC = () => {
                       {op.data}
                     </td>
                     <td className="px-6 py-6 text-center">
-                      <span className="px-4 py-1.5 bg-gray-50 text-gray-500 rounded-full text-[9px] font-black uppercase">
-                        {op.prioridade.toUpperCase()}
-                      </span>
+                      <select
+                        value={op.prioridade}
+                        onChange={(e) => updateOpPriority(op.id, e.target.value as UrgencyLevel)}
+                        className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase outline-none border-none cursor-pointer transition-all ${op.prioridade === 'urgencia' ? 'bg-red-50 text-red-500' :
+                            op.prioridade === 'alta' ? 'bg-orange-50 text-orange-500' :
+                              'bg-emerald-50 text-emerald-500'
+                          }`}
+                      >
+                        <option value="media">MÉDIA</option>
+                        <option value="alta">ALTA</option>
+                        <option value="urgencia">URGÊNCIA</option>
+                      </select>
                     </td>
                     <td className="px-8 py-6 text-right">
                       <div className="flex items-center justify-end gap-6">
