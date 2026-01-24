@@ -114,6 +114,9 @@ const App: React.FC = () => {
                   value={loginData.username}
                   onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
                   placeholder="admin"
+                  autoComplete="username"
+                  name="username"
+                  id="username"
                   className="w-full px-6 py-5 bg-[#F0F4F8] border-none rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#006B47]/20 focus:bg-white transition-all text-sm font-bold text-gray-700 placeholder-[#8E9EAD]"
                 />
               </div>
@@ -129,6 +132,9 @@ const App: React.FC = () => {
                   value={loginData.password}
                   onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                   placeholder="••••••••••"
+                  autoComplete="current-password"
+                  name="password"
+                  id="password"
                   className="w-full px-6 py-5 bg-[#F0F4F8] border-none rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#006B47]/20 focus:bg-white transition-all text-sm font-bold text-gray-700 placeholder-[#8E9EAD]"
                 />
               </div>

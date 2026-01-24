@@ -20,9 +20,15 @@ export const analyzeLogisticsEfficiency = async (history: any[]) => {
   `;
 
   try {
-    // Using gemini-3-pro-preview for complex reasoning and strategic analysis tasks.
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey || apiKey === 'PLACEHOLDER_API_KEY') {
+      console.warn("Gemini API Key is missing or placeholder. Skipping AI analysis.");
+      return null;
+    }
+
+    // Using gemini-1.5-flash for balanced speed and efficiency.
     const response = await ai.models.generateContent({
-      model: "gemini-3-pro-preview",
+      model: "gemini-1.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",

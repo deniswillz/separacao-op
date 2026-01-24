@@ -91,7 +91,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
         <div className="flex justify-between items-center bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
           <div className="flex items-center gap-5">
             <span className="text-3xl bg-emerald-50 p-3 rounded-2xl">📚</span>
-            <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Histórico de Movimentações Matriz x Filial</h2>
+            <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">Histórico de Movimentações TEA</h2>
           </div>
           <button onClick={() => setShowHistory(false)} className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">✕</button>
         </div>
@@ -155,7 +155,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
     <div className="p-32 bg-white rounded-[4rem] border border-gray-100 shadow-sm text-center space-y-8 flex flex-col items-center justify-center border-dashed">
       <div className="w-24 h-24 bg-blue-50 text-blue-600 rounded-[2.5rem] flex items-center justify-center text-4xl mb-4">🚚</div>
       <div className="space-y-2">
-        <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Gestão Logística Matriz x Filial</h2>
+        <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Gestão Logística TEA</h2>
         <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Painel de controle e auditoria de transferências</p>
       </div>
       <button onClick={() => setShowHistory(true)} className="px-12 py-5 bg-gray-900 text-white rounded-[1.75rem] text-[11px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-2xl shadow-gray-200 hover:scale-105 active:scale-95">

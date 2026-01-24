@@ -130,8 +130,8 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="text-lg font-bold text-gray-800 mb-8">Volume de Separação Semanal</h3>
-          <div className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-[300px] min-h-[300px] w-full overflow-hidden">
+            <ResponsiveContainer width="99%" height={300}>
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />

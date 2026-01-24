@@ -44,10 +44,13 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
       const { data, error } = await supabase
         .from('historico')
         .select('*')
-        .order('dataFinalizacao', { ascending: false });
+        .order('data', { ascending: false });
 
       if (data) {
-        setHistory(data);
+        setHistory(data.map((item: any) => ({
+          ...item,
+          dataFinalizacao: item.data // Mapeando 'data' do DB para 'dataFinalizacao' do estado
+        })));
       }
       setIsSyncing(false);
     };
