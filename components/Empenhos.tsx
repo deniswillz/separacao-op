@@ -33,9 +33,11 @@ const Empenhos: React.FC = () => {
       try {
         const bstr = evt.target?.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
-        const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1 }) as any[][];
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
 
         const opsMap: { [key: string]: PendingOP } = {};
+        // Dados começam na linha 3 (index 2)
         data.slice(2).filter(row => row[0]).forEach(row => {
           const opId = String(row[0]).trim();
           if (!opsMap[opId]) {
@@ -123,50 +125,67 @@ const Empenhos: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white p-6 rounded-2xl border flex justify-between items-center shadow-sm">
-        <h2 className="text-base font-black text-gray-800 uppercase">Geração de Lotes Individual</h2>
-        <div className="flex gap-3">
+    <div className="p-4 space-y-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">Cargas de Empenhos</h2>
+        <div className="flex gap-2">
           <input type="file" ref={fileInputRef} className="hidden" onChange={handleImportExcel} />
-          <button onClick={() => fileInputRef.current?.click()} className="px-6 py-2 bg-gray-100 rounded-xl text-[10px] font-black uppercase hover:bg-gray-200 transition-all">Importar Excel</button>
-          <button onClick={handleGenerateList} disabled={selectedIds.length === 0 || !globalWarehouse} className="px-6 py-2 bg-[#004D33] text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-emerald-50 active:scale-95">Gerar Listas ({selectedIds.length})</button>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-bold"
+          >
+            IMPORTAR EXCEL
+          </button>
+          <button
+            onClick={handleGenerateList}
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold"
+            disabled={selectedIds.length === 0 || !globalWarehouse}
+          >
+            GERAR LISTA SEPARAÇÃO
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-2xl border shadow-sm">
-          <p className="text-[10px] font-black text-gray-400 uppercase mb-4">Configuração Geral</p>
-          <select value={globalWarehouse} onChange={e => setGlobalWarehouse(e.target.value)} className="w-full px-4 py-3 bg-gray-50 rounded-xl text-xs font-black uppercase outline-none focus:ring-2 focus:ring-emerald-50">
-            <option value="">Selecione o Armazém</option>
-            <option value="CHICOTE">CHICOTE</option><option value="MECANICA">MECÂNICA</option><option value="ELETRONICA">ELETRÔNICA</option>
+      <div className="bg-white rounded shadow p-6">
+        <div className="mb-4">
+          <label className="block text-sm font-bold text-gray-700 mb-2">Armazém Destino</label>
+          <select
+            value={globalWarehouse}
+            onChange={(e) => setGlobalWarehouse(e.target.value)}
+            className="w-full p-2 border rounded"
+          >
+            <option value="">Selecione...</option>
+            <option value="CHICOTE">CHICOTE</option>
+            <option value="MECANICA">MECÂNICA</option>
+            <option value="ELETRONICA">ELETRÔNICA</option>
           </select>
         </div>
 
-        <div className="lg:col-span-3 bg-white rounded-2xl border shadow-sm overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-gray-50 border-b text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              <tr>
-                <th className="px-6 py-4">OP</th>
-                <th className="px-6 py-4">ITENS</th>
-                <th className="px-6 py-4 text-center">AÇÃO</th>
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead>
+            <tr>
+              <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">OP</th>
+              <th className="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Itens</th>
+              <th className="px-6 py-3 bg-gray-50 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Selecionar</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {ops.map((op) => (
+              <tr key={op.id}>
+                <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900">{op.id}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-gray-500">{op.itens.length} itens</td>
+                <td className="px-6 py-4 whitespace-nowrap text-center">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(op.id)}
+                    onChange={() => toggleSelect(op.id)}
+                    className="h-5 w-5 text-blue-600"
+                  />
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y text-xs font-bold text-gray-600">
-              {ops.map(op => (
-                <tr key={op.id} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-4 font-black text-gray-900">{op.id}</td>
-                  <td className="px-6 py-4">{op.itens.length} SKU(s)</td>
-                  <td className="px-6 py-4 text-center">
-                    <input type="checkbox" checked={selectedIds.includes(op.id)} onChange={() => toggleSelect(op.id)} className="w-5 h-5 rounded border-gray-300 text-emerald-600" />
-                  </td>
-                </tr>
-              ))}
-              {ops.length === 0 && (
-                <tr><td colSpan={3} className="px-6 py-12 text-center text-gray-300 uppercase tracking-tighter">Nenhuma OP importada</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

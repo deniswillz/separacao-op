@@ -96,7 +96,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       ordens: selectedOP.ordens,
       itens: selectedOP.rawItens,
       status: 'Aguardando',
-      transf: docTransferencia // Tentando 'transf' conforme logs de erro 400
+      transf: docTransferencia
     };
 
     try {
@@ -119,72 +119,111 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
     } finally { setIsSaving(false); }
   };
 
-  if (isSyncing && ops.length === 0) return <div className="py-20 text-center text-xs font-black uppercase text-gray-400">Sincronizando...</div>;
+  if (isSyncing && ops.length === 0) return <div className="py-20 text-center font-bold">Sincronizando...</div>;
 
   return (
-    <div className="space-y-6">
+    <div className="p-4">
       {viewMode === 'detail' && selectedOP ? (
-        <div className="space-y-6 animate-fadeIn pb-20">
-          <button onClick={handleBack} className="px-6 py-2 bg-white border rounded-xl text-[10px] font-black uppercase">← Voltar</button>
-          <div className="bg-white rounded-3xl border shadow-sm h-full flex flex-col">
-            <div className="p-8 border-b bg-gray-50/50 flex justify-between items-center">
-              <h2 className="text-xl font-black">{selectedOP.opCode}</h2>
-              <input value={docTransferencia} onChange={e => setDocTransferencia(e.target.value.toUpperCase())} placeholder="Nº DOC TRANSFERÊNCIA" className="px-6 py-3 border rounded-xl font-black text-xs uppercase" />
+        <div className="space-y-6">
+          <div className="flex justify-between items-center mb-6">
+            <button
+              onClick={handleBack}
+              className="px-4 py-2 bg-gray-500 text-white rounded font-bold"
+            >
+              VOLTAR
+            </button>
+            <h2 className="text-2xl font-bold">{selectedOP.opCode}</h2>
+            <div className="flex gap-2">
+              <input
+                value={docTransferencia}
+                onChange={e => setDocTransferencia(e.target.value.toUpperCase())}
+                placeholder="Nº DOC"
+                className="p-2 border rounded font-bold"
+              />
+              <button
+                onClick={handleFinalize}
+                className="px-6 py-2 bg-green-600 text-white rounded font-bold"
+              >
+                FINALIZAR
+              </button>
             </div>
-            <table className="w-full text-left">
-              <thead className="bg-[#111827] text-[10px] font-black text-white uppercase tracking-widest">
-                <tr><th className="px-8 py-5">CÓDIGO / DESCRIÇÃO</th><th className="px-6 py-5 text-center">SOLIC.</th><th className="px-6 py-5 text-center">AÇÕES</th></tr>
+          </div>
+
+          <div className="bg-white rounded shadow overflow-hidden">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-800 text-white">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider">CÓDIGO / DESCRIÇÃO</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider">SOLIC.</th>
+                  <th className="px-6 py-3 text-center text-xs font-medium uppercase tracking-wider">AÇÕES</th>
+                </tr>
               </thead>
-              <tbody className="divide-y text-xs font-bold text-gray-700">
+              <tbody className="bg-white divide-y divide-gray-200">
                 {selectedOP.rawItens.map((item, idx) => (
-                  <tr key={idx} className={item.separado ? 'bg-emerald-50' : item.falta ? 'bg-red-50' : ''}>
-                    <td className="px-8 py-5">
-                      <p className="font-black text-gray-900">{item.codigo}</p>
-                      <p className="text-[10px] text-gray-400 uppercase">{item.descricao}</p>
-                      <p className="text-[10px] font-black text-emerald-600 mt-1">📍 {item.endereco || 'S/E'}</p>
+                  <tr key={idx} className={item.separado ? 'bg-green-50' : item.falta ? 'bg-red-50' : ''}>
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-gray-900">{item.codigo}</div>
+                      <div className="text-xs text-gray-500">{item.descricao}</div>
+                      <div className="text-xs font-bold text-blue-600 mt-1">📍 {item.endereco || 'S/E'}</div>
                     </td>
-                    <td className="px-6 py-5 text-center text-base font-black">{item.quantidade}</td>
-                    <td className="px-6 py-5">
+                    <td className="px-6 py-4 text-center font-bold">{item.quantidade}</td>
+                    <td className="px-6 py-4">
                       <div className="flex justify-center gap-2">
-                        <button onClick={() => updateItem(item.codigo, 'separado', !item.separado)} className={`px-4 py-2 rounded-xl text-[9px] font-black border ${item.separado ? 'bg-emerald-600 text-white' : 'bg-white'}`}>PICK</button>
-                        <button onClick={() => updateItem(item.codigo, 'falta', !item.falta)} className={`px-4 py-2 rounded-xl text-[9px] font-black border ${item.falta ? 'bg-red-600 text-white' : 'bg-white'}`}>OUT</button>
+                        <button
+                          onClick={() => updateItem(item.codigo, 'separado', !item.separado)}
+                          className={`px-3 py-1 rounded font-bold text-xs ${item.separado ? 'bg-green-600 text-white' : 'bg-white border'}`}
+                        >
+                          PICK
+                        </button>
+                        <button
+                          onClick={() => updateItem(item.codigo, 'falta', !item.falta)}
+                          className={`px-3 py-1 rounded font-bold text-xs ${item.falta ? 'bg-red-600 text-white' : 'bg-white border'}`}
+                        >
+                          OUT
+                        </button>
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <div className="p-8 bg-gray-50 border-t flex justify-center">
-              <button onClick={handleFinalize} disabled={isSaving} className="px-12 py-4 bg-emerald-800 text-white rounded-2xl font-black text-xs shadow-xl active:scale-95 uppercase">Finalizar Separação</button>
-            </div>
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-3xl border shadow-sm overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-[#111827] text-[10px] font-black text-white uppercase tracking-widest">
-              <tr><th className="px-8 py-6">OP / LOTE</th><th className="px-6 py-6">ARMAZÉM</th><th className="px-6 py-6">ITENS</th><th className="px-6 py-6 text-center">AÇÃO</th></tr>
+        <div className="bg-white rounded shadow p-6">
+          <h2 className="text-2xl font-bold mb-6">Listas para Separação</h2>
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lote / OP</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Armazém</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progresso</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Ação</th>
+              </tr>
             </thead>
-            <tbody className="divide-y text-xs font-bold text-gray-700">
+            <tbody className="bg-white divide-y divide-gray-200">
               {ops.map(op => (
-                <tr key={op.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-8 py-6">
-                    <p className="font-black text-gray-900">{op.opCode}</p>
-                    <p className="text-[9px] text-gray-400">{new Date(op.data).toLocaleDateString()}</p>
-                  </td>
-                  <td className="px-6 py-6 font-black text-blue-600 uppercase">{op.armazem}</td>
-                  <td className="px-6 py-6">
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-500" style={{ width: `${op.progresso}%` }}></div></div>
-                      <span className="text-[10px]">{op.progresso}%</span>
+                <tr key={op.id}>
+                  <td className="px-6 py-4 whitespace-nowrap font-bold text-gray-900">{op.opCode}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-gray-600 font-bold">{op.armazem}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 bg-gray-200 rounded-full h-2.5">
+                        <div className="bg-green-600 h-2.5 rounded-full" style={{ width: `${op.progresso}%` }}></div>
+                      </div>
+                      <span className="text-xs font-bold">{op.progresso}%</span>
                     </div>
                   </td>
-                  <td className="px-6 py-6 text-center">
-                    <button onClick={() => handleStart(op)} className="px-6 py-2 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-gray-200">Abrir</button>
+                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                    <button
+                      onClick={() => handleStart(op)}
+                      className="px-4 py-1 bg-gray-800 text-white rounded hover:bg-black font-bold text-xs"
+                    >
+                      ABRIR
+                    </button>
                   </td>
                 </tr>
               ))}
-              {ops.length === 0 && (<tr><td colSpan={4} className="px-6 py-20 text-center text-gray-300 uppercase font-black">Nenhum lote pendente</td></tr>)}
             </tbody>
           </table>
         </div>
