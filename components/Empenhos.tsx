@@ -109,11 +109,25 @@ const Empenhos: React.FC = () => {
     });
 
     const consolidatedItens = Object.values(consolidationMap);
+
+    // NOVO FORMATO DE NOME DE LOTE
+    let lotName = '';
+    if (selectedIds.length === 1) {
+      lotName = `OP IN-${selectedIds[0]}`;
+    } else {
+      const sortedIds = [...selectedIds].sort();
+      const first4 = sortedIds[0].slice(-4);
+      const last4 = sortedIds[sortedIds.length - 1].slice(-4);
+      const prefix = sortedIds[0].slice(0, 4);
+      const suffix = sortedIds[0].slice(-4);
+      lotName = `OP IN- ${first4} a ${last4} (${prefix}****${suffix})`;
+    }
+
     const lotId = `LOTE-${new Date().getTime().toString().slice(-6)}`;
 
     const lotData = [{
       documento: lotId,
-      nome: `LOTE ${selectedOps.length} OPS`,
+      nome: lotName,
       armazem: globalWarehouse,
       ordens: selectedIds, // Array of original OPs
       itens: consolidatedItens,
