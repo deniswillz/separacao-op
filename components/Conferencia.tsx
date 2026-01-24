@@ -464,79 +464,78 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
 
             <div className="space-y-6">
               {/* Info Cards */}
-              <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
-                <div className="p-10 bg-gray-50/50 border-b border-gray-100">
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div className="space-y-4">
-                      <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Resumo da Conferência</h3>
-                      <div className="flex flex-col gap-4">
-                        <div className="flex items-center gap-2">
-                          <p className="text-[10px] font-black text-gray-400 uppercase">Progresso Geral:</p>
-                          <p className="text-xl font-black text-gray-900 leading-none">
-                            {(() => {
-                              const validItens = selectedItem.itens.filter(i => {
-                                const blacklistItem = blacklist.find(bl => bl.codigo === i.codigo);
-                                return !blacklistItem?.nao_sep;
-                              });
-                              const total = validItens.length;
-                              const verifiedCount = validItens.filter(i => {
-                                return (i.composicao || []).every((c: any) => (c.ok_conf && c.ok2_conf) || c.falta_conf);
-                              }).length;
-                              return total > 0 ? Math.round((verifiedCount / total) * 100) : 0;
-                            })()}%
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-[10px] font-black text-gray-400 uppercase">Itens OK:</p>
-                          <p className="text-xl font-black text-emerald-600 leading-none">
-                            {(() => {
-                              const validItens = selectedItem.itens.filter(i => {
-                                const blacklistItem = blacklist.find(bl => bl.codigo === i.codigo);
-                                return !blacklistItem?.nao_sep;
-                              });
-                              const okCount = validItens.filter(i => {
-                                return (i.composicao || []).every((c: any) => c.ok_conf && c.ok2_conf);
-                              }).length;
-                              return `${okCount}/${validItens.length}`;
-                            })()}
-                          </p>
-                        </div>
+              <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden p-10">
+                <div className="flex flex-col gap-8">
+                  <div>
+                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Resumo da Conferência</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Progresso Geral</p>
+                        <p className="text-2xl font-black text-gray-900 leading-none">
+                          {(() => {
+                            const validItens = selectedItem.itens.filter(i => {
+                              const blacklistItem = blacklist.find(bl => bl.codigo === i.codigo);
+                              return !blacklistItem?.nao_sep;
+                            });
+                            const total = validItens.length;
+                            const verifiedCount = validItens.filter(i => {
+                              return (i.composicao || []).every((c: any) => (c.ok_conf && c.ok2_conf) || c.falta_conf);
+                            }).length;
+                            return total > 0 ? Math.round((verifiedCount / total) * 100) : 0;
+                          })()}%
+                        </p>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-6">
-                      <div className="text-right">
-                        <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Divergências</p>
-                        <p className="text-xl font-black text-orange-500">
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Itens OK</p>
+                        <p className="text-2xl font-black text-emerald-600 leading-none">
+                          {(() => {
+                            const validItens = selectedItem.itens.filter(i => {
+                              const blacklistItem = blacklist.find(bl => bl.codigo === i.codigo);
+                              return !blacklistItem?.nao_sep;
+                            });
+                            const okCount = validItens.filter(i => {
+                              return (i.composicao || []).every((c: any) => c.ok_conf && c.ok2_conf);
+                            }).length;
+                            return `${okCount}/${validItens.length}`;
+                          })()}
+                        </p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Divergências</p>
+                        <p className="text-2xl font-black text-orange-500 leading-none">
                           {selectedItem.itens.reduce((acc, item) => acc + (item.composicao?.filter((c: any) => c.falta_conf).length || 0), 0)}
                         </p>
                       </div>
-                      <div className="bg-gray-900 px-6 py-4 rounded-[1.5rem] text-white flex flex-col justify-center min-w-[140px]">
-                        <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mb-1">Responsável</p>
-                        <p className="text-[11px] font-black tracking-tight truncate">{user.nome}</p>
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Responsável</p>
+                        <p className="text-sm font-black text-gray-900 truncate bg-gray-50 px-4 py-2 rounded-xl border border-gray-100 inline-block">{user.nome}</p>
                       </div>
                     </div>
                   </div>
-                </div>
-                <button
-                  onClick={handleFinalize}
-                  className="w-full py-5 bg-[#006B47] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-100 hover:bg-[#004D33] active:scale-95 transition-all mt-4"
-                >
-                  Finalizar e Salvar
-                </button>
-                <div className="grid grid-cols-2 gap-3 mt-2">
-                  <button
-                    onClick={() => setShowTransferList(true)}
-                    className="py-4 bg-gray-50 text-gray-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
-                  >
-                    Lista de Transferência
-                  </button>
-                  <button
-                    onClick={handleSavePendency}
-                    disabled={isSaving}
-                    className="py-4 bg-gray-50 text-gray-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
-                  >
-                    {isSaving ? 'Salvando...' : 'Salvar Pendências'}
-                  </button>
+
+                  <div className="flex flex-col gap-3 pt-8 border-t border-gray-100">
+                    <button
+                      onClick={handleFinalize}
+                      className="w-full py-5 bg-[#111827] text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black active:scale-95 transition-all flex items-center justify-center gap-3"
+                    >
+                      🚀 Finalizar e Salvar
+                    </button>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => setShowTransferList(true)}
+                        className="py-4 bg-white border-2 border-gray-100 text-gray-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 active:scale-95 transition-all"
+                      >
+                        Lista de Transferência
+                      </button>
+                      <button
+                        onClick={handleSavePendency}
+                        disabled={isSaving}
+                        className="py-4 bg-white border-2 border-gray-100 text-gray-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 active:scale-95 transition-all disabled:opacity-50"
+                      >
+                        {isSaving ? 'Salvando...' : 'Salvar Pendência'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
