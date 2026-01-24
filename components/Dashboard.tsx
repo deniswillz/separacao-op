@@ -67,14 +67,25 @@ const Dashboard: React.FC = () => {
     window.addEventListener('falta-detectada', handleFaltaAlert);
 
     const fetchAI = async () => {
-      // Evitar chamadas se já tivermos insights carregados nesta sessão
-      if (insights) return;
+      // 1. Verificar Cache
+      const cached = localStorage.getItem('nano_ai_insights');
+      const cacheTimestamp = localStorage.getItem('nano_ai_timestamp');
+      const now = new Date().getTime();
+
+      if (cached && cacheTimestamp && (now - Number(cacheTimestamp) < 1800000)) { // 30 min cache
+        setInsights(JSON.parse(cached));
+        setLoadingAI(false);
+        return;
+      }
 
       setLoadingAI(true);
       try {
         const mockHistory = [{ item: 'PARAF-01', falta: true, data: '2023-10-01' }];
         const data = await analyzeLogisticsEfficiency(mockHistory);
         setInsights(data);
+        // 2. Salvar no Cache
+        localStorage.setItem('nano_ai_insights', JSON.stringify(data));
+        localStorage.setItem('nano_ai_timestamp', now.toString());
       } catch (error: any) {
         console.error('Error in Dashboard fetchAI:', error);
         setInsights({
@@ -84,6 +95,7 @@ const Dashboard: React.FC = () => {
         setLoadingAI(false);
       }
     };
+
     fetchAI();
 
     return () => {

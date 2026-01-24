@@ -21,18 +21,29 @@ export const upsertBatched = async (table: string, items: any[], batchSize = 500
     // Identificar o alvo de conflito correto
     let onConflict = 'id';
     if (table === 'enderecos' || table === 'blacklist') onConflict = 'codigo';
-    if (table === 'historico') onConflict = 'documento'; // Ajustado de 'op' para 'documento'
 
-    const { error } = await supabase
-      .from(table)
-      .upsert(batch, {
-        onConflict,
-        ignoreDuplicates: false
-      });
+    // Tentar Upsert. Se falhar por falta de constraint unique, tentamos Insert simples.
+    try {
+      const { error } = await supabase
+        .from(table)
+        .upsert(batch, {
+          onConflict,
+          ignoreDuplicates: false
+        });
 
-    if (error) {
-      console.error(`Erro no upsert na tabela ${table}:`, error);
+      if (error) {
+        if (error.code === '42P10') { // No unique constraint matching
+          console.warn(`Aviso: Tabela ${table} não possui constraint unique para '${onConflict}'. Tentando insert simples...`);
+          const { error: insError } = await supabase.from(table).insert(batch);
+          if (insError) throw insError;
+        } else {
+          throw error;
+        }
+      }
+    } catch (error) {
+      console.error(`Erro crítico no upsert/insert na tabela ${table}:`, error);
       throw error;
     }
   }
 };
+
