@@ -7,7 +7,7 @@ import { supabase, upsertBatched } from '../services/supabaseClient';
 interface PendingOP {
   id: string;
   data: string;
-  itens: { codigo: string; descricao: string; quantidade: number; unidade: string }[];
+  itens: { codigo: string; descricao: string; quantidade: number; unidade: string; observacao?: string }[];
   prioridade: UrgencyLevel;
 }
 
@@ -52,7 +52,8 @@ const Empenhos: React.FC = () => {
             codigo: String(row[20] || '').trim(), // Coluna U
             descricao: String(row[21] || '').trim(), // Coluna V
             quantidade: Number(row[22]) || 0, // Coluna W
-            unidade: 'UN'
+            unidade: 'UN',
+            observacao: String(row[23] || '').trim() // Coluna X
           });
         });
 
@@ -96,16 +97,31 @@ const Empenhos: React.FC = () => {
           op: op.id,
           quantidade: item.quantidade,
           separado: 0, // Individual quantity separated for this OP
-          concluido: false
+          concluido: false,
+          observacao: item.observacao || ''
         });
       });
     });
 
-    // Sum total quantities for consolidated items
-    const formattedItens = Object.values(consolidatedMap).map(item => ({
-      ...item,
-      quantidade: item.composicao.reduce((sum: number, c: any) => sum + c.quantidade, 0)
-    }));
+    // Sum total quantities for consolidated items and format correctly
+    const formattedItens = Object.values(consolidatedMap).map(item => {
+      const totalQtd = item.composicao.reduce((sum: number, c: any) => sum + c.quantidade, 0);
+      return {
+        codigo: item.codigo,
+        descricao: item.descricao,
+        quantidade: totalQtd,
+        unidade: item.unidade,
+        observacao: item.observacao || '',
+        separado: false,
+        transferido: false,
+        falta: false,
+        ok: false,
+        lupa: false,
+        tr: false,
+        qtd_separada: 0,
+        composicao: item.composicao
+      };
+    });
 
     const maxUrgency = selectedOps.some(o => o.prioridade === 'urgencia') ? 'urgencia' :
       selectedOps.some(o => o.prioridade === 'alta') ? 'alta' : 'media';
@@ -139,7 +155,8 @@ const Empenhos: React.FC = () => {
           data: new Date().toLocaleDateString('pt-BR'),
           produto: op.itens[0]?.codigo || 'DIVERSOS',
           descricao: op.itens[0]?.descricao || 'INÍCIO LOGÍSTICA',
-          quantidade: op.itens.reduce((sum, i) => sum + i.quantidade, 0)
+          quantidade: op.itens.reduce((sum, i) => sum + i.quantidade, 0),
+          observacao: op.itens[0]?.observacao || ''
         }]
       }));
 

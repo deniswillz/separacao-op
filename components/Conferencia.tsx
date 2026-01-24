@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
+import { BlacklistItem } from '../App';
 import { supabase } from '../services/supabaseClient';
 import Loading from './Loading';
 
@@ -18,13 +19,16 @@ interface ConfItem {
 }
 
 
-const Conferencia: React.FC<{ user: User }> = ({ user }) => {
+const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ blacklist, user }) => {
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [items, setItems] = useState<ConfItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<ConfItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [showTransferList, setShowTransferList] = useState(false);
   const [selectedOpForDetail, setSelectedOpForDetail] = useState<string | null>(null);
+  const [showObsModal, setShowObsModal] = useState(false);
+  const [obsItem, setObsItem] = useState<any | null>(null);
 
   const fetchItems = async () => {
     setIsLoading(true);
@@ -64,19 +68,46 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
     setViewMode('list'); setSelectedItem(null);
   };
 
-  const handleToggleCheck = (sku: string, op: string, field: 'ok' | 'falta') => {
+  const handleToggleCheck = (sku: string, op: string, field: 'ok' | 'ok2' | 'falta') => {
     if (!selectedItem) return;
     const newItens = selectedItem.itens.map(item => {
       if (item.codigo === sku && item.op === op) {
         if (field === 'falta' && !item.falta) {
-          // Play alarm sound (placeholder)
           console.log('🚨 ALARME: Divergência detectada!');
+          // Dispatch custom event for Dashboard
+          window.dispatchEvent(new CustomEvent('falta-detectada', {
+            detail: { op, produto: `${item.codigo} - ${item.descricao}` }
+          }));
         }
-        return { ...item, ok: field === 'ok' ? !item.ok : false, falta: field === 'falta' ? !item.falta : false };
+        return {
+          ...item,
+          ok: field === 'ok' ? !item.ok : item.ok,
+          ok2: field === 'ok2' ? !item.ok2 : item.ok2,
+          falta: field === 'falta' ? !item.falta : false
+        };
       }
       return item;
     });
     setSelectedItem({ ...selectedItem, itens: newItens });
+  };
+
+  const handleSavePendency = async () => {
+    if (!selectedItem) return;
+    setIsSaving(true);
+    try {
+      await supabase.from('conferencia').update({
+        itens: selectedItem.itens,
+        status: 'Pendente'
+      }).eq('id', selectedItem.id);
+      alert('Progresso salvo com sucesso!');
+      setViewMode('list');
+      setSelectedItem(null);
+      fetchItems();
+    } catch (e: any) {
+      alert('Erro ao salvar: ' + e.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleFinalize = async () => {
@@ -88,9 +119,14 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
       return;
     }
 
-    const allChecked = selectedItem.itens.every(i => i.ok);
+    const allChecked = selectedItem.itens.every(i => {
+      const blacklistItem = blacklist.find(b => b.codigo === i.codigo);
+      if (blacklistItem?.nao_sep) return true;
+      return i.ok && i.ok2;
+    });
+
     if (!allChecked) {
-      alert('⚠️ Verifique todos os itens antes de finalizar.');
+      alert('⚠️ PROCESSO PENDENTE:\n\nTodos os itens devem passar pelo 1º Check (OK) e pelo 2º Check (Lista de Transferência) antes de finalizar.');
       return;
     }
 
@@ -194,44 +230,82 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
                 <table className="w-full text-left">
                   <thead className="bg-gray-50 text-[10px] font-black uppercase tracking-widest text-gray-400">
                     <tr>
+                      <th className="px-8 py-5 text-center">LUPA</th>
                       <th className="px-8 py-5">PRODUTO / OP</th>
+                      <th className="px-6 py-5 text-center">SOLICITADO</th>
                       <th className="px-6 py-5 text-center">SEPARADO</th>
-                      <th className="px-6 py-5 text-center">CONFERIDO</th>
-                      <th className="px-10 py-5 text-center">AÇÃO RÁPIDA</th>
+                      <th className="px-10 py-5 text-center">AÇÕES</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {selectedItem.itens.map((item, idx) => (
-                      <tr key={idx} className={`group transition-all ${item.ok ? 'bg-emerald-50/30' : item.falta ? 'bg-red-50/30' : ''}`}>
-                        <td className="px-8 py-6">
-                          <p className="text-xs font-black text-gray-900 font-mono">{item.codigo}</p>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase truncate max-w-xs">{item.descricao}</p>
-                          <p className="text-[9px] font-black text-blue-600 mt-1">OP: {item.op}</p>
-                        </td>
-                        <td className="px-6 py-6 text-center text-sm font-black text-gray-400">
-                          {item.quantidade}
-                        </td>
-                        <td className="px-6 py-6 text-center text-sm font-black text-gray-900">
-                          {item.ok ? item.quantidade : 0}
-                        </td>
-                        <td className="px-10 py-6">
-                          <div className="flex justify-center gap-2">
-                            <button
-                              onClick={() => handleToggleCheck(item.codigo, item.op, 'ok')}
-                              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${item.ok ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-gray-100 text-gray-400 hover:bg-emerald-50 hover:text-emerald-600'}`}
-                            >
-                              OK
-                            </button>
-                            <button
-                              onClick={() => handleToggleCheck(item.codigo, item.op, 'falta')}
-                              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${item.falta ? 'bg-red-600 text-white shadow-lg shadow-red-100' : 'bg-gray-100 text-gray-400 hover:bg-red-50 hover:text-red-600'}`}
-                            >
-                              FALTA
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {selectedItem.itens
+                      .filter(item => {
+                        const blacklistItem = blacklist.find(b => b.codigo === item.codigo);
+                        return !blacklistItem?.nao_sep;
+                      })
+                      .map((item, idx) => {
+                        const isOut = !!item.falta;
+                        const rowClass = isOut ? 'bg-red-50 border-l-4 border-red-500' :
+                          (item.ok && item.ok2) ? 'bg-emerald-50/30' : '';
+
+                        return (
+                          <tr key={idx} className={`group ${rowClass} transition-all`}>
+                            <td className="px-8 py-6 text-center">
+                              <button
+                                disabled={isOut}
+                                onClick={() => { setObsItem(item); setShowObsModal(true); }}
+                                className={`w-12 h-12 rounded-xl text-lg transition-all flex items-center justify-center border ${isOut ? 'opacity-20 cursor-not-allowed bg-gray-100' :
+                                  'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'
+                                  }`}
+                                title="VER DETALHES / OBSERVAÇÕES"
+                              >
+                                🔍
+                              </button>
+                            </td>
+                            <td className="px-8 py-6">
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs font-black text-gray-900 font-mono">{item.codigo}</p>
+                                {item.composicao?.some((c: any) => c.observacao) && <span title="Possui Observações">📝</span>}
+                              </div>
+                              <p className="text-[10px] font-bold text-gray-400 uppercase truncate max-w-xs">{item.descricao}</p>
+                              <p className="text-[9px] font-black text-blue-600 mt-1 uppercase">OP: {item.op}</p>
+                            </td>
+                            <td className="px-6 py-6 text-center text-sm font-black text-gray-400">
+                              {item.quantidade}
+                            </td>
+                            <td className="px-6 py-6 text-center text-sm font-black text-gray-900">
+                              {item.qtd_separada || item.quantidade}
+                            </td>
+                            <td className="px-10 py-6">
+                              <div className="flex justify-center gap-2">
+                                <button
+                                  disabled={isOut}
+                                  onClick={() => handleToggleCheck(item.codigo, item.op, 'ok')}
+                                  className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : item.ok ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50'}`}
+                                  title="1º Check: Conferência Visual"
+                                >
+                                  OK
+                                </button>
+                                <button
+                                  disabled={isOut}
+                                  onClick={() => setShowTransferList(true)}
+                                  className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : item.ok2 ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-gray-200 text-blue-600 hover:bg-blue-50'}`}
+                                  title="2º Check: Lista de Transferência"
+                                >
+                                  TR
+                                </button>
+                                <button
+                                  onClick={() => handleToggleCheck(item.codigo, item.op, 'falta')}
+                                  className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.falta ? 'bg-red-600 text-white shadow-lg shadow-red-100' : 'bg-white border border-gray-200 text-red-600 hover:bg-red-50'}`}
+                                  title="Divergência / Falta (OUT)"
+                                >
+                                  OUT
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
               </div>
@@ -276,10 +350,11 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
                     Lista de Transferência
                   </button>
                   <button
-                    onClick={() => alert('Pendências salvas (simulação)')}
+                    onClick={handleSavePendency}
+                    disabled={isSaving}
                     className="py-4 bg-gray-50 text-gray-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
                   >
-                    Salvar Pendências
+                    {isSaving ? 'Salvando...' : 'Salvar Pendências'}
                   </button>
                 </div>
               </div>
@@ -388,27 +463,32 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {selectedItem.itens.map((item, idx) => (
-                    <tr key={idx} className="group">
-                      <td className="py-4">
-                        <input
-                          type="checkbox"
-                          checked={item.ok}
-                          onChange={() => handleToggleCheck(item.codigo, item.op, 'ok')}
-                          className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                        />
-                      </td>
-                      <td className="py-4">
-                        <p className="text-xs font-black text-gray-700 font-mono">{item.codigo}</p>
-                        <p className="text-[8px] font-bold text-gray-400">OP: {item.op}</p>
-                      </td>
-                      <td className="py-4 text-xs font-bold text-gray-400 uppercase">{item.descricao}</td>
-                      <td className="py-4 text-center text-xs font-black text-gray-700">{item.quantidade}</td>
-                      <td className={`py-4 text-center text-xs font-black ${item.qtd_separada < item.quantidade ? 'text-red-500' : 'text-gray-700'}`}>
-                        {item.qtd_separada || item.quantidade}
-                      </td>
-                    </tr>
-                  ))}
+                  {selectedItem.itens
+                    .filter(item => {
+                      const blacklistItem = blacklist.find(b => b.codigo === item.codigo);
+                      return !blacklistItem?.nao_sep;
+                    })
+                    .map((item, idx) => (
+                      <tr key={idx} className="group">
+                        <td className="py-4">
+                          <input
+                            type="checkbox"
+                            checked={item.ok2}
+                            onChange={() => handleToggleCheck(item.codigo, item.op, 'ok2')}
+                            className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                        </td>
+                        <td className="py-4">
+                          <p className="text-xs font-black text-gray-700 font-mono">{item.codigo}</p>
+                          <p className="text-[8px] font-bold text-gray-400">OP: {item.op}</p>
+                        </td>
+                        <td className="py-4 text-xs font-bold text-gray-400 uppercase">{item.descricao}</td>
+                        <td className="py-4 text-center text-xs font-black text-gray-700">{item.quantidade}</td>
+                        <td className={`py-4 text-center text-xs font-black ${item.qtd_separada < item.quantidade ? 'text-red-500' : 'text-gray-700'}`}>
+                          {item.qtd_separada || item.quantidade}
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
 
@@ -426,14 +506,50 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
               <button
                 onClick={() => {
                   if (!selectedItem) return;
-                  const newItens = selectedItem.itens.map(i => ({ ...i, ok: true, falta: false }));
+                  const newItens = selectedItem.itens.map(i => {
+                    const blacklistItem = blacklist.find(b => b.codigo === i.codigo);
+                    if (blacklistItem?.nao_sep) return i;
+                    return { ...i, ok2: true };
+                  });
                   setSelectedItem({ ...selectedItem, itens: newItens });
                 }}
                 className="px-8 py-3 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-100 flex items-center gap-2 hover:bg-emerald-700 active:scale-95 transition-all"
               >
-                <span>✅</span> Marcar Todos
+                <span>✅</span> Marcar Todos (2º Check)
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {showObsModal && obsItem && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center animate-fadeIn">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowObsModal(false)}></div>
+          <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 space-y-8 animate-slideInUp">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black text-gray-900 uppercase">Observações</h3>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{obsItem.codigo}</p>
+              </div>
+              <button onClick={() => setShowObsModal(false)} className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-xs font-black text-gray-300 hover:bg-gray-100 hover:text-gray-900 transition-all">✕</button>
+            </div>
+
+            <div className="max-h-96 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+              {obsItem.composicao?.filter((c: any) => c.observacao).map((comp: any, i: number) => (
+                <div key={i} className="p-4 bg-blue-50 border border-blue-100 rounded-2xl space-y-1">
+                  <div className="flex justify-between items-center text-[8px] font-black text-blue-600 uppercase">
+                    <span>OP: {comp.op}</span>
+                  </div>
+                  <p className="text-xs font-bold text-blue-800 leading-relaxed">{comp.observacao}</p>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowObsModal(false)}
+              className="w-full py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+            >
+              Entendido
+            </button>
           </div>
         </div>
       )}

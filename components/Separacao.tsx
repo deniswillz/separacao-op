@@ -36,6 +36,8 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
 
   const [showOpListModal, setShowOpListModal] = useState(false);
   const [selectedOpForList, setSelectedOpForList] = useState<any>(null);
+  const [showObsModal, setShowObsModal] = useState(false);
+  const [obsItem, setObsItem] = useState<any | null>(null);
 
   const fetchOps = async () => {
     setIsSyncing(true);
@@ -270,10 +272,21 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                             </button>
                           </td>
                           <td className="px-8 py-6">
-                            <p className="font-black text-[#111827] text-sm font-mono tracking-tighter flex items-center gap-2">
-                              {item.codigo}
+                            <div className="flex items-center gap-2">
+                              <p className="font-black text-[#111827] text-sm font-mono tracking-tighter">
+                                {item.codigo}
+                              </p>
                               {isTalvez && <span className="px-2 py-0.5 bg-amber-500 text-white text-[8px] rounded-full uppercase">TALVEZ</span>}
-                            </p>
+                              {item.composicao?.some((c: any) => c.observacao) && (
+                                <button
+                                  onClick={() => { setObsItem(item); setShowObsModal(true); }}
+                                  className="text-xs hover:scale-125 transition-transform"
+                                  title="Ver Observações"
+                                >
+                                  📝
+                                </button>
+                              )}
+                            </div>
                             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight mb-2">{item.descricao}</p>
                             <div className="flex items-center gap-4 text-[9px] font-black uppercase text-gray-400">
                               <p>.Armazém: <span className="text-gray-900">{armazem}</span></p>
@@ -588,6 +601,39 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
         </div>
       )
       }
+
+      {showObsModal && obsItem && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center animate-fadeIn">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowObsModal(false)}></div>
+          <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 space-y-8 animate-slideInUp">
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-black text-gray-900 uppercase">Observações</h3>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{obsItem.codigo}</p>
+              </div>
+              <button onClick={() => setShowObsModal(false)} className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-xs font-black text-gray-300 hover:bg-gray-100 hover:text-gray-900 transition-all">✕</button>
+            </div>
+
+            <div className="max-h-96 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+              {obsItem.composicao?.filter((c: any) => c.observacao).map((comp: any, i: number) => (
+                <div key={i} className="p-4 bg-amber-50 border border-amber-100 rounded-2xl space-y-1">
+                  <div className="flex justify-between items-center text-[8px] font-black text-amber-600 uppercase">
+                    <span>OP: {comp.op}</span>
+                  </div>
+                  <p className="text-xs font-bold text-amber-800 leading-relaxed">{comp.observacao}</p>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowObsModal(false)}
+              className="w-full py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
 
       {showOpListModal && selectedOpForList && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center animate-fadeIn">
