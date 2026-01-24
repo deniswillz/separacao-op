@@ -467,77 +467,56 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
               <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
                 <div className="p-10 bg-gray-50/50 border-b border-gray-100">
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                    <div className="space-y-2">
+                    <div className="space-y-4">
                       <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Resumo da Conferência</h3>
+                      <div className="flex flex-col gap-4">
+                        <div className="flex items-center gap-2">
+                          <p className="text-[10px] font-black text-gray-400 uppercase">Progresso Geral:</p>
+                          <p className="text-xl font-black text-gray-900 leading-none">
+                            {(() => {
+                              const validItens = selectedItem.itens.filter(i => {
+                                const blacklistItem = blacklist.find(bl => bl.codigo === i.codigo);
+                                return !blacklistItem?.nao_sep;
+                              });
+                              const total = validItens.length;
+                              const verifiedCount = validItens.filter(i => {
+                                return (i.composicao || []).every((c: any) => (c.ok_conf && c.ok2_conf) || c.falta_conf);
+                              }).length;
+                              return total > 0 ? Math.round((verifiedCount / total) * 100) : 0;
+                            })()}%
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-[10px] font-black text-gray-400 uppercase">Itens OK:</p>
+                          <p className="text-xl font-black text-emerald-600 leading-none">
+                            {(() => {
+                              const validItens = selectedItem.itens.filter(i => {
+                                const blacklistItem = blacklist.find(bl => bl.codigo === i.codigo);
+                                return !blacklistItem?.nao_sep;
+                              });
+                              const okCount = validItens.filter(i => {
+                                return (i.composicao || []).every((c: any) => c.ok_conf && c.ok2_conf);
+                              }).length;
+                              return `${okCount}/${validItens.length}`;
+                            })()}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-8">
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Progresso Geral</p>
-                        <p className="text-2xl font-black text-gray-900 leading-none">
-                          {(() => {
-                            const allPairs = selectedItem.itens.flatMap(i => i.composicao || []);
-                            const deliveredPairs = allPairs.filter((c: any) => (c.qtd_separada || 0) > 0);
-                            const verifiedCount = deliveredPairs.filter((c: any) => (c.ok_conf && c.ok2_conf) || c.falta_conf).length;
-                            return deliveredPairs.length > 0 ? Math.round((verifiedCount / deliveredPairs.length) * 100) : 0;
-                          })()}%
-                        </p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Itens OK</p>
-                        <p className="text-2xl font-black text-emerald-600 leading-none">
-                          {(() => {
-                            const allPairs = selectedItem.itens.flatMap(i => i.composicao || []);
-                            const deliveredPairs = allPairs.filter((c: any) => (c.qtd_separada || 0) > 0);
-                            const okCount = deliveredPairs.filter((c: any) => c.ok_conf && c.ok2_conf).length;
-                            return `${okCount}/${deliveredPairs.length}`;
-                          })()}
-                        </p>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Divergências</p>
-                        <p className="text-2xl font-black text-orange-500 leading-none">
+                    <div className="flex items-center gap-6">
+                      <div className="text-right">
+                        <p className="text-[10px] font-black text-gray-400 uppercase mb-1">Divergências</p>
+                        <p className="text-xl font-black text-orange-500">
                           {selectedItem.itens.reduce((acc, item) => acc + (item.composicao?.filter((c: any) => c.falta_conf).length || 0), 0)}
                         </p>
                       </div>
-                      <div className="bg-gray-900 px-6 py-4 rounded-[1.5rem] text-white flex flex-col justify-center">
+                      <div className="bg-gray-900 px-6 py-4 rounded-[1.5rem] text-white flex flex-col justify-center min-w-[140px]">
                         <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest mb-1">Responsável</p>
-                        <p className="text-[11px] font-black tracking-tight truncate">{user.name}</p>
+                        <p className="text-[11px] font-black tracking-tight truncate">{user.nome}</p>
                       </div>
                     </div>
                   </div>
                 </div>
-
-                {(() => {
-                  const allComps = selectedItem.itens.flatMap(i => i.composicao || []);
-                  const doneComps = allComps.filter((c: any) => c.ok_conf).length;
-                  const divComps = allComps.filter((c: any) => c.falta_conf).length;
-                  const perc = allComps.length > 0 ? Math.round((doneComps / allComps.length) * 100) : 0;
-                  return (
-                    <>
-                      <div className="space-y-4">
-                        <div className="flex justify-between items-end">
-                          <p className="text-[9px] font-black text-emerald-600 uppercase">Progresso Geral</p>
-                          <p className="text-2xl font-black text-gray-900">{perc}%</p>
-                        </div>
-                        <div className="w-full h-2 bg-gray-50 rounded-full overflow-hidden">
-                          <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${perc}%` }}></div>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-4 pt-4 border-t">
-                        <div className="bg-emerald-50 p-4 rounded-2xl flex justify-between items-center">
-                          <p className="text-[10px] font-black text-emerald-600 uppercase">Itens OK</p>
-                          <p className="text-xl font-black text-emerald-700">{doneComps}</p>
-                        </div>
-                        <div className="bg-amber-50 p-4 rounded-2xl flex justify-between items-center">
-                          <p className="text-[10px] font-black text-amber-600 uppercase">Divergências</p>
-                          <p className="text-xl font-black text-amber-700">{divComps}</p>
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
-
                 <button
                   onClick={handleFinalize}
                   className="w-full py-5 bg-[#006B47] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-100 hover:bg-[#004D33] active:scale-95 transition-all mt-4"
@@ -620,7 +599,14 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                     <div className="space-y-1">
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">🔢 Itens</p>
                       <p className="text-xs font-black text-gray-900">
-                        {item.itens?.filter((i: any) => i.composicao?.every((c: any) => (c.ok_conf && c.ok2_conf) || c.falta_conf)).length || 0}/{item.itens?.length || 0}
+                        {(() => {
+                          const validItens = item.itens?.filter((i: any) => {
+                            const bl = blacklist.find(b => b.codigo === i.codigo);
+                            return !bl?.nao_sep;
+                          });
+                          const okCount = validItens?.filter((i: any) => i.composicao?.every((c: any) => (c.ok_conf && c.ok2_conf) || c.falta_conf)).length || 0;
+                          return `${okCount}/${validItens?.length || 0}`;
+                        })()}
                       </p>
                     </div>
                   </div>

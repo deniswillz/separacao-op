@@ -87,13 +87,22 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
   const calculateProgress = (itens: any[]) => {
     if (!itens || itens.length === 0) return 0;
 
-    const allPairs = itens.flatMap(i => i.composicao || []);
-    const total = allPairs.length;
-    if (total === 0) return 0;
+    // Count items matching the detail table logic: filtered by blacklist and considered "done"
+    const validItens = itens.filter(i => {
+      const b = blacklist.find(bl => bl.sku === i.codigo || (bl as any).codigo === i.codigo);
+      return !b?.nao_sep;
+    });
 
-    const count = allPairs.filter((c: any) => c.concluido).length;
+    if (validItens.length === 0) return 0;
 
-    return Math.round((count / total) * 100);
+    const count = validItens.filter(i => {
+      if (i.falta) return true;
+      const isLupaDone = i.composicao?.every((c: any) => c.concluido) &&
+        i.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0) >= i.quantidade;
+      return i.ok && isLupaDone && i.tr;
+    }).length;
+
+    return Math.round((count / validItens.length) * 100);
   };
 
 
@@ -441,9 +450,16 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {ops.map((op, index) => {
             const styles = getUrgencyStyles(op.urgencia);
-            const allPairsForStats = op.rawItens.flatMap(i => i.composicao || []);
-            const total = allPairsForStats.length;
-            const finalizedCount = allPairsForStats.filter((c: any) => c.concluido).length;
+            const validItensForStats = op.rawItens.filter(i => {
+              const b = blacklist.find(bl => bl.sku === i.codigo || (bl as any).codigo === i.codigo);
+              return !b?.nao_sep;
+            });
+            const total = validItensForStats.length;
+            const finalizedCount = validItensForStats.filter(i => {
+              if (i.falta) return true;
+              const isLupaDone = i.composicao?.every((c: any) => c.concluido);
+              return i.ok && isLupaDone && i.tr;
+            }).length;
 
             const progress = total > 0 ? Math.round((finalizedCount / total) * 100) : 0;
             const opRange = getOPDisplayRange(op.ordens);
