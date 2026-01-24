@@ -90,10 +90,8 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
             produto: String(row[1] || '').trim(),
             descricao: String(row[2] || '').trim(),
             quantidade: Number(row[7]) || 0,
-            prioridade: 'Média',
-            status_atual: 'Aguardando Separação...'
-          }],
-          status_atual: 'Aguardando Separação...'
+            prioridade: 'Média'
+          }]
         }));
 
         await upsertBatched('historico', teaData, 900);
@@ -199,9 +197,20 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
           filteredHistory.map((item, index) => {
             const badge = getStatusBadge(item.itens);
             const isCompleted = item.status_atual === 'CONCLUÍDO' || badge.label === 'Concluído';
+            const isEmUso = item.responsavel && item.responsavel !== user.nome;
 
             return (
-              <div key={item.id} className="bg-white rounded-[2rem] border border-gray-100 p-6 flex flex-col justify-between h-[28rem] shadow-sm hover:shadow-md transition-all relative group overflow-hidden">
+              <div key={item.id} className={`bg-white rounded-[2rem] border border-gray-100 p-6 flex flex-col justify-between h-[28rem] shadow-sm hover:shadow-md transition-all relative group overflow-hidden ${isEmUso ? 'bg-gray-50 grayscale' : ''}`}>
+                {/* In-Use Overlay */}
+                {isEmUso && (
+                  <div className="absolute inset-0 bg-gray-100/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center text-center p-4">
+                    <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200">
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Em uso por</p>
+                      <p className="text-xs font-black text-gray-900">{item.responsavel}</p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4 relative z-10">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
@@ -235,7 +244,6 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                       <span>🔄</span>
                       <span>Atualizado: {new Date(item.ultima_atualizacao!).toLocaleString('pt-BR')}</span>
                     </div>
-                    <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">{item.status_atual}</p>
                   </div>
                 </div>
 
@@ -244,8 +252,9 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                     <div className="w-full py-3 bg-emerald-50 text-emerald-600 rounded-xl font-black text-[9px] uppercase text-center border border-emerald-100">Finalizado ✅</div>
                   ) : badge.next ? (
                     <button
+                      disabled={isEmUso}
                       onClick={() => updateStatus(item, badge.next!, badge.nextIcon!, badge.labelNext!)}
-                      className="w-full py-3 bg-gray-900 text-white rounded-xl font-black text-[9px] uppercase hover:bg-black active:scale-95 shadow-sm transition-all"
+                      className="w-full py-3 bg-gray-900 text-white rounded-xl font-black text-[9px] uppercase hover:bg-black active:scale-95 shadow-sm transition-all disabled:opacity-50"
                     >
                       {badge.labelNext}
                     </button>

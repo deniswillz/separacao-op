@@ -23,6 +23,8 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
   const [items, setItems] = useState<ConfItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<ConfItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [showTransferList, setShowTransferList] = useState(false);
+  const [selectedOpForDetail, setSelectedOpForDetail] = useState<string | null>(null);
 
   const fetchItems = async () => {
     setIsLoading(true);
@@ -30,6 +32,13 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
     if (error) console.error(error);
     else if (data) setItems(data);
     setIsLoading(false);
+  };
+
+  const deleteItem = async (id: string) => {
+    if (!confirm('Deseja excluir esta conferência?')) return;
+    const { error } = await supabase.from('conferencia').delete().eq('id', id);
+    if (error) alert(error.message);
+    else fetchItems();
   };
 
   useEffect(() => {
@@ -152,6 +161,33 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
             </div>
           </div>
 
+          {/* Ordens de Produção - Status Row */}
+          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 text-[11px] font-black text-gray-500 uppercase tracking-tight">
+              <span>📋</span> Ordens de Produção - Status
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[...new Set(selectedItem.itens.map(i => i.op))].map(opCode => {
+                const opItens = selectedItem.itens.filter(i => i.op === opCode);
+                const isDone = opItens.every(i => i.ok);
+                const isSelected = selectedOpForDetail === opCode;
+                return (
+                  <button
+                    key={opCode}
+                    onClick={() => setSelectedOpForDetail(isSelected ? null : opCode)}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 transition-all border ${isSelected ? 'ring-2 ring-emerald-500 ring-offset-2' : ''
+                      } ${isDone
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                        : 'bg-gray-50 border-gray-200 text-gray-500'
+                      }`}
+                  >
+                    {isDone ? '✅' : '⏳'} OP {opCode}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
             <div className="lg:col-span-3 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
@@ -232,75 +268,173 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
                 >
                   Finalizar e Salvar
                 </button>
+                <div className="grid grid-cols-2 gap-3 mt-2">
+                  <button
+                    onClick={() => setShowTransferList(true)}
+                    className="py-4 bg-gray-50 text-gray-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
+                  >
+                    Lista de Transferência
+                  </button>
+                  <button
+                    onClick={() => alert('Pendências salvas (simulação)')}
+                    className="py-4 bg-gray-50 text-gray-600 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-gray-100 transition-all border border-gray-100"
+                  >
+                    Salvar Pendências
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {items.map((item) => {
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {items.map((item, index) => {
             const isAguardando = item.status === 'Aguardando' || !item.responsavel_conferencia;
             const isEmUso = item.responsavel_conferencia && item.responsavel_conferencia !== user.nome;
 
             return (
-              <div key={item.id} className="bg-white rounded-[2.5rem] border border-gray-100 p-10 space-y-8 flex flex-col justify-between hover:shadow-2xl hover:translate-y-[-8px] transition-all duration-500 group relative overflow-hidden h-[34rem]">
-                <div className="space-y-8 relative z-10">
-                  <div className="flex justify-start">
-                    <span className={`px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest ${isAguardando ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'}`}>
-                      {isAguardando ? 'AGUARDANDO' : 'EM CONFERENCIA'}
-                    </span>
+              <div key={item.id} className={`bg-white rounded-[2rem] border border-gray-100 p-6 space-y-4 flex flex-col justify-between hover:shadow-md transition-all group relative overflow-hidden ${isEmUso ? 'bg-gray-50 grayscale' : ''}`}>
+                {/* In-Use Overlay */}
+                {isEmUso && (
+                  <div className="absolute inset-0 bg-gray-100/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center text-center p-4">
+                    <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200">
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Em uso por</p>
+                      <p className="text-xs font-black text-gray-900">{item.responsavel_conferencia}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-4 relative z-10">
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-gray-400">ID {(index + 1).toString().padStart(2, '0')}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${isAguardando ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'}`}>
+                        {isAguardando ? 'AGUARDANDO' : 'EM CONFERENCIA'}
+                      </span>
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); deleteItem(item.id); }} className="text-gray-300 hover:text-red-500 font-black text-xs transition-colors">✕</button>
                   </div>
 
-                  <div className="space-y-6">
-                    <h3 className="text-3xl font-black text-[#111827] tracking-tighter uppercase leading-none">OP {item.nome || item.documento}</h3>
-
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <span className="text-base">📍</span>
-                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Armazém: <span className="text-gray-900">{item.armazem}</span></p>
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-black text-gray-900 uppercase">OP {item.nome || item.documento}</h3>
+                    <div className="grid grid-cols-2 gap-y-1 pt-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px]">📍</span>
+                        <p className="text-[9px] font-bold text-gray-400 uppercase">Armazém: <span className="text-gray-900">{item.armazem}</span></p>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-base">📋</span>
-                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">DOC: <span className="text-blue-600 font-mono italic">{item.itens?.[0]?.doc_transferencia || 'S/N'}</span></p>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <span className="text-base">👤</span>
-                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Responsável: <span className={item.responsavel_conferencia ? 'text-emerald-600' : 'text-gray-300 italic'}>{item.responsavel_conferencia || 'DISPONÍVEL'}</span></p>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px]">📋</span>
+                        <p className="text-[9px] font-bold text-gray-400 uppercase truncate">DOC: <span className="text-blue-600 font-mono">{item.itens?.[0]?.doc_transferencia || 'S/N'}</span></p>
                       </div>
                     </div>
+                  </div>
 
-                    <div className="space-y-3 pt-4 border-t border-gray-50">
-                      <div className="flex items-center gap-3">
-                        <span className="text-base">✅</span>
-                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">OPS: <span className="text-gray-900">0/{item.ordens?.length || 1} CONFERIDAS</span></p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-base">🔍</span>
-                        <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">ITENS: <span className="text-gray-900">0/{item.itens?.length || 0} OK</span></p>
-                      </div>
+                  <div className="grid grid-cols-2 gap-2 border-y py-3">
+                    <div className="text-center">
+                      <p className="text-[8px] font-black text-gray-300 uppercase">Status</p>
+                      <p className="text-[10px] font-black text-gray-900">{item.status}</p>
+                    </div>
+                    <div className="text-center border-l">
+                      <p className="text-[8px] font-black text-gray-300 uppercase">Itens</p>
+                      <p className="text-[10px] font-black text-gray-900">{item.itens?.length || 0}</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="relative z-10 pt-4 flex flex-col justify-end">
-                  <p className="text-[8px] font-black text-gray-200 uppercase tracking-widest mb-4">{item.data_conferencia}</p>
-                  {isEmUso ? (
-                    <div className="w-full py-5 bg-gray-50 text-gray-400 rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] text-center">
-                      Em uso: {item.responsavel_conferencia}
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => handleOpen(item)}
-                      className="w-full py-5 bg-[#111827] text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-gray-200 active:scale-95 transition-all"
-                    >
-                      Abrir Conferência
-                    </button>
-                  )}
+                <div className="relative z-10 pt-2">
+                  <button
+                    disabled={isEmUso}
+                    onClick={() => handleOpen(item)}
+                    className="w-full py-3 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black active:scale-95 transition-all disabled:opacity-50"
+                  >
+                    Abrir Conferência
+                  </button>
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+      {showTransferList && selectedItem && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center animate-fadeIn p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setShowTransferList(false)}></div>
+          <div className="relative bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-slideInUp">
+            {/* Header */}
+            <div className="bg-[#006B47] p-8 flex justify-between items-center text-white">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">📋</span>
+                <h3 className="text-xl font-black uppercase tracking-widest">Lista de Transferência</h3>
+              </div>
+              <button onClick={() => setShowTransferList(false)} className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center hover:bg-white/20 transition-all">✕</button>
+            </div>
+
+            {/* Info Row */}
+            <div className="p-8 space-y-2 border-b">
+              <p className="text-sm font-black text-gray-900">Documento de Transferência: <span className="text-gray-500 font-mono">{selectedItem.itens[0]?.doc_transferencia || 'S/N'}</span></p>
+              <p className="text-sm font-black text-gray-900">Responsável Separação: <span className="text-gray-500">{selectedItem.responsavel_conferencia}</span></p>
+              <p className="text-sm font-black text-gray-900">Verificados: <span className="text-gray-500">{selectedItem.itens.filter(i => i.ok).length}/{selectedItem.itens.length} ⏳</span></p>
+            </div>
+
+            {/* Table */}
+            <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
+              <table className="w-full text-left">
+                <thead className="text-[10px] font-black text-gray-300 uppercase tracking-widest">
+                  <tr>
+                    <th className="pb-4">OK</th>
+                    <th className="pb-4">CÓDIGO</th>
+                    <th className="pb-4">DESCRIÇÃO</th>
+                    <th className="pb-4 text-center">QTD SOLIC.</th>
+                    <th className="pb-4 text-center">QTD SEPAR.</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {selectedItem.itens.map((item, idx) => (
+                    <tr key={idx} className="group">
+                      <td className="py-4">
+                        <input
+                          type="checkbox"
+                          checked={item.ok}
+                          onChange={() => handleToggleCheck(item.codigo, item.op, 'ok')}
+                          className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                        />
+                      </td>
+                      <td className="py-4">
+                        <p className="text-xs font-black text-gray-700 font-mono">{item.codigo}</p>
+                        <p className="text-[8px] font-bold text-gray-400">OP: {item.op}</p>
+                      </td>
+                      <td className="py-4 text-xs font-bold text-gray-400 uppercase">{item.descricao}</td>
+                      <td className="py-4 text-center text-xs font-black text-gray-700">{item.quantidade}</td>
+                      <td className={`py-4 text-center text-xs font-black ${item.qtd_separada < item.quantidade ? 'text-red-500' : 'text-gray-700'}`}>
+                        {item.qtd_separada || item.quantidade}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="mt-6 p-4 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-3">
+                <span className="text-amber-500">⚠️</span>
+                <p className="text-[10px] font-bold text-amber-700 uppercase leading-relaxed">
+                  A <span className="font-black">Qtd Separada</span> é vinculada ao valor definido na Lupa durante a separação. Itens em vermelho indicam quantidade menor que a solicitada.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-8 bg-gray-50 flex justify-end gap-4">
+              <button onClick={() => setShowTransferList(false)} className="px-8 py-3 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-500 hover:bg-white shadow-sm transition-all">Fechar</button>
+              <button
+                onClick={() => {
+                  if (!selectedItem) return;
+                  const newItens = selectedItem.itens.map(i => ({ ...i, ok: true, falta: false }));
+                  setSelectedItem({ ...selectedItem, itens: newItens });
+                }}
+                className="px-8 py-3 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-100 flex items-center gap-2 hover:bg-emerald-700 active:scale-95 transition-all"
+              >
+                <span>✅</span> Marcar Todos
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

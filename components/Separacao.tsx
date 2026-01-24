@@ -109,9 +109,15 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       return;
     }
 
-    const isComplete = selectedOP.rawItens.every(i => i.separado || i.falta || i.transferido);
+    const isComplete = selectedOP.rawItens.every(i => {
+      // Find item in blacklist to check if it's hidden
+      const blacklistItem = blacklist.find(b => b.sku === i.codigo || (b as any).codigo === i.codigo);
+      if (blacklistItem?.nao_sep) return true; // Skip hidden items
+      return i.confirmado; // Must be checked 1 by 1
+    });
+
     if (!isComplete) {
-      alert('❌ PROCESSO IMPEDIDO DE CONTINUAR\n\nAssim que todas as opções estiverem em CHECK, você poderá enviar para conferência.');
+      alert('❌ PROCESSO IMPEDIDO DE CONTINUAR\n\nTodos os itens devem ser marcados (CHECK) individualmente antes de enviar para conferência.');
       return;
     }
 
@@ -191,11 +197,12 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
 
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead className="bg-[#111827] text-white text-[10px] font-black uppercase tracking-[0.2em]">
+                <thead className="bg-gray-50 text-[10px] font-black uppercase tracking-widest text-gray-400">
                   <tr>
-                    <th className="px-8 py-5">CÓDIGO / DESCRIÇÃO</th>
-                    <th className="px-6 py-5 text-center">SOLIC.</th>
-                    <th className="px-6 py-5 text-center">SEPARADA</th>
+                    <th className="px-8 py-5">CHECK</th>
+                    <th className="px-8 py-5">PRODUTO</th>
+                    <th className="px-6 py-5 text-center">SOLICITADO</th>
+                    <th className="px-6 py-5 text-center">SEPARADO</th>
                     <th className="px-10 py-5 text-center">AÇÕES</th>
                   </tr>
                 </thead>
@@ -217,6 +224,14 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
 
                       return (
                         <tr key={idx} className={`group ${rowClass}`}>
+                          <td className="px-8 py-6">
+                            <input
+                              type="checkbox"
+                              checked={!!item.confirmado}
+                              onChange={() => updateItem(item.codigo, 'confirmado', !item.confirmado)}
+                              className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                            />
+                          </td>
                           <td className="px-8 py-6">
                             <p className="font-black text-[#111827] text-sm font-mono tracking-tighter flex items-center gap-2">
                               {item.codigo}
@@ -262,10 +277,13 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                               </button>
                               <button
                                 onClick={() => { setLupaItem(item); setShowLupaModal(true); }}
-                                className={`w-12 h-12 rounded-xl text-lg transition-all flex items-center justify-center bg-white border border-gray-200 hover:bg-gray-50 ${(item.composicao?.every((c: any) => c.concluido)) ? 'border-emerald-500 text-emerald-500 shadow-lg shadow-emerald-50 font-bold' : 'text-gray-400'}`}
+                                className={`w-12 h-12 rounded-xl text-lg transition-all flex items-center justify-center border ${(item.composicao?.every((c: any) => c.concluido))
+                                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-100 font-bold'
+                                  : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'
+                                  }`}
                                 title="LUPA - Preencher Qtd p/ OP"
                               >
-                                🔍{(item.composicao?.every((c: any) => c.concluido)) && <span className="absolute mt-5 ml-5 text-[10px] bg-white rounded-full">✅</span>}
+                                🔍
                               </button>
                             </div>
                           </td>
@@ -302,10 +320,22 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
               ? `${op.ordens[0].slice(-4)} até ${op.ordens[op.ordens.length - 1].slice(-4)}`
               : op.opCode;
 
+            const isEmUso = op.responsavel_separacao && op.responsavel_separacao !== user.nome;
+
             return (
-              <div key={op.id} className="bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 space-y-4 flex flex-col justify-between hover:shadow-md transition-all group relative overflow-hidden">
+              <div key={op.id} className={`bg-white rounded-[2rem] border border-gray-100 shadow-sm p-6 space-y-4 flex flex-col justify-between hover:shadow-md transition-all group relative overflow-hidden ${isEmUso ? 'bg-gray-50 grayscale' : ''}`}>
+                {/* In-Use Overlay */}
+                {isEmUso && (
+                  <div className="absolute inset-0 bg-gray-100/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center text-center p-4">
+                    <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200">
+                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Em uso por</p>
+                      <p className="text-xs font-black text-gray-900">{op.responsavel_separacao}</p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Top Row: ID, Priority, X */}
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center relative z-10">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-black text-gray-400">ID {(index + 1).toString().padStart(2, '0')}</span>
                     <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${styles.bg} ${styles.text}`}>
@@ -328,7 +358,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                 </div>
 
                 {/* OP Section */}
-                <div className="space-y-1">
+                <div className="space-y-1 relative z-10">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-black text-gray-900 uppercase">OP Lote: {opRange}</h3>
                     <button
@@ -364,7 +394,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                 </div>
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-4 gap-2 py-3 border-y border-gray-50">
+                <div className="grid grid-cols-4 gap-2 py-3 border-y border-gray-50 relative z-10">
                   <div className="text-center">
                     <p className="text-[8px] font-black text-gray-300 uppercase">Sep.</p>
                     <p className="text-[10px] font-black text-gray-900">{op.separados}/{total}</p>

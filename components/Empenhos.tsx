@@ -39,7 +39,7 @@ const Empenhos: React.FC = () => {
         const opsMap: { [key: string]: PendingOP } = {};
         // Data starts at row 3 (index 2)
         data.slice(2).filter(row => row[0]).forEach(row => {
-          const opId = String(row[0]).trim();
+          const opId = String(row[0]).trim(); // Coluna A
           if (!opsMap[opId]) {
             opsMap[opId] = {
               id: opId,
@@ -49,9 +49,9 @@ const Empenhos: React.FC = () => {
             };
           }
           opsMap[opId].itens.push({
-            codigo: String(row[1] || '').trim(), // Coluna B
-            descricao: String(row[2] || '').trim(), // Coluna C
-            quantidade: Number(row[7]) || 0, // Coluna H
+            codigo: String(row[20] || '').trim(), // Coluna U
+            descricao: String(row[21] || '').trim(), // Coluna V
+            quantidade: Number(row[22]) || 0, // Coluna W
             unidade: 'UN'
           });
         });
@@ -241,8 +241,8 @@ const Empenhos: React.FC = () => {
                         value={op.prioridade}
                         onChange={(e) => updateOpPriority(op.id, e.target.value as UrgencyLevel)}
                         className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase outline-none border-none cursor-pointer transition-all ${op.prioridade === 'urgencia' ? 'bg-red-50 text-red-500' :
-                            op.prioridade === 'alta' ? 'bg-orange-50 text-orange-500' :
-                              'bg-emerald-50 text-emerald-500'
+                          op.prioridade === 'alta' ? 'bg-orange-50 text-orange-500' :
+                            'bg-emerald-50 text-emerald-500'
                           }`}
                       >
                         <option value="media">MÉDIA</option>
