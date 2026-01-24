@@ -115,6 +115,24 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
     else console.error('Erro ao sincronizar check:', error);
   };
 
+  const handleToggleGroupTR = async (sku: string, value: boolean) => {
+    if (!selectedItem) return;
+    const newItens = selectedItem.itens.map(item => {
+      if (item.codigo === sku) {
+        const newComp = (item.composicao || []).map((c: any) => ({
+          ...c,
+          ok2_conf: value,
+          ok_conf: value ? true : c.ok_conf
+        }));
+        return { ...item, composicao: newComp };
+      }
+      return item;
+    });
+
+    const { error } = await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
+    if (!error) setSelectedItem({ ...selectedItem, itens: newItens });
+  };
+
   const handleConfirmDivergencia = async () => {
     if (!selectedItem || !divItem) return;
 
@@ -360,12 +378,12 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                               <p className="text-[9px] font-black text-blue-600 mt-1 uppercase">OP: {row.op}</p>
                             </td>
                             <td className="px-6 py-6 text-center text-sm font-black text-gray-400">
-                              {/* Always show what the OP originally asked for */}
-                              {row.original_solicitado || row.quantidade}
+                              {/* Quantity originally requested for this specific OP */}
+                              {row.quantidade}
                             </td>
                             <td className="px-6 py-6 text-center text-sm font-black text-gray-900">
-                              {/* This is what was actually separated and transmitted */}
-                              {row.quantidade}
+                              {/* Quantity assigned to this OP during separation (Lupa) */}
+                              {row.qtd_separada || 0}
                             </td>
                             <td className="px-10 py-6">
                               <div className="flex justify-center gap-2">
@@ -564,38 +582,53 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {selectedItem.itens
-                    .filter(item => {
-                      const blacklistItem = blacklist.find(b => b.codigo === item.codigo);
-                      return !blacklistItem?.nao_sep;
-                    })
-                    .flatMap(item => (item.composicao || []).map((comp: any) => ({ ...item, ...comp })))
-                    // Filter by OP if selected in status bar
-                    .filter(row => !selectedOpForDetail || row.op === selectedOpForDetail)
-                    .map((row, idx) => (
+                  {(() => {
+                    const grouped: any = {};
+                    selectedItem.itens
+                      .filter((i: any) => {
+                        const blacklistItem = blacklist.find(b => b.codigo === i.codigo);
+                        return !blacklistItem?.nao_sep;
+                      })
+                      .forEach((item: any) => {
+                        if (!grouped[item.codigo]) {
+                          grouped[item.codigo] = {
+                            codigo: item.codigo,
+                            descricao: item.descricao,
+                            totalSolic: 0,
+                            totalSepar: 0,
+                            allOk2: true
+                          };
+                        }
+                        (item.composicao || []).forEach((c: any) => {
+                          grouped[item.codigo].totalSolic += (c.quantidade || 0);
+                          grouped[item.codigo].totalSepar += (c.qtd_separada || 0);
+                          if (!c.ok2_conf) grouped[item.codigo].allOk2 = false;
+                        });
+                      });
+
+                    return Object.values(grouped).map((group: any, idx: number) => (
                       <tr key={idx} className="group">
                         <td className="py-4">
                           <input
                             type="checkbox"
-                            checked={row.ok2_conf}
-                            onChange={() => handleToggleCheck(row.codigo, row.op, 'ok2')}
+                            checked={group.allOk2}
+                            onChange={(e) => handleToggleGroupTR(group.codigo, e.target.checked)}
                             className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-50"
                           />
                         </td>
                         <td className="py-4">
-                          <p className="text-xs font-black text-gray-700 font-mono">{row.codigo}</p>
-                          <p className="text-[8px] font-bold text-gray-400">OP: {row.op}</p>
+                          <p className="text-xs font-black text-gray-700 font-mono">{group.codigo}</p>
                         </td>
-                        <td className="py-4 text-xs font-bold text-gray-400 uppercase">{row.descricao}</td>
+                        <td className="py-4 text-xs font-bold text-gray-400 uppercase">{group.descricao}</td>
                         <td className="py-4 text-center text-xs font-black text-gray-700">
-                          {/* Use original solicitado from OP */}
-                          {row.original_solicitado || row.quantidade}
+                          {group.totalSolic}
                         </td>
-                        <td className={`py-4 text-center text-xs font-black ${row.quantidade < (row.original_solicitado || row.quantidade) ? 'text-red-500' : 'text-gray-700'}`}>
-                          {row.quantidade}
+                        <td className={`py-4 text-center text-xs font-black ${group.totalSepar < group.totalSolic ? 'text-red-500' : 'text-gray-700'}`}>
+                          {group.totalSepar}
                         </td>
                       </tr>
-                    ))}
+                    ));
+                  })()}
                 </tbody>
               </table>
 
