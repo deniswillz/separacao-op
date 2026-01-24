@@ -149,12 +149,14 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       armazem: selectedOP.armazem,
       ordens: selectedOP.ordens,
       itens: selectedOP.rawItens
-        .filter((item: any) => !item.falta)
         .map((item: any) => {
-          const actualQtd = item.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0) || item.qtd_separada || 0;
+          // Calculate actual quantity from composition.
+          // Even if 0, it must go to conference to show the divergence.
+          const actualQtd = item.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0) ?? 0;
           return {
             ...item,
-            quantidade: actualQtd, // New target for conference
+            quantidade: actualQtd,
+            original_solicitado: item.quantidade, // Preserve original requested for reference
             doc_transferencia: docTransferencia
           };
         }),
@@ -494,127 +496,96 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       )}
 
       {showLupaModal && lupaItem && (
-
         <div className="fixed inset-0 z-[100] flex justify-end animate-fadeIn">
-          {/* Overlay background */}
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => { setShowLupaModal(false); setLupaItem(null); }}
-          ></div>
-
-          {/* Side Panel (Drawer) */}
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setShowLupaModal(false); setLupaItem(null); }}></div>
           <div className="relative bg-white w-full max-w-md h-full shadow-2xl border-l border-gray-100 flex flex-col animate-slideInRight">
             <div className="p-8 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center">
               <div>
                 <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter leading-none mb-1 text-emerald-600">Distribuição de Lote</h3>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{lupaItem.codigo}</p>
               </div>
-              <button
-                onClick={() => { setShowLupaModal(false); setLupaItem(null); }}
-                className="w-10 h-10 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-all font-bold"
-              >
-                ✕
-              </button>
+              <button onClick={() => { setShowLupaModal(false); setLupaItem(null); }} className="w-10 h-10 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-all font-bold">✕</button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 space-y-6">
               <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 flex items-center gap-4">
                 <div className="w-10 h-10 bg-emerald-600 text-white rounded-xl flex items-center justify-center text-lg">🔍</div>
-                <p className="text-[9px] font-black text-emerald-700 uppercase leading-relaxed tracking-wider">
-                  Distribua as quantidades separadas em cada OP original para garantir a rastreabilidade.
-                </p>
+                <p className="text-[9px] font-black text-emerald-700 uppercase leading-relaxed tracking-wider">Distribua as quantidades separadas em cada OP original para garantir a rastreabilidade.</p>
               </div>
 
               <div className="space-y-4">
-                {(lupaItem.composicao || []).map((comp: any, idx: number) => (
-                  <div key={idx} className="p-6 bg-white border border-gray-100 rounded-2xl hover:border-emerald-200 transition-all group space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gray-900 text-white rounded-xl flex items-center justify-center text-[9px] font-black tracking-widest overflow-hidden">
-                          {comp.op.slice(-4)}
+                {(lupaItem.composicao || []).map((comp: any, idx: number) => {
+                  const isDivergent = comp.qtd_separada !== comp.quantidade;
+                  return (
+                    <div key={idx} className={`p-6 border rounded-2xl hover:border-emerald-200 transition-all group space-y-4 ${isDivergent ? 'bg-orange-50/50 border-orange-200 shadow-sm' : 'bg-white border-gray-100'}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 ${isDivergent ? 'bg-orange-600' : 'bg-gray-900'} text-white rounded-xl flex items-center justify-center text-[9px] font-black tracking-widest overflow-hidden`}>
+                            {comp.op.slice(-4)}
+                          </div>
+                          <div>
+                            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">OP Original</p>
+                            <p className="text-xs font-black text-gray-900 font-mono tracking-tighter">{comp.op}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">OP Original</p>
-                          <p className="text-xs font-black text-gray-900 font-mono tracking-tighter">{comp.op}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const newComp = [...lupaItem.composicao];
-                          newComp[idx] = { ...newComp[idx], concluido: !newComp[idx].concluido };
-                          // If marked as done, auto-fill with max quantity if currently 0
-                          if (newComp[idx].concluido && !newComp[idx].qtd_separada) {
-                            newComp[idx].qtd_separada = comp.quantidade;
-                          }
-
-                          const totalSep = newComp.reduce((sum, c) => sum + (c.qtd_separada || 0), 0);
-
-                          if (!selectedOP) return;
-                          const newItens = selectedOP.rawItens.map(i =>
-                            i.codigo === lupaItem.codigo ? { ...i, composicao: newComp, qtd_separada: totalSep } : i
-                          );
-                          setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
-                          setLupaItem({ ...lupaItem, composicao: newComp, qtd_separada: totalSep });
-                        }}
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm transition-all ${comp.concluido ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-gray-50 text-gray-300 border border-gray-100 group-hover:bg-white group-hover:border-emerald-100'}`}
-                      >
-                        {comp.concluido ? '✅' : '○'}
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-50">
-                      <div>
-                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Solicitada</p>
-                        <div className="bg-gray-50 px-4 py-2.5 rounded-xl text-sm font-black text-gray-400 border border-transparent">
-                          {comp.quantidade}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-[8px] font-black text-emerald-600 uppercase tracking-widest mb-1.5">Separada (Lupa)</p>
-                        <input
-                          type="number"
-                          className="w-full bg-white border border-emerald-100 px-4 py-2 rounded-xl text-sm font-black text-emerald-600 focus:ring-4 focus:ring-emerald-50 outline-none transition-all"
-                          value={comp.qtd_separada || 0}
-                          onChange={(e) => {
-                            const val = Number(e.target.value);
+                        <button
+                          onClick={() => {
                             const newComp = [...lupaItem.composicao];
-                            newComp[idx] = { ...newComp[idx], qtd_separada: val, concluido: val > 0 };
-
+                            newComp[idx] = { ...newComp[idx], concluido: !newComp[idx].concluido };
+                            if (newComp[idx].concluido && (newComp[idx].qtd_separada === undefined || newComp[idx].qtd_separada === null)) {
+                              newComp[idx].qtd_separada = comp.quantidade;
+                            }
                             const totalSep = newComp.reduce((sum, c) => sum + (c.qtd_separada || 0), 0);
-
                             if (!selectedOP) return;
-                            const newItens = selectedOP.rawItens.map(i =>
-                              i.codigo === lupaItem.codigo ? { ...i, composicao: newComp, qtd_separada: totalSep } : i
-                            );
+                            const newItens = selectedOP.rawItens.map(i => i.codigo === lupaItem.codigo ? { ...i, composicao: newComp, qtd_separada: totalSep } : i);
                             setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
                             setLupaItem({ ...lupaItem, composicao: newComp, qtd_separada: totalSep });
                           }}
-                        />
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm transition-all ${comp.concluido ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-gray-50 text-gray-300 border border-gray-100 group-hover:bg-white group-hover:border-emerald-100'}`}
+                        >
+                          {comp.concluido ? '✅' : '○'}
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 pt-2 border-t border-gray-50">
+                        <div>
+                          <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1.5">Solicitada</p>
+                          <div className="bg-gray-50 px-4 py-2.5 rounded-xl text-sm font-black text-gray-400 border border-transparent">{comp.quantidade}</div>
+                        </div>
+                        <div>
+                          <p className={`text-[8px] font-black ${isDivergent ? 'text-orange-600' : 'text-emerald-600'} uppercase tracking-widest mb-1.5`}>Separada (Lupa)</p>
+                          <input
+                            type="number"
+                            className={`w-full bg-white border px-4 py-2 rounded-xl text-sm font-black outline-none transition-all ${isDivergent ? 'border-orange-200 text-orange-600 focus:ring-orange-50' : 'border-emerald-100 text-emerald-600 focus:ring-emerald-50'}`}
+                            value={comp.qtd_separada ?? 0}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              const newComp = [...lupaItem.composicao];
+                              newComp[idx] = { ...newComp[idx], qtd_separada: val, concluido: true };
+                              const totalSep = newComp.reduce((sum, c) => sum + (c.qtd_separada || 0), 0);
+                              if (!selectedOP) return;
+                              const newItens = selectedOP.rawItens.map(i => i.codigo === lupaItem.codigo ? { ...i, composicao: newComp, qtd_separada: totalSep } : i);
+                              setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
+                              setLupaItem({ ...lupaItem, composicao: newComp, qtd_separada: totalSep });
+                            }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
             <div className="p-8 bg-gray-50/50 border-t border-gray-100 flex flex-col gap-4">
               <div className="flex justify-between items-center px-2">
                 <p className="text-[10px] font-black text-gray-400 uppercase">Total Distribuído</p>
-                <p className="text-lg font-black text-emerald-600">
-                  {(lupaItem.composicao || []).reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0)}
-                </p>
+                <p className="text-lg font-black text-emerald-600">{(lupaItem.composicao || []).reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0)}</p>
               </div>
-              <button
-                onClick={() => { setShowLupaModal(false); setLupaItem(null); }}
-                className="w-full py-5 bg-[#111827] text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black active:scale-95 transition-all"
-              >
-                Confirmar Distribuição
-              </button>
+              <button onClick={() => { setShowLupaModal(false); setLupaItem(null); }} className="w-full py-5 bg-[#111827] text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black active:scale-95 transition-all">Confirmar Distribuição</button>
             </div>
           </div>
         </div>
-      )
-      }
+      )}
 
       {showObsModal && obsItem && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center animate-fadeIn">
@@ -627,7 +598,6 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
               </div>
               <button onClick={() => setShowObsModal(false)} className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-xs font-black text-gray-300 hover:bg-gray-100 hover:text-gray-900 transition-all">✕</button>
             </div>
-
             <div className="max-h-96 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
               {(obsItem.composicao || []).map((comp: any, i: number) => (
                 <div key={i} className="space-y-3 p-6 bg-gray-50 rounded-3xl border border-gray-100">
@@ -643,13 +613,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                 </div>
               ))}
             </div>
-
-            <button
-              onClick={() => setShowObsModal(false)}
-              className="w-full py-5 bg-[#111827] text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black active:scale-95 transition-all"
-            >
-              Confirmar e Fechar
-            </button>
+            <button onClick={() => setShowObsModal(false)} className="w-full py-5 bg-[#111827] text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black active:scale-95 transition-all">Confirmar e Fechar</button>
           </div>
         </div>
       )}
@@ -665,7 +629,6 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
               </div>
               <button onClick={() => setShowOpListModal(false)} className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-xs font-black text-gray-300 hover:bg-gray-100 hover:text-gray-900 transition-all">✕</button>
             </div>
-
             <div className="max-h-96 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
               {selectedOpForList.ordens.map((opCode: string, i: number) => (
                 <div key={i} className="flex justify-between items-center p-4 bg-gray-50 rounded-2xl hover:bg-emerald-50 transition-colors group">
@@ -674,17 +637,11 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                 </div>
               ))}
             </div>
-
-            <button
-              onClick={() => setShowOpListModal(false)}
-              className="w-full py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
-            >
-              Fechar Lista
-            </button>
+            <button onClick={() => setShowOpListModal(false)} className="w-full py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all">Fechar Lista</button>
           </div>
         </div>
       )}
-    </div >
+    </div>
   );
 };
 

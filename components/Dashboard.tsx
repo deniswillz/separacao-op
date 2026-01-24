@@ -28,12 +28,23 @@ const Dashboard: React.FC = () => {
       const finalized = (sepData?.filter(d => d.status?.toLowerCase() === 'finalizado' || d.status?.toLowerCase() === 'concluido').length || 0) +
         (confData?.filter(d => d.status?.toLowerCase() === 'finalizado' || d.status?.toLowerCase() === 'concluido').length || 0);
 
-      // Extract current divergences from conferences
+      // Extract current divergences from conferences (Granular per OP)
       const currentDivergencias: any[] = [];
       (confData || []).forEach(conf => {
         if (conf.status !== 'Finalizado') {
           (conf.itens || []).forEach((item: any) => {
-            if (item.falta) {
+            (item.composicao || []).forEach((comp: any) => {
+              if (comp.falta_conf) {
+                currentDivergencias.push({
+                  op: comp.op,
+                  produto: `${item.codigo} - ${item.descricao}`,
+                  responsavel: conf.responsavel_conferencia || 'Não atribuído',
+                  motivo: comp.motivo_divergencia || 'Não especificado'
+                });
+              }
+            });
+            // Legacy check just in case
+            if (item.falta && (!item.composicao || item.composicao.length === 0)) {
               currentDivergencias.push({
                 op: item.op,
                 produto: `${item.codigo} - ${item.descricao}`,

@@ -72,14 +72,14 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
     setViewMode('list'); setSelectedItem(null);
   };
 
-  const handleToggleCheck = (sku: string, op: string, field: 'ok' | 'ok2' | 'falta') => {
+  const handleToggleCheck = async (sku: string, op: string, field: 'ok' | 'ok2' | 'falta') => {
     if (!selectedItem) return;
 
     if (field === 'falta') {
       const item = selectedItem.itens.find(i => i.codigo === sku);
       const comp = item?.composicao?.find((c: any) => c.op === op);
       if (comp && !comp.falta_conf) {
-        setDivItem({ ...item, op }); // Pass OP context
+        setDivItem({ ...item, op });
         setDivReason('');
         setShowDivModal(true);
         return;
@@ -91,7 +91,17 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
         const newComp = (item.composicao || []).map((c: any) => {
           if (c.op === op) {
             const f = field === 'ok' ? 'ok_conf' : field === 'ok2' ? 'ok2_conf' : 'falta_conf';
-            return { ...c, [f]: !c[f], ok_conf: field === 'falta' ? false : c.ok_conf, ok2_conf: field === 'falta' ? false : c.ok2_conf };
+            const newVal = !c[f];
+
+            // Sync logic: If TR (ok2) is checked, Visual (ok) must also be checked
+            const updatedOk = (field === 'ok2' && newVal) ? true : c.ok_conf;
+
+            return {
+              ...c,
+              [f]: newVal,
+              ok_conf: field === 'falta' ? false : (field === 'ok' ? newVal : updatedOk),
+              ok2_conf: field === 'falta' ? false : (field === 'ok2' ? newVal : c.ok2_conf)
+            };
           }
           return c;
         });
@@ -99,10 +109,13 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
       }
       return item;
     });
-    setSelectedItem({ ...selectedItem, itens: newItens });
+
+    const { error } = await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
+    if (!error) setSelectedItem({ ...selectedItem, itens: newItens });
+    else console.error('Erro ao sincronizar check:', error);
   };
 
-  const handleConfirmDivergencia = () => {
+  const handleConfirmDivergencia = async () => {
     if (!selectedItem || !divItem) return;
 
     const newItens = selectedItem.itens.map(item => {
@@ -131,9 +144,18 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
       return item;
     });
 
-    setSelectedItem({ ...selectedItem, itens: newItens });
-    setShowDivModal(false);
-    setDivItem(null);
+    const { error } = await supabase.from('conferencia').update({
+      itens: newItens,
+      status: 'Pendente' // Ensure status reflects activity
+    }).eq('id', selectedItem.id);
+
+    if (!error) {
+      setSelectedItem({ ...selectedItem, itens: newItens });
+      setShowDivModal(false);
+      setDivItem(null);
+    } else {
+      alert('Erro ao registrar divergência no banco: ' + error.message);
+    }
   };
 
   const handleSavePendency = async () => {
@@ -338,10 +360,12 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                               <p className="text-[9px] font-black text-blue-600 mt-1 uppercase">OP: {row.op}</p>
                             </td>
                             <td className="px-6 py-6 text-center text-sm font-black text-gray-400">
-                              {row.quantidade}
+                              {/* Always show what the OP originally asked for */}
+                              {row.original_solicitado || row.quantidade}
                             </td>
                             <td className="px-6 py-6 text-center text-sm font-black text-gray-900">
-                              {row.qtd_separada || row.quantidade}
+                              {/* This is what was actually separated and transmitted */}
+                              {row.quantidade}
                             </td>
                             <td className="px-10 py-6">
                               <div className="flex justify-center gap-2">
@@ -545,24 +569,30 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                       const blacklistItem = blacklist.find(b => b.codigo === item.codigo);
                       return !blacklistItem?.nao_sep;
                     })
-                    .map((item, idx) => (
+                    .flatMap(item => (item.composicao || []).map((comp: any) => ({ ...item, ...comp })))
+                    // Filter by OP if selected in status bar
+                    .filter(row => !selectedOpForDetail || row.op === selectedOpForDetail)
+                    .map((row, idx) => (
                       <tr key={idx} className="group">
                         <td className="py-4">
                           <input
                             type="checkbox"
-                            checked={item.ok2}
-                            onChange={() => handleToggleCheck(item.codigo, item.op, 'ok2')}
-                            className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            checked={row.ok2_conf}
+                            onChange={() => handleToggleCheck(row.codigo, row.op, 'ok2')}
+                            className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-50"
                           />
                         </td>
                         <td className="py-4">
-                          <p className="text-xs font-black text-gray-700 font-mono">{item.codigo}</p>
-                          <p className="text-[8px] font-bold text-gray-400">OP: {item.op}</p>
+                          <p className="text-xs font-black text-gray-700 font-mono">{row.codigo}</p>
+                          <p className="text-[8px] font-bold text-gray-400">OP: {row.op}</p>
                         </td>
-                        <td className="py-4 text-xs font-bold text-gray-400 uppercase">{item.descricao}</td>
-                        <td className="py-4 text-center text-xs font-black text-gray-700">{item.quantidade}</td>
-                        <td className={`py-4 text-center text-xs font-black ${item.qtd_separada < item.quantidade ? 'text-red-500' : 'text-gray-700'}`}>
-                          {item.qtd_separada || item.quantidade}
+                        <td className="py-4 text-xs font-bold text-gray-400 uppercase">{row.descricao}</td>
+                        <td className="py-4 text-center text-xs font-black text-gray-700">
+                          {/* Use original solicitado from OP */}
+                          {row.original_solicitado || row.quantidade}
+                        </td>
+                        <td className={`py-4 text-center text-xs font-black ${row.quantidade < (row.original_solicitado || row.quantidade) ? 'text-red-500' : 'text-gray-700'}`}>
+                          {row.quantidade}
                         </td>
                       </tr>
                     ))}
@@ -581,14 +611,16 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
             <div className="p-8 bg-gray-50 flex justify-end gap-4">
               <button onClick={() => setShowTransferList(false)} className="px-8 py-3 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-500 hover:bg-white shadow-sm transition-all">Fechar</button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (!selectedItem) return;
                   const newItens = selectedItem.itens.map(i => {
                     const blacklistItem = blacklist.find(b => b.codigo === i.codigo);
                     if (blacklistItem?.nao_sep) return i;
-                    return { ...i, ok2: true };
+                    const newComp = (i.composicao || []).map((c: any) => ({ ...c, ok2_conf: true, ok_conf: true }));
+                    return { ...i, composicao: newComp };
                   });
                   setSelectedItem({ ...selectedItem, itens: newItens });
+                  await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
                 }}
                 className="px-8 py-3 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-100 flex items-center gap-2 hover:bg-emerald-700 active:scale-95 transition-all"
               >
