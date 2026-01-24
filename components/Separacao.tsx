@@ -188,7 +188,14 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
 
     const updatedItens = selectedOP.rawItens.map((item: any) => {
       if (item.codigo === itemCodigo) {
-        return { ...item, [field]: value, falta: field === 'falta' ? value : item.falta };
+        let newItem = { ...item, [field]: value, falta: field === 'falta' ? value : item.falta };
+
+        // Sincronizar PICK manual com checklist da lupa (composicao)
+        if (field === 'separado' && value === true && newItem.composicao) {
+          newItem.composicao = newItem.composicao.map((c: any) => ({ ...c, concluido: true }));
+        }
+
+        return newItem;
       }
       return item;
     });
@@ -196,6 +203,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
     setSelectedOP({
       ...selectedOP,
       rawItens: updatedItens,
+      progresso: calculateProgress(updatedItens),
       separados: updatedItens.filter((i: any) => i.separado).length,
       transferidos: updatedItens.filter((i: any) => i.transferido).length,
       naoSeparados: updatedItens.filter((i: any) => i.falta).length
@@ -237,37 +245,61 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       return;
     }
 
-    // IGNORAR ITENS DA BLACKLIST (NÃO SEP) NA VALIDAÇÃO
+    // Validação: Itens processados (Separados OU Falta). Ignora-se Blacklist.
     const hasPending = selectedOP.rawItens.some(i => {
       const bl = blacklist.find(b => b.codigo === i.codigo);
-      if (bl?.nao_sep) return false; // Ignora se estiver na blacklist
-      return !i.separado || !i.transferido;
+      if (bl?.nao_sep) return false;
+      return !i.separado && !i.falta; // Agora permite OUT (falta) finalizar
     });
 
     if (hasPending) {
-      notify('❌ BLOQUEIO: Existem itens pendentes (ignora-se Blacklist).', 'error');
+      notify('❌ BLOQUEIO: Existem itens sem ação (PICK ou OUT).', 'error');
       return;
     }
 
     setIsSaving(true);
-    const { error } = await supabase
-      .from('separacao')
-      .update({
-        status: 'em_conferencia',
-        usuario_atual: null,
-        itens: selectedOP.rawItens,
-        nome: `${selectedOP.opCode} | DOC: ${docTransferencia}` // Guarda o DOC no nome do lote
-      })
-      .eq('id', selectedOP.id);
 
-    if (error) {
-      notify('Erro ao finalizar lote: ' + error.message, 'error');
-    } else {
+    const finalLotData = {
+      id: selectedOP.id,
+      documento: selectedOP.id.startsWith('LOTE-') ? selectedOP.id : `LOTE-${selectedOP.id}`,
+      nome: selectedOP.opCode,
+      armazem: selectedOP.armazem,
+      ordens: selectedOP.ordens,
+      itens: selectedOP.rawItens,
+      status: 'Aguardando',
+      data_conferencia: new Date().toISOString(),
+      responsavel_conferencia: null,
+      transferencia_doc: docTransferencia
+    };
+
+    try {
+      // 1. Inserir/Atualizar na tabela de conferencia
+      const { error: insertError } = await supabase
+        .from('conferencia')
+        .upsert([finalLotData]);
+
+      if (insertError) throw insertError;
+
+      // 2. Atualizar status na tabela de separacao
+      const { error: updateError } = await supabase
+        .from('separacao')
+        .update({
+          status: 'em_conferencia',
+          usuario_atual: null,
+          itens: selectedOP.rawItens
+        })
+        .eq('id', selectedOP.id);
+
+      if (updateError) throw updateError;
+
       notify('Lote enviado para CONFERÊNCIA!', 'success');
       setViewMode('list');
       setSelectedOP(null);
+    } catch (error: any) {
+      notify('Erro ao finalizar fluxo: ' + error.message, 'error');
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   const toggleBreakdownItem = (idx: number) => {
@@ -359,8 +391,8 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
         <div className="space-y-6 animate-fadeIn pb-20">
           {/* Modal Lupa (Breakdown per OP) */}
           {selectedItemForBreakdown && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-              <div className="bg-white rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-scaleIn flex flex-col max-h-[90vh]">
+            <div className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4 animate-fadeIn">
+              <div className="bg-white rounded-[2.5rem] w-full max-w-2xl overflow-hidden shadow-2xl animate-scaleIn flex flex-col max-h-[90vh] border border-gray-100">
                 <div className="bg-gray-900 px-8 py-5 flex justify-between items-center text-white shrink-0">
                   <h3 className="text-base font-extrabold uppercase tracking-tight">Distribuição por OP</h3>
                   <button onClick={() => setSelectedItemForBreakdown(null)} className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all text-sm">✕</button>
@@ -586,11 +618,13 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                 className={`bg-white p-5 rounded-[2rem] border-2 transition-all flex flex-col justify-between h-[28rem] relative overflow-hidden ${isLocked ? 'grayscale opacity-60 border-gray-200' : `hover:shadow-2xl ${getStatusBorder(op)}`}`}
               >
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center text-left">
-                    <span className="text-xl font-black text-gray-300 tracking-tighter">ID {op.id.toString().slice(0, 4)}</span>
-                    <span className={`text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${op.urgencia === 'urgencia' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                      {op.urgencia}
-                    </span>
+                  <div className="flex justify-between items-center text-left mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-black text-gray-400 tracking-tighter shrink-0">ID {op.id.toString().slice(0, 5)}</span>
+                      <span className={`text-[7px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest ${op.urgencia === 'urgencia' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                        {op.urgencia}
+                      </span>
+                    </div>
                   </div>
 
                   {user.role === 'admin' && (
