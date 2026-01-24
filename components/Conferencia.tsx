@@ -54,8 +54,8 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
           itensOk: item.itens_ok || '0/0', // Será calculado dinamicamente no detalhe
           usuarioAtual: item.responsavel_conferencia,
           itens: item.itens || [],
-          // Campo novo
-          docTransferencia: item.documento_transferencia || ''
+          // Campo novo ajustado
+          docTransferencia: item.transferencia || ''
         }));
         setConferences(formattedConfs);
       }

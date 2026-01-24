@@ -127,7 +127,7 @@ const Blacklist: React.FC<{ user: User }> = ({ user }) => {
             <tr className="bg-gray-50 text-[10px] font-black text-gray-300 uppercase tracking-widest border-b border-gray-100">
               <th className="px-8 py-6">PRODUTO</th>
               <th className="px-6 py-6 text-center">NÃO SEPARAR</th>
-              <th className="px-6 py-6 text-center">AUDITORIA</th>
+              <th className="px-6 py-6 text-center">TALVEZ</th>
               <th className="px-8 py-6 text-right">AÇÕES</th>
             </tr>
           </thead>
