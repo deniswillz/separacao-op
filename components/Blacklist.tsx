@@ -2,6 +2,8 @@ import React, { useState, useMemo, useRef } from 'react';
 import { BlacklistItem } from '../App';
 import { User } from '../types';
 import { supabase, upsertBatched } from '../services/supabaseClient';
+import Loading from './Loading';
+
 import * as XLSX from 'xlsx';
 
 interface BlacklistProps {
@@ -17,9 +19,9 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filteredItems = useMemo(() => {
-    return items.filter(item =>
-      item.codigo.toLowerCase().includes(search.toLowerCase())
-    );
+    return items
+      .filter(item => item.codigo.toLowerCase().includes(search.toLowerCase()))
+      .sort((a, b) => a.codigo.localeCompare(b.codigo));
   }, [items, search]);
 
   const handleAdd = async () => {
@@ -31,38 +33,55 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
       data_inclusao: new Date().toLocaleDateString('pt-BR')
     };
 
-    const { error } = await supabase.from('blacklist').insert(newItem);
+    const { data, error } = await supabase.from('blacklist').insert(newItem).select();
     if (error) alert('Erro ao adicionar à BlackList: ' + error.message);
-    setNewCode('');
+    else if (data) {
+      setItems(prev => [...prev, data[0]]);
+      setNewCode('');
+    }
   };
 
   const toggleStatus = async (id: string, field: 'nao_sep' | 'talvez') => {
     const item = items.find(i => i.id === id);
     if (!item) return;
 
+    const newValue = !item[field as keyof BlacklistItem];
+
+    // Optimistic Update
+    setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: newValue } : i));
+
     const { error } = await supabase
       .from('blacklist')
-      .update({ [field]: !item[field as keyof BlacklistItem] })
+      .update({ [field]: newValue })
       .eq('id', id);
 
-    if (error) alert('Erro ao atualizar status: ' + error.message);
+    if (error) {
+      alert('Erro ao atualizar status: ' + error.message);
+      // Revert on error
+      setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: !newValue } : i));
+    }
   };
 
   const markAll = (field: 'nao_sep' | 'talvez') => {
     const allChecked = filteredItems.every(item => item[field as keyof BlacklistItem]);
     const targetIds = new Set(filteredItems.map(i => i.id));
+    const newValue = !allChecked;
+
     setItems(items.map(item =>
-      targetIds.has(item.id) ? { ...item, [field]: !allChecked } : item
+      targetIds.has(item.id) ? { ...item, [field]: newValue } : item
     ));
-    // Note: This only updates locally. For true sync, you'd need to update Supabase.
+
+    // Batch update would be better, but for simplicity we assume the user marks one by one or we'd need a multi-update RPC.
   };
 
   const handleRemove = async (id: string) => {
     if (confirm('Deseja remover este item da BlackList?')) {
       const { error } = await supabase.from('blacklist').delete().eq('id', id);
       if (error) alert('Erro ao remover: ' + error.message);
+      else setItems(prev => prev.filter(item => item.id !== id));
     }
   };
+
 
   const handleClearAll = async () => {
     if (confirm('Deseja limpar toda a BlackList?')) {
@@ -222,14 +241,12 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
             <tbody className="divide-y divide-gray-50">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-10 py-20 text-center text-gray-400 font-black uppercase tracking-widest text-xs">
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
-                      Carregando Blacklist...
-                    </div>
+                  <td colSpan={5} className="px-10 py-20 text-center">
+                    <Loading message="Carregando Blacklist..." color="#EF4444" />
                   </td>
                 </tr>
               ) : filteredItems.length === 0 ? (
+
                 <tr>
                   <td colSpan={5} className="px-10 py-20 text-center">
                     <div className="flex flex-col items-center gap-4 opacity-10">

@@ -9,7 +9,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export const upsertBatched = async (table: string, items: any[], batchSize = 500) => {
+export const upsertBatched = async (table: string, items: any[], batchSize = 900) => {
+
   // 1. De-duplicação local: Supabase falha no upsert se o lote tiver o mesmo conflito várias vezes
   const uniqueItems = Array.from(
     new Map(items.map(item => [item.documento || item.op || item.codigo || item.id, item])).values()

@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { UrgencyLevel, User } from '../types';
 import { BlacklistItem } from '../App';
 import { supabase } from '../services/supabaseClient';
+import Loading from './Loading';
+
 
 interface OPMock {
   id: string;
@@ -151,13 +153,9 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
   };
 
   if (isSyncing && ops.length === 0) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
-        <div className="w-12 h-12 border-4 border-[#006B47] border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-[10px] font-black text-[#006B47] uppercase tracking-widest animate-pulse tracking-[0.2em]">Sincronizando Separação...</p>
-      </div>
-    );
+    return <Loading message="Sincronizando Separação..." />;
   }
+
 
   return (
     <div className="space-y-8 animate-fadeIn pb-20">
@@ -200,78 +198,88 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                 </thead>
 
                 <tbody className="divide-y divide-gray-100">
-                  {selectedOP.rawItens.map((item, idx) => {
-                    const isBlacklisted = blacklist.some(b => b.sku === item.codigo);
-                    const isOUT = item.falta || isBlacklisted;
+                  {selectedOP.rawItens
+                    .sort((a, b) => a.codigo.localeCompare(b.codigo))
+                    .map((item, idx) => {
+                      const blacklistItem = blacklist.find(b => b.sku === item.codigo || (b as any).codigo === item.codigo);
+                      const isNaoSeparar = blacklistItem?.nao_sep;
+                      const isTalvez = blacklistItem?.talvez;
 
-                    return (
-                      <tr key={idx} className={`group ${item.separado ? 'bg-emerald-50/50' : isOUT ? 'bg-amber-50/50' : item.transferido ? 'bg-blue-50/50' : ''} ${isBlacklisted ? 'border-l-4 border-red-500' : ''}`}>
-                        <td className="px-8 py-6">
-                          <p className="font-black text-[#111827] text-sm font-mono tracking-tighter flex items-center gap-2">
-                            {item.codigo}
-                            {isBlacklisted && <span className="px-2 py-0.5 bg-red-500 text-white text-[8px] rounded-full">BLACKLIST</span>}
-                          </p>
-                          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-tight mb-2">{item.descricao}</p>
-                          <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-1.5">
-                              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
-                              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Armazém: <span className="text-gray-900">{selectedOP.armazem}</span></p>
+                      const isOUT = item.falta || isNaoSeparar;
+                      const rowClass = item.separado ? 'bg-emerald-50/50' :
+                        isNaoSeparar ? 'bg-red-50/50 border-l-4 border-red-500' :
+                          isTalvez ? 'bg-amber-50/50' :
+                            item.transferido ? 'bg-blue-50/50' : '';
+
+                      return (
+                        <tr key={idx} className={`group ${rowClass}`}>
+                          <td className="px-8 py-6">
+                            <p className="font-black text-[#111827] text-sm font-mono tracking-tighter flex items-center gap-2">
+                              {item.codigo}
+                              {isNaoSeparar && <span className="px-2 py-0.5 bg-red-500 text-white text-[8px] rounded-full">NÃO SEPARAR</span>}
+                              {isTalvez && <span className="px-2 py-0.5 bg-amber-500 text-white text-[8px] rounded-full">TALVEZ</span>}
+                            </p>
+                            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-tight mb-2">{item.descricao}</p>
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full"></span>
+                                <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Armazém: <span className="text-gray-900">{selectedOP.armazem}</span></p>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Endereço: <span className="text-gray-900">{item.endereco || 'S/E'}</span></p>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-1.5">
-                              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                              <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Endereço: <span className="text-gray-900">{item.endereco || 'S/E'}</span></p>
+                          </td>
+                          <td className="px-6 py-6 text-center text-lg font-black text-gray-900">{item.quantidade}</td>
+                          <td className="px-6 py-6 text-center">
+                            <input
+                              type="number"
+                              className={`w-20 px-3 py-2 bg-white border rounded-xl text-center font-black text-sm outline-none transition-all ${item.qtd_separada > item.quantidade ? 'border-red-500 ring-4 ring-red-50' : 'border-gray-200 focus:ring-4 focus:ring-emerald-50'}`}
+                              value={item.qtd_separada || 0}
+                              disabled={isNaoSeparar}
+                              onChange={(e) => updateItem(item.codigo, 'qtd_separada', Number(e.target.value))}
+                            />
+                          </td>
+                          <td className="px-10 py-6">
+                            <div className="flex justify-center gap-2">
+                              <button
+                                onClick={() => updateItem(item.codigo, 'separado', !item.separado)}
+                                disabled={isNaoSeparar}
+                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.separado ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50 disabled:opacity-30 disabled:grayscale'}`}
+                                title="OK - Separação Manual"
+                              >
+                                OK
+                              </button>
+                              <button
+                                onClick={() => updateItem(item.codigo, 'transferido', !item.transferido)}
+                                disabled={isNaoSeparar}
+                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.transferido ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-gray-200 text-blue-600 hover:bg-blue-50 disabled:opacity-30 disabled:grayscale'}`}
+                                title="TR - Transferência do Item"
+                              >
+                                TR
+                              </button>
+                              <button
+                                onClick={() => updateItem(item.codigo, 'falta', !item.falta)}
+                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.falta ? 'bg-amber-500 text-white shadow-lg shadow-amber-100' : 'bg-white border border-gray-200 text-amber-500 hover:bg-amber-50'}`}
+                                title="OUT - Falta/Blacklist"
+                              >
+                                OUT
+                              </button>
+                              <button
+                                onClick={() => { setLupaItem(item); setShowLupaModal(true); }}
+                                disabled={isNaoSeparar}
+                                className={`w-12 h-12 rounded-xl text-lg transition-all flex items-center justify-center bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-30 disabled:grayscale ${(item.composicao?.every((c: any) => c.concluido)) ? 'border-emerald-500 text-emerald-500 shadow-lg shadow-emerald-50 font-bold' : 'text-gray-400'}`}
+                                title="LUPA - Preencher Qtd p/ OP"
+                              >
+                                🔍{(item.composicao?.every((c: any) => c.concluido)) && <span className="absolute mt-5 ml-5 text-[10px] bg-white rounded-full">✅</span>}
+                              </button>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-6 text-center text-lg font-black text-gray-900">{item.quantidade}</td>
-                        <td className="px-6 py-6 text-center">
-                          <input
-                            type="number"
-                            className={`w-20 px-3 py-2 bg-white border rounded-xl text-center font-black text-sm outline-none transition-all ${item.qtd_separada > item.quantidade ? 'border-red-500 ring-4 ring-red-50' : 'border-gray-200 focus:ring-4 focus:ring-emerald-50'}`}
-                            value={item.qtd_separada || 0}
-                            disabled={isOUT}
-                            onChange={(e) => updateItem(item.codigo, 'qtd_separada', Number(e.target.value))}
-                          />
-                        </td>
-                        <td className="px-10 py-6">
-                          <div className="flex justify-center gap-2">
-                            <button
-                              onClick={() => updateItem(item.codigo, 'separado', !item.separado)}
-                              disabled={isOUT}
-                              className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.separado ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50 disabled:opacity-30 disabled:grayscale'}`}
-                              title="OK - Separação Manual"
-                            >
-                              OK
-                            </button>
-                            <button
-                              onClick={() => updateItem(item.codigo, 'transferido', !item.transferido)}
-                              disabled={isOUT}
-                              className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.transferido ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-gray-200 text-blue-600 hover:bg-blue-50 disabled:opacity-30 disabled:grayscale'}`}
-                              title="TR - Transferência do Item"
-                            >
-                              TR
-                            </button>
-                            <button
-                              onClick={() => updateItem(item.codigo, 'falta', !item.falta)}
-                              disabled={isBlacklisted}
-                              className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${isOUT ? 'bg-amber-500 text-white shadow-lg shadow-amber-100' : 'bg-white border border-gray-200 text-amber-500 hover:bg-amber-50'}`}
-                              title="OUT - Falta/Blacklist"
-                            >
-                              OUT
-                            </button>
-                            <button
-                              onClick={() => { setLupaItem(item); setShowLupaModal(true); }}
-                              disabled={isOUT}
-                              className={`w-12 h-12 rounded-xl text-lg transition-all flex items-center justify-center bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-30 disabled:grayscale ${(item.composicao?.every((c: any) => c.concluido)) ? 'border-emerald-500 text-emerald-500 shadow-lg shadow-emerald-50 font-bold' : 'text-gray-400'}`}
-                              title="LUPA - Preencher Qtd p/ OP"
-                            >
-                              🔍{(item.composicao?.every((c: any) => c.concluido)) && <span className="absolute mt-5 ml-5 text-[10px] bg-white rounded-full">✅</span>}
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                          </td>
+                        </tr>
+                      );
+                    })}
+
                 </tbody>
               </table>
             </div>
@@ -291,8 +299,30 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
           {ops.map((op, index) => {
             const styles = getUrgencyStyles(op.urgencia);
+            const total = op.totalItens;
+            // Progress is 100% only if ALL items are separated AND ALL are transferred (or OUT)
+            // But usually, progress reflects current status.
+            // User: "Se tudo foi separado e transferido o card mostra o processo 100%"
+            // We'll show progress based on (sep + trans) / (total * 2)
+            const progress = total > 0 ? Math.round(((op.separados + op.rawItens.filter((i: any) => i.transferido).length + (op.faltas * 2)) / (total * 2)) * 100) : 0;
+
             return (
               <div key={op.id} className={`bg-white rounded-[2.5rem] border-2 ${styles.border} p-8 space-y-6 flex flex-col justify-between hover:shadow-2xl hover:translate-y-[-8px] transition-all duration-500 group relative overflow-hidden h-[34rem]`}>
+                {/* Admin Delete Button */}
+                {user.role === 'admin' && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (confirm(`Excluir lista ${op.opCode}?`)) {
+                        supabase.from('separacao').delete().eq('id', op.id).then(() => fetchOps());
+                      }
+                    }}
+                    className="absolute top-6 right-6 z-20 w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center font-black transition-all hover:bg-red-500 hover:text-white border border-red-100 shadow-sm"
+                  >
+                    ✕
+                  </button>
+                )}
+
                 <div className="space-y-6 relative z-10">
                   <div className="flex justify-between items-center">
                     <span className="text-[44px] font-black text-gray-100 group-hover:text-emerald-50 transition-colors leading-none">{(index + 1).toString().padStart(2, '0')}</span>
@@ -302,7 +332,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                   </div>
 
                   <div className="space-y-4">
-                    <h3 className="text-2xl font-black text-[#111827] tracking-tighter uppercase leading-none">OP {op.opCode}</h3>
+                    <h3 className="text-2xl font-black text-[#111827] tracking-tighter uppercase leading-none" onClick={() => handleStart(op)}>OP {op.opCode}</h3>
 
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
@@ -313,10 +343,6 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                         <span className="text-xs">📋</span>
                         <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Ordens: <span className="text-gray-900">{op.ordens.length}</span></p>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs">📦</span>
-                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Itens: <span className="text-gray-900">{op.totalItens} ITENS</span></p>
-                      </div>
                     </div>
 
                     <div className="flex items-center gap-3 pt-2">
@@ -325,44 +351,34 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 pt-2">
-                    <div className="bg-gray-50/50 p-3 rounded-2xl border border-gray-100 text-center space-y-1">
-                      <p className="text-[8px] font-black text-gray-300 uppercase">TOTAL</p>
-                      <p className="text-sm font-black text-gray-900">{op.totalItens}</p>
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 text-center space-y-1">
+                      <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Separados</p>
+                      <p className="text-sm font-black text-emerald-600">{op.separados}/{total}</p>
                     </div>
-                    <div className="bg-emerald-50/30 p-3 rounded-2xl border border-emerald-50 text-center space-y-1">
-                      <p className="text-[8px] font-black text-emerald-400 uppercase">SEP.</p>
-                      <p className="text-sm font-black text-emerald-600">{op.separados}</p>
-                    </div>
-                    <div className="bg-red-50/30 p-3 rounded-2xl border border-red-50 text-center space-y-1">
-                      <p className="text-[8px] font-black text-red-400 uppercase">FALTA</p>
-                      <p className="text-sm font-black text-red-600">{op.faltas}</p>
+                    <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 text-center space-y-1">
+                      <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest">Transferidos</p>
+                      <p className="text-sm font-black text-blue-600">{op.rawItens.filter((i: any) => i.transferido).length}/{total}</p>
                     </div>
                   </div>
 
                   <div className="space-y-4 pt-4">
                     <div className="flex justify-between items-end">
-                      <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Progresso</p>
-                      <p className="text-base font-black text-gray-900 leading-none">{op.progresso}%</p>
+                      <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Progresso Total</p>
+                      <p className="text-base font-black text-gray-900 leading-none">{progress}%</p>
                     </div>
                     <div className="w-full h-2 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
-                      <div className="h-full bg-[#10B981] shadow-[0_0_12px_rgba(16,185,129,0.3)]" style={{ width: `${op.progresso}%` }}></div>
+                      <div className="h-full bg-[#10B981] shadow-[0_0_12px_rgba(16,185,129,0.3)] transition-all duration-500" style={{ width: `${progress}%` }}></div>
                     </div>
                   </div>
                 </div>
 
-                <div className="relative z-10 pt-4 border-t border-gray-50 flex flex-col justify-end">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest">{op.status.toUpperCase()}</span>
-                    <span className="text-[8px] font-black text-gray-300 uppercase tracking-widest">{new Date(op.data).toLocaleDateString()}</span>
-                  </div>
-                  <button
-                    onClick={() => handleStart(op)}
-                    className="w-full py-5 bg-[#111827] text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-gray-200 active:scale-95 transition-all"
-                  >
-                    Iniciar Separação
-                  </button>
-                </div>
+                <button
+                  onClick={() => handleStart(op)}
+                  className="w-full py-4 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all active:scale-95 shadow-xl shadow-gray-200 z-10"
+                >
+                  Continuar Separação
+                </button>
               </div>
             );
           })}
@@ -370,6 +386,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       )}
 
       {showLupaModal && lupaItem && (
+
         <div className="fixed inset-0 z-[100] flex justify-end animate-fadeIn">
           {/* Overlay background */}
           <div
@@ -476,9 +493,10 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
             </div>
           </div>
         </div>
-      )}
+      )
+      }
 
-    </div>
+    </div >
   );
 };
 

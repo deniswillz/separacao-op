@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { supabase } from '../services/supabaseClient';
+import Loading from './Loading';
+
 
 interface ConfItem {
   id: string;
@@ -41,9 +43,11 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
       alert(`⚠️ Bloqueio: Em uso por "${item.responsavel_conferencia}"`);
       return;
     }
+    const sortedItens = (item.itens || []).sort((a: any, b: any) => a.codigo.localeCompare(b.codigo));
     await supabase.from('conferencia').update({ responsavel_conferencia: user.nome, status: 'Em Conferência' }).eq('id', item.id);
-    setSelectedItem({ ...item, responsavel_conferencia: user.nome, status: 'Em Conferência' });
+    setSelectedItem({ ...item, itens: sortedItens, responsavel_conferencia: user.nome, status: 'Em Conferência' });
     setViewMode('detail');
+
   };
 
   const handleBack = async () => {
@@ -52,13 +56,9 @@ const Conferencia: React.FC<{ user: User }> = ({ user }) => {
   };
 
   if (isLoading && items.length === 0) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
-        <div className="w-12 h-12 border-4 border-[#006B47] border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-[10px] font-black text-[#006B47] uppercase tracking-widest animate-pulse tracking-[0.2em]">Sincronizando Conferência...</p>
-      </div>
-    );
+    return <Loading message="Sincronizando Conferência..." />;
   }
+
 
   return (
     <div className="space-y-8 animate-fadeIn pb-20">

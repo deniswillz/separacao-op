@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { supabase } from '../services/supabaseClient';
+import Loading from './Loading';
+
 
 interface FinishedOP {
   id: string;
@@ -26,15 +28,19 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
     const { data, error } = await supabase.from('historico').select('*').order('id', { ascending: false });
     if (error) console.error(error);
     else if (data) {
-      setHistory(data.map((item: any) => ({
-        ...item,
-        opRange: item.opRange || item.documento, // Fallback
-        dataFinalizacao: item.data_finalizacao || item.data || new Date().toISOString(),
-        totalItens: item.totalItens || (Array.isArray(item.itens) ? item.itens.length : 0)
-      })));
+      const sortedHistory = data
+        .map((item: any) => ({
+          ...item,
+          opRange: item.opRange || item.documento, // Fallback
+          dataFinalizacao: item.data_finalizacao || item.data || new Date().toISOString(),
+          totalItens: item.totalItens || (Array.isArray(item.itens) ? item.itens.length : 0)
+        }))
+        .sort((a: any, b: any) => a.documento.localeCompare(b.documento));
+      setHistory(sortedHistory);
     }
     setIsLoading(false);
   };
+
 
   useEffect(() => {
     fetchHistory();
@@ -43,13 +49,9 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
   }, []);
 
   if (isLoading && history.length === 0) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
-        <div className="w-12 h-12 border-4 border-[#006B47] border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-[10px] font-black text-[#006B47] uppercase tracking-widest animate-pulse tracking-[0.2em]">Sincronizando Auditoria...</p>
-      </div>
-    );
+    return <Loading message="Sincronizando Auditoria..." />;
   }
+
 
   return (
     <div className="space-y-12 animate-fadeIn pb-20">

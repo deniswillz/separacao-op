@@ -2,7 +2,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User } from '../types';
 import { supabase, upsertBatched } from '../services/supabaseClient';
+import Loading from './Loading';
 import * as XLSX from 'xlsx';
+
 
 interface TEAItem {
   id: string;
@@ -47,9 +49,10 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
           ultima_atualizacao: item.updated_at || item.data_finalizacao || item.data_conferencia || new Date().toISOString(),
           itens: itensArr
         };
-      });
+      }).sort((a: any, b: any) => a.documento.localeCompare(b.documento));
       setHistory(formattedData);
     }
+
 
     setIsLoading(false);
   };
@@ -169,68 +172,79 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {filteredHistory.map((item) => {
-          const badge = getStatusBadge(item.itens);
-          const isQualidade = item.status_atual?.includes('Qualidade') || item.itens.some(i => i.status === 'Qualidade');
-          const isConcuidado = item.status_atual === 'CONCLUÍDO';
+        {isLoading ? (
+          <div className="col-span-full">
+            <Loading message="Sincronizando Matriz x Filial..." />
+          </div>
+        ) : filteredHistory.length === 0 ? (
+          <div className="col-span-full py-20 text-center space-y-4">
+            <p className="text-xs font-black text-gray-200 uppercase tracking-[0.4em]">Nenhum registro encontrado</p>
+          </div>
+        ) : (
+          filteredHistory.map((item) => {
+            const badge = getStatusBadge(item.itens);
+            const isQualidade = item.status_atual?.includes('Qualidade') || item.itens.some(i => i.status === 'Qualidade');
+            const isConcuidado = item.status_atual === 'CONCLUÍDO';
 
-          return (
-            <div key={item.id} className="bg-white rounded-[2.5rem] border p-8 flex flex-col justify-between h-[30rem] shadow-sm hover:shadow-xl transition-all relative group overflow-hidden">
-              <div className="space-y-5 relative z-10">
-                <div className="flex justify-between items-start">
+            return (
+              <div key={item.id} className="bg-white rounded-[2.5rem] border p-8 flex flex-col justify-between h-[30rem] shadow-sm hover:shadow-xl transition-all relative group overflow-hidden">
+                <div className="space-y-5 relative z-10">
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-black text-gray-900">OP: {item.documento}</p>
+                      <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase ${badge.color}`}>
+                        <span>{badge.icon}</span> {badge.label}
+                      </div>
+                    </div>
+                    <button onClick={() => deleteItem(item.id)} className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all">✕</button>
+                  </div>
+
                   <div className="space-y-1">
-                    <p className="text-[11px] font-black text-gray-900">OP: {item.documento}</p>
-                    <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase ${badge.color}`}>
-                      <span>{badge.icon}</span> {badge.label}
+                    <p className="text-[11px] font-black text-blue-600 font-mono tracking-tighter">{item.produto}</p>
+                    <p className="text-[11px] font-bold text-gray-400 uppercase leading-snug line-clamp-3 h-12">{item.descricao}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 border-y py-4">
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-black text-gray-300 uppercase">Qtd Sol.</p>
+                      <p className="text-sm font-black text-gray-800">{item.quantidade}</p>
+                    </div>
+                    <div className="space-y-1 border-l pl-4">
+                      <p className="text-[9px] font-black text-gray-300 uppercase">Prioridade</p>
+                      <p className="text-sm font-black text-gray-800">{item.prioridade}</p>
                     </div>
                   </div>
-                  <button onClick={() => deleteItem(item.id)} className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all">✕</button>
-                </div>
 
-                <div className="space-y-1">
-                  <p className="text-[11px] font-black text-blue-600 font-mono tracking-tighter">{item.produto}</p>
-                  <p className="text-[11px] font-bold text-gray-400 uppercase leading-snug line-clamp-3 h-12">{item.descricao}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 border-y py-4">
-                  <div className="space-y-1">
-                    <p className="text-[9px] font-black text-gray-300 uppercase">Qtd Sol.</p>
-                    <p className="text-sm font-black text-gray-800">{item.quantidade}</p>
-                  </div>
-                  <div className="space-y-1 border-l pl-4">
-                    <p className="text-[9px] font-black text-gray-300 uppercase">Prioridade</p>
-                    <p className="text-sm font-black text-gray-800">{item.prioridade}</p>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs">🔄</span>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase">Última atualização: {new Date(item.ultima_atualizacao!).toLocaleString('pt-BR')}</p>
+                    </div>
+                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{item.status_atual}</p>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs">🔄</span>
-                    <p className="text-[9px] font-bold text-gray-400 uppercase">Última atualização: {new Date(item.ultima_atualizacao!).toLocaleString('pt-BR')}</p>
-                  </div>
-                  <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{item.status_atual}</p>
+                <div className="relative z-10">
+                  {isConcuidado ? (
+                    <div className="w-full py-4 bg-emerald-50 text-emerald-600 rounded-2xl font-black text-[10px] uppercase text-center border border-emerald-100">Finalizado ✅</div>
+                  ) : (
+                    <button
+                      disabled={!isQualidade}
+                      onClick={() => updateStatus(item, 'Recebido', '🏁', 'CONCLUÍDO')}
+                      className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase transition-all ${isQualidade ? 'bg-gray-900 text-white hover:bg-black active:scale-95 shadow-xl shadow-gray-200' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+                    >
+                      {isQualidade ? 'Confirmar Recebimento' : 'Aguardando Qualidade...'}
+                    </button>
+                  )}
                 </div>
+
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gray-50 rounded-bl-full z-0 group-hover:bg-blue-50/50 transition-colors"></div>
               </div>
-
-              <div className="relative z-10">
-                {isConcuidado ? (
-                  <div className="w-full py-4 bg-emerald-50 text-emerald-600 rounded-2xl font-black text-[10px] uppercase text-center border border-emerald-100">Finalizado ✅</div>
-                ) : (
-                  <button
-                    disabled={!isQualidade}
-                    onClick={() => updateStatus(item, 'Recebido', '🏁', 'CONCLUÍDO')}
-                    className={`w-full py-4 rounded-2xl font-black text-[10px] uppercase transition-all ${isQualidade ? 'bg-gray-900 text-white hover:bg-black active:scale-95 shadow-xl shadow-gray-200' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
-                  >
-                    {isQualidade ? 'Confirmar Recebimento' : 'Aguardando Qualidade...'}
-                  </button>
-                )}
-              </div>
-
-              <div className="absolute top-0 right-0 w-24 h-24 bg-gray-50 rounded-bl-full z-0 group-hover:bg-blue-50/50 transition-colors"></div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
+
     </div>
   );
 };

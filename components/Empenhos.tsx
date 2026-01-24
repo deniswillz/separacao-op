@@ -74,49 +74,71 @@ const Empenhos: React.FC = () => {
     setIsGenerating(true);
     const selectedOps = ops.filter(op => selectedIds.includes(op.id));
 
-    const lotsToInsert = selectedOps.map(op => {
-      const formattedItens = op.itens.map(item => ({
-        ...item,
-        separado: false,
-        transferido: false,
-        falta: false,
-        qtd_separada: 0,
-        composicao: [{ op: op.id, quantidade: item.quantidade, concluido: false }]
-      }));
+    // 1. Consolidação: Agrupar todos os itens de todas as OPs selecionadas
+    const consolidatedMap: { [key: string]: any } = {};
 
-      return {
-        documento: `OP-${op.id}`,
-        nome: op.id,
-        armazem: globalWarehouse,
-        ordens: [op.id],
-        itens: formattedItens,
-        status: 'pendente',
-        data_criacao: new Date().toISOString()
-      };
+    selectedOps.forEach(op => {
+      op.itens.forEach(item => {
+        if (!consolidatedMap[item.codigo]) {
+          consolidatedMap[item.codigo] = {
+            ...item,
+            separado: false,
+            transferido: false,
+            falta: false,
+            qtd_separada: 0,
+            composicao: []
+          };
+        }
+        consolidatedMap[item.codigo].quantidade += item.quantidade;
+        consolidatedMap[item.codigo].composicao.push({
+          op: op.id,
+          quantidade: item.quantidade,
+          concluido: false
+        });
+      });
     });
 
-    try {
-      await upsertBatched('separacao', lotsToInsert, 500);
+    // 2. Ordenar A-Z por código
+    const consolidatedItens = Object.values(consolidatedMap).sort((a, b) =>
+      a.codigo.localeCompare(b.codigo)
+    );
 
-      // TEA Sync: Individual cards for TEA - using only existing columns
-      const teaRecords = selectedOps.map(op => ({
-        documento: op.id,
-        nome: op.id,
+    // 3. Criar registro ÚNICO de lote no banco
+    const opCodes = selectedOps.map(op => op.id);
+    const firstOp = opCodes[0];
+    const lotName = opCodes.length > 1 ? `${firstOp}... (+${opCodes.length - 1})` : firstOp;
+
+    const lotToInsert = {
+      documento: opCodes.length > 1 ? `LOTE-${new Date().getTime().toString().slice(-6)}` : `OP-${firstOp}`,
+      nome: lotName,
+      armazem: globalWarehouse,
+      ordens: opCodes,
+      itens: consolidatedItens,
+      status: 'pendente',
+      data_criacao: new Date().toISOString()
+    };
+
+    try {
+      await upsertBatched('separacao', [lotToInsert], 900);
+
+      // TEA Sync: Registro no histórico simplificado
+      const teaRecord = {
+        documento: lotToInsert.documento,
+        nome: lotName,
         armazem: globalWarehouse,
         itens: [{
           status: 'Logística',
           icon: '🏢',
           data: new Date().toLocaleDateString('pt-BR'),
-          produto: op.itens[0]?.codigo || 'DIVERSOS',
-          descricao: op.itens[0]?.descricao || 'LISTA DE EMPENHOS',
-          quantidade: op.itens.reduce((sum, i) => sum + i.quantidade, 0)
+          produto: consolidatedItens[0]?.codigo || 'DIVERSOS',
+          descricao: consolidatedItens[0]?.descricao || 'LOTE CONSOLIDADO',
+          quantidade: consolidatedItens.reduce((sum, i) => sum + i.quantidade, 0)
         }]
-      }));
+      };
 
-      await upsertBatched('historico', teaRecords, 500);
+      await upsertBatched('historico', [teaRecord], 900);
 
-
-      alert(`Geradas ${lotsToInsert.length} listas individuais e TEA atualizado.`);
+      alert(`Sucesso! Lote gerado com ${consolidatedItens.length} itens consolidados de ${selectedOps.length} OPs.`);
       setOps(prev => prev.filter(op => !selectedIds.includes(op.id)));
       setSelectedIds([]);
     } catch (error: any) {
@@ -125,6 +147,7 @@ const Empenhos: React.FC = () => {
       setIsGenerating(false);
     }
   };
+
 
   const removeOp = (id: string) => {
     setOps(prev => prev.filter(op => op.id !== id));

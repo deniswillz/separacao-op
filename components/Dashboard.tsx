@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { analyzeLogisticsEfficiency } from '../services/geminiService';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+
 import { supabase } from '../services/supabaseClient';
+import Loading from './Loading';
+
 
 const Dashboard: React.FC = () => {
-  const [insights, setInsights] = useState<any>(null);
-  const [loadingAI, setLoadingAI] = useState(false);
   const [isSyncing, setIsSyncing] = useState(true);
+
   const [alerts, setAlerts] = useState<{ id: string, op: string, produto: string, timestamp: string }[]>([]);
   const [kpiData, setKpiData] = useState({ pendingOps: 0, finalizedMonth: 0, inTransit: 0 });
   const [opStatusList, setOpStatusList] = useState<{ id: string, type: 'Separação' | 'Conferência', status: string, usuario: string | null }[]>([]);
@@ -66,37 +67,7 @@ const Dashboard: React.FC = () => {
 
     window.addEventListener('falta-detectada', handleFaltaAlert);
 
-    const fetchAI = async () => {
-      // 1. Verificar Cache
-      const cached = localStorage.getItem('nano_ai_insights');
-      const cacheTimestamp = localStorage.getItem('nano_ai_timestamp');
-      const now = new Date().getTime();
 
-      if (cached && cacheTimestamp && (now - Number(cacheTimestamp) < 1800000)) { // 30 min cache
-        setInsights(JSON.parse(cached));
-        setLoadingAI(false);
-        return;
-      }
-
-      setLoadingAI(true);
-      try {
-        const mockHistory = [{ item: 'PARAF-01', falta: true, data: '2023-10-01' }];
-        const data = await analyzeLogisticsEfficiency(mockHistory);
-        setInsights(data);
-        // 2. Salvar no Cache
-        localStorage.setItem('nano_ai_insights', JSON.stringify(data));
-        localStorage.setItem('nano_ai_timestamp', now.toString());
-      } catch (error: any) {
-        console.error('Error in Dashboard fetchAI:', error);
-        setInsights({
-          resumo: 'As análises de IA estão temporariamente indisponíveis devido ao limite de cota (429). Os dados operacionais continuam sincronizados.'
-        });
-      } finally {
-        setLoadingAI(false);
-      }
-    };
-
-    fetchAI();
 
     return () => {
       window.removeEventListener('falta-detectada', handleFaltaAlert);
@@ -105,13 +76,9 @@ const Dashboard: React.FC = () => {
   }, []);
 
   if (isSyncing) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center py-24 space-y-4 animate-fadeIn">
-        <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest animate-pulse">Sincronizando Dashboard...</p>
-      </div>
-    );
+    return <Loading message="Sincronizando Dashboard..." />;
   }
+
 
   const kpis = [
     { label: 'OPs Pendentes', value: kpiData.pendingOps.toString().padStart(2, '0'), color: 'bg-orange-500', icon: '⏳' },
@@ -169,21 +136,41 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-emerald-900 text-white p-8 rounded-2xl shadow-xl">
-          <h3 className="text-xl font-bold flex items-center gap-2 mb-6"><span className="animate-pulse">✨</span> IA Insights</h3>
-          {loadingAI ? (
-            <div className="flex-1 flex flex-col items-center justify-center space-y-4 py-20">
-              <div className="w-10 h-10 border-4 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 flex flex-col h-full">
+          <div className="flex justify-between items-center mb-8">
+            <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter">Calendário Logístico</h3>
+            <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">{new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()}</span>
+          </div>
+
+          <div className="flex-1 grid grid-cols-7 gap-1 text-center">
+            {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(d => (
+              <div key={d} className="text-[10px] font-black text-gray-300 py-2">{d}</div>
+            ))}
+            {Array.from({ length: 31 }).map((_, i) => {
+              const day = i + 1;
+              const isToday = day === new Date().getDate();
+              return (
+                <div
+                  key={i}
+                  className={`aspect-square flex items-center justify-center text-xs font-bold rounded-xl transition-all cursor-default
+                    ${isToday ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'text-gray-600 hover:bg-gray-50'}
+                  `}
+                >
+                  {day}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="mt-8 pt-6 border-t border-gray-50 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+              <p className="text-[9px] font-black text-gray-400 uppercase">Previsão de Pico</p>
             </div>
-          ) : insights && (
-            <div className="space-y-6 overflow-y-auto max-h-[400px] custom-scrollbar">
-              <p className="text-sm leading-relaxed text-emerald-50">{insights.resumo}</p>
-              {insights.alertas?.map((alerta: string, idx: number) => (
-                <div key={idx} className="bg-emerald-800/50 p-3 rounded-lg text-xs border border-emerald-700/50 flex gap-3">⚠️ {alerta}</div>
-              ))}
-            </div>
-          )}
+            <p className="text-[10px] font-black text-gray-900">DIA 28</p>
+          </div>
         </div>
+
       </div>
 
       {/* Mini Cards de Status de OPs */}

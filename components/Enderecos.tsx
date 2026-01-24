@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, User } from '../types';
 import { supabase, upsertBatched } from '../services/supabaseClient';
+import Loading from './Loading';
+
 import * as XLSX from 'xlsx';
 
 const initialItems: Product[] = [
@@ -19,17 +21,34 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
   useEffect(() => {
     const fetchEnderecos = async () => {
       setIsLoading(true);
-      const { data, error } = await supabase
-        .from('enderecos')
-        .select('*')
-        .order('codigo', { ascending: true });
+      let allData: Product[] = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) {
+      try {
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from('enderecos')
+            .select('*')
+            .order('codigo', { ascending: true })
+            .range(page * pageSize, (page + 1) * pageSize - 1);
+
+          if (error) throw error;
+          if (data && data.length > 0) {
+            allData = [...allData, ...data];
+            if (data.length < pageSize) hasMore = false;
+            else page++;
+          } else {
+            hasMore = false;
+          }
+        }
+        setItems(allData);
+      } catch (error) {
         console.error('Erro ao buscar endereços:', error);
-      } else if (data) {
-        setItems(data);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
 
     fetchEnderecos();
@@ -43,6 +62,7 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
       supabase.removeChannel(channel);
     };
   }, []);
+
 
   const filteredItems = useMemo(() => {
     return items.filter(item =>
@@ -110,7 +130,8 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
           return;
         }
 
-        await upsertBatched('enderecos', products, 500);
+        await upsertBatched('enderecos', products, 900);
+
         alert(`${products.length} endereços importados com sucesso!`);
         // O fetchEnderecos no useEffect cuidará da atualização via Realtime ou recarregue manual
       } catch (error: any) {
@@ -190,14 +211,12 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
             <tbody className="divide-y divide-gray-50">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="px-10 py-20 text-center text-gray-400 font-black uppercase tracking-widest text-xs">
-                    <div className="flex flex-col items-center gap-4">
-                      <div className="w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-                      Carregando endereços...
-                    </div>
+                  <td colSpan={5} className="px-10 py-20 text-center">
+                    <Loading message="Carregando endereços..." />
                   </td>
                 </tr>
               ) : filteredItems.length === 0 ? (
+
                 <tr>
                   <td colSpan={5} className="px-10 py-20 text-center text-gray-400 font-black uppercase tracking-widest text-xs">
                     Nenhum produto encontrado na base de endereços
