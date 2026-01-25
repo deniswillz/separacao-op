@@ -22,7 +22,8 @@ export const upsertBatched = async (table: string, items: any[], batchSize = 900
     // Identificar o alvo de conflito correto
     let onConflict = 'id';
     if (table === 'enderecos' || table === 'blacklist') onConflict = 'codigo';
-    if (table === 'historico') onConflict = 'documento';
+    // Historico often lacks unique index on documento in legacy schemas, so we stick to 'id' or explicit upsert logic elsewhere.
+    // if (table === 'historico') onConflict = 'documento'; 
 
     // Tentar Upsert.
     try {
@@ -34,10 +35,11 @@ export const upsertBatched = async (table: string, items: any[], batchSize = 900
         });
 
       if (error) {
+        console.warn(`Erro no upsert na tabela ${table} (${onConflict}):`, error.message);
         // Se falhar por falta de constraint unique, tentamos insert simples.
         // O erro 42P10 é 'no unique constraint matching given keys for upsert'
-        if (error.code === '42P10' || error.message?.includes('unique constraint')) {
-          console.warn(`Aviso: Tabela ${table} não possui constraint unique para '${onConflict}'. Tentando insert...`);
+        if (error.code === '42P10' || error.message?.includes('unique constraint') || error.code === 'PGRST202') {
+          console.warn(`Tentando insert simples na tabela ${table}...`);
           const { error: insError } = await supabase.from(table).insert(batch);
           if (insError) throw insError;
         } else {

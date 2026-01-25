@@ -99,7 +99,7 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
         // If it's an array, convert to our standard object for the UI to work
         const permsObj = { ...initialUserState.permissions };
         if (Array.isArray(perms)) {
-          if (perms.includes('Todos')) { // Assuming 'Todos' means all permissions
+          if (perms.includes('Todos') || perms.includes('all')) {
             Object.keys(permsObj).forEach(k => (permsObj as any)[k] = true);
           } else {
             perms.forEach(k => { if ((permsObj as any)[k] !== undefined) (permsObj as any)[k] = true; });
@@ -187,13 +187,23 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
       userData.password = newUser.senha;
     }
 
+    console.log('DEBUG: Salvando usuário:', userData);
+
     let result = editingUser
       ? await supabase.from('usuarios').update(userData).eq('username', editingUser)
       : await supabase.from('usuarios').insert([userData]);
 
+    if (result.error && (result.error.message.includes('array literal') || result.error.message.includes('JSON'))) {
+      console.warn('Falha no formato array, tentando fallback JSON string...', result.error.message);
+      userData.permissions = JSON.stringify(newUser.permissions);
+      result = editingUser
+        ? await supabase.from('usuarios').update(userData).eq('username', editingUser)
+        : await supabase.from('usuarios').insert([userData]);
+    }
+
     if (result.error) {
-      console.error('Erro detalhado:', result.error);
-      showAlert(`Erro: ${result.error.message}. Detalhe: ${result.error.details}`, 'error');
+      console.error('Erro detalhado final:', result.error);
+      showAlert(`Erro: ${result.error.message}. Detalhe: ${result.error.details || 'Verifique o esquema.'}`, 'error');
     } else {
       showAlert(editingUser ? 'Usuário atualizado!' : 'Usuário criado!', 'success');
       setIsModalOpen(false);
@@ -243,18 +253,19 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
 
       // Attempt fallbacks for the JSON column name
       let success = false;
-      const columnTries = ['backup', 'dados', 'backup_json'];
+      const columnTries = ['backup', 'dados', 'backup_json', 'json', 'payload', 'conteudo'];
 
       for (const col of columnTries) {
+        console.log(`Tentando backup na coluna: ${col}...`);
         const { error } = await supabase.from('backups').insert([{
           [col]: payload,
-          responsavel: responsavel
+          responsavel: responsavel,
+          created_at: new Date().toISOString() // Try explicit timestamp too
         }]);
         if (!error) { success = true; break; }
 
-        // Try with 'data' if it failed (some old schemas require explicit date)
+        // Try without created_at if it failed (Supabase might auto-add it or use a different column name)
         const { error: err2 } = await supabase.from('backups').insert([{
-          data: new Date().toISOString(),
           [col]: payload,
           responsavel: responsavel
         }]);
@@ -280,9 +291,14 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
 
     setIsSyncing(true);
     try {
-      const backupData = JSON.parse(backupItem.backup_json);
+      // Find the JSON column in the backup item
+      const jsonCol = ['backup', 'dados', 'backup_json', 'json', 'payload', 'conteudo'].find(col => backupItem[col]);
+      if (!jsonCol) throw new Error('Dados do backup não encontrados no registro.');
+
+      const backupData = JSON.parse(backupItem[jsonCol]);
       for (const table in backupData) {
         if (Array.isArray(backupData[table]) && backupData[table].length > 0) {
+          // Using upsert if possible, or insert
           await supabase.from(table).upsert(backupData[table]);
         }
       }
