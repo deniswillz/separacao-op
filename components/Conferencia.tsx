@@ -197,6 +197,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
       await supabase.from('conferencia').delete().eq('id', selectedItem.id);
       alert('Conferência finalizada!');
       setViewMode('list'); setSelectedItem(null);
+      setActiveTab('historico');
     } catch (e) {
       console.error(e);
       alert('Erro ao finalizar');
@@ -381,7 +382,13 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                     {selectedItem.itens
                       .filter((item: any) => !selectedOpForDetail || item.composicao?.some((c: any) => c.op === selectedOpForDetail))
                       .map((item: any, idx: number) => {
-                        const comps = (item.composicao || []).filter((c: any) => !selectedOpForDetail || c.op === selectedOpForDetail);
+                        const comps = (item.composicao || []).filter((c: any) => {
+                          const matchOp = !selectedOpForDetail || c.op === selectedOpForDetail;
+                          // FILTER: Only show items marked OK in separation logic
+                          // In Separacao.tsx, item.ok is set to true. 
+                          // We need to ensure that item level or comp level ok is used.
+                          return matchOp && (item.ok === true || item.ok === 'true');
+                        });
 
                         return comps.map((comp: any, cidx: number) => (
                           <tr key={`${idx}-${cidx}`} className="hover:bg-gray-50/50 transition-all group">
@@ -442,15 +449,17 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                       {Object.values(
-                        selectedItem.itens.reduce((acc: any, curr: any) => {
-                          if (!acc[curr.codigo]) {
-                            acc[curr.codigo] = { ...curr, totalSolic: 0, totalSepar: 0, isOk: true };
-                          }
-                          acc[curr.codigo].totalSolic += (curr.composicao || []).reduce((a: number, c: any) => a + (c.quantidade_original || c.quantidade || c.qtd_separada), 0);
-                          acc[curr.codigo].totalSepar += (curr.quantidade || 0);
-                          acc[curr.codigo].isOk = acc[curr.codigo].isOk && (curr.composicao || []).every((c: any) => c.tr_conf);
-                          return acc;
-                        }, {})
+                        selectedItem.itens
+                          .filter((i: any) => i.ok === true || i.ok === 'true') // FILTER: Only OK items
+                          .reduce((acc: any, curr: any) => {
+                            if (!acc[curr.codigo]) {
+                              acc[curr.codigo] = { ...curr, totalSolic: 0, totalSepar: 0, isOk: true };
+                            }
+                            acc[curr.codigo].totalSolic += (curr.composicao || []).reduce((a: number, c: any) => a + (c.quantidade_original || c.quantidade || c.qtd_separada), 0);
+                            acc[curr.codigo].totalSepar += (curr.quantidade || 0);
+                            acc[curr.codigo].isOk = acc[curr.codigo].isOk && (curr.composicao || []).every((c: any) => c.tr_conf);
+                            return acc;
+                          }, {})
                       ).map((row: any, ridx: number) => (
                         <tr key={ridx} className="hover:bg-gray-50/50 transition-all">
                           <td className="px-8 py-4">
@@ -586,12 +595,15 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
         <div className="fixed inset-0 z-[120] flex items-center justify-center animate-fadeIn p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowDivModal(false)}></div>
           <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 space-y-8 animate-slideInUp overflow-hidden">
-            <div className="bg-orange-500 -m-10 p-10 mb-8 border-b border-orange-600 flex justify-between items-center text-white">
+            <div className="bg-orange-500 -m-10 p-10 mb-8 border-b border-orange-600 flex justify-between items-center text-white relative">
+              <div className="absolute top-0 left-0 w-full h-1 bg-white/20 animate-pulse"></div>
               <div>
-                <h3 className="text-xl font-black uppercase italic">Divergência Crítica</h3>
-                <p className="text-[10px] font-bold opacity-80 uppercase">SKU: {divItem.codigo}</p>
+                <h3 className="text-xl font-black uppercase italic tracking-tighter">🚨 Divergência Grave</h3>
+                <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest">Item: {divItem.codigo}</p>
               </div>
-              <span className="text-4xl">🚨</span>
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center animate-bounce">
+                <span className="text-2xl">⚠️</span>
+              </div>
             </div>
             <div className="space-y-4">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Justificativa da Divergência (Mais ou Menos):</p>

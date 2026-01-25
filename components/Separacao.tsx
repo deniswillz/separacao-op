@@ -220,6 +220,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
       await new Promise(resolve => setTimeout(resolve, 800));
 
       setViewMode('list'); setSelectedOP(null);
+      setActiveTab('conferencia');
     } catch (e: any) {
       alert('Erro ao finalizar: ' + e.message);
     } finally { setIsFinalizing(false); }
