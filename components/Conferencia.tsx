@@ -461,9 +461,9 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                               </td>
                               <td className="px-6 py-4">
                                 <div className="space-y-0.5">
-                                  <p className="text-xs font-black text-gray-900 tracking-tight">{item.codigo}</p>
-                                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter truncate max-w-[200px]">{item.descricao}</p>
-                                  <p className="text-[8px] font-black text-blue-500 font-mono italic">OP {comp.op}</p>
+                                  <p className="text-base font-black text-gray-900 tracking-tight">{item.codigo}</p>
+                                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter truncate max-w-[200px]">{item.descricao}</p>
+                                  <p className="text-xs font-black text-blue-500 font-mono italic">OP {comp.op}</p>
                                 </div>
                               </td>
                               <td className="px-6 py-4 text-center">

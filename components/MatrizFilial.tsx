@@ -309,8 +309,8 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
 
                   {/* Product Info */}
                   <div className="space-y-1">
-                    <p className="text-[11px] font-bold text-[#2563EB] font-mono tracking-tighter uppercase">{item.produto}</p>
-                    <h3 className="text-[14px] font-black text-[var(--text-primary)] uppercase leading-tight line-clamp-2 h-10 tracking-tight">
+                    <p className="text-sm font-bold text-[#2563EB] font-mono tracking-tighter uppercase">{item.produto}</p>
+                    <h3 className="text-base font-black text-[var(--text-primary)] uppercase leading-tight line-clamp-2 h-10 tracking-tight">
                       {item.descricao}
                     </h3>
                   </div>

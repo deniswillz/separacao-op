@@ -450,7 +450,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                           </td>
                           <td className="px-8 py-6">
                             <div className="flex items-center gap-2">
-                              <p className="font-black text-[var(--text-primary)] text-sm font-mono tracking-tighter">
+                              <p className="font-black text-[var(--text-primary)] text-base font-mono tracking-tighter">
                                 {item.codigo}
                               </p>
                               {isTalvez && <span className="px-2 py-0.5 bg-amber-500 text-white text-[8px] rounded-full uppercase">TALVEZ</span>}
@@ -462,8 +462,8 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                                 🗨️
                               </button>
                             </div>
-                            <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-tight mb-2">{item.descricao}</p>
-                            <div className="flex items-center gap-4 text-[9px] font-black uppercase text-[var(--text-muted)]">
+                            <p className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-tight mb-2">{item.descricao}</p>
+                            <div className="flex items-center gap-4 text-[11px] font-black uppercase text-[var(--text-muted)]">
                               <p>.Armazém: <span className="text-[var(--text-primary)]">{armazem}</span></p>
                               <p>Endereço: <span className="text-emerald-600 font-mono tracking-widest">{endereco}</span></p>
                             </div>

@@ -118,10 +118,10 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                 </div>
 
                 <div className="space-y-1">
-                  <h4 className="text-[13px] font-black text-[var(--text-primary)] uppercase leading-tight line-clamp-2 min-h-[32px]">
+                  <h4 className="text-sm font-black text-[var(--text-primary)] uppercase leading-tight line-clamp-2 min-h-[32px]">
                     DOC - {item.documento.replace(/^DOC-/, '')}
                   </h4>
-                  <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest">{item.nome}</p>
+                  <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">{item.nome}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-y-2 gap-x-2 border-t border-[var(--border-light)] pt-3">
@@ -286,8 +286,8 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
 
                         return (
                           <tr key={idx} className="hover:bg-[var(--bg-inner)]/30 transition-colors">
-                            <td className="px-8 py-6 font-black text-emerald-600 text-[11px] font-mono tracking-tighter w-1/4">{item.codigo}</td>
-                            <td className="px-8 py-6 text-[10px] font-black text-[var(--text-primary)] uppercase tracking-tight">{item.descricao}</td>
+                            <td className="px-8 py-6 font-black text-emerald-600 text-sm font-mono tracking-tighter w-1/4">{item.codigo}</td>
+                            <td className="px-8 py-6 text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">{item.descricao}</td>
                             <td className="px-8 py-6 text-center text-[11px] font-black text-[var(--text-muted)] font-mono italic">
                               {solQty}
                             </td>

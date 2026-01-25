@@ -267,7 +267,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
                     <td className="px-10 py-6">
                       <div className="flex items-center gap-4">
                         <div className={`w-2 h-2 rounded-full shadow-sm ${item.talvez ? 'bg-amber-400' : 'bg-red-500'}`}></div>
-                        <span className="font-mono text-sm font-bold text-[var(--text-primary)] tracking-tight uppercase">{item.codigo}</span>
+                        <span className="font-mono text-base font-bold text-[var(--text-primary)] tracking-tight uppercase">{item.codigo}</span>
                       </div>
                     </td>
                     <td className="px-6 py-6 text-center">
