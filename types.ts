@@ -51,11 +51,23 @@ export interface MatrixBranchRecord {
   }[];
 }
 
+export interface UserPermissions {
+  dashboard: boolean;
+  enderecos: boolean;
+  empenhos: boolean;
+  blacklist: boolean;
+  separacao: boolean;
+  conferencia: boolean;
+  transferencia: boolean;
+  historico: boolean;
+  configuracoes: boolean;
+}
+
 export interface User {
   id: string | number;
   username: string;
   nome: string;
   role: 'admin' | 'user' | 'visitor';
-  permissions: string[];
+  permissions: UserPermissions | string[];
   foto?: string;
 }

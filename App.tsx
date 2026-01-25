@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -199,16 +198,24 @@ const App: React.FC = () => {
     );
   }
 
+  const hasPermission = (id: string): boolean => {
+    if (user?.role === 'admin') return true;
+    if (user?.role === 'visitor') {
+      return ['dashboard', 'transferencia', 'historico'].includes(id);
+    }
+    if (!user?.permissions) return false;
+    if (Array.isArray(user.permissions)) {
+      return (user.permissions as string[]).includes(id) || (user.permissions as string[]).includes('all');
+    }
+    const perms = user.permissions as any;
+    return !!perms[id];
+  };
+
   const renderContent = () => {
-    const isVisitor = user?.role === 'visitor';
-
-    // Lista de módulos permitidos para visitantes
-    const visitorModules = ['dashboard', 'transferencia', 'historico'];
-
-    if (isVisitor && !visitorModules.includes(activeTab)) {
+    if (!hasPermission(activeTab)) {
       return (
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-[var(--bg-secondary)] rounded-3xl shadow-sm border border-[var(--border-light)] italic font-medium text-[var(--text-muted)]">
-          Acesso restrito ao Modo Consulta.
+          Acesso restrito. Você não possui permissão para visualizar este módulo.
         </div>
       );
     }

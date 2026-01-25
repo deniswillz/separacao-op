@@ -313,8 +313,8 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                         onChange={(e) => updateDestino(item, e.target.value)}
                         className="bg-transparent text-[10px] font-black text-[var(--text-primary)] leading-none border-none outline-none uppercase cursor-pointer hover:text-blue-500 transition-colors w-full text-center appearance-none"
                       >
-                        {['Não Definido', '04', '08', '11', '21', '26', '31', '35', '41', '45', '51'].map(val => (
-                          <option key={val} value={val} className="bg-white text-black">{val}</option>
+                        {['Não Definido', 'Armazém 04', 'Armazém 08', 'Armazém 11', 'Armazém 21', 'Armazém 26', 'Armazém 31', 'Armazém 35', 'Armazém 41', 'Armazém 45', 'Armazém 51'].map(val => (
+                          <option key={val} value={val} className="bg-[var(--bg-secondary)] text-[var(--text-primary)]">{val}</option>
                         ))}
                       </select>
                       <p className="text-[8px] font-black text-[#2563EB] uppercase tracking-widest">Destino</p>
