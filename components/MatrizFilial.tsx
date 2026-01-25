@@ -144,7 +144,6 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
       .from('historico')
       .update({
         itens: newFluxo,
-        status_atual: current.label,
         data_finalizacao: nextStep === 'Concluido' ? new Date().toISOString() : null
       })
       .eq('id', item.id);

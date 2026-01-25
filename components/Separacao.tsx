@@ -307,9 +307,8 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
               data: new Date().toLocaleDateString('pt-BR')
             }];
             await supabase.from('historico').update({
-              itens: newFluxo,
-              status_atual: 'EM CONFERÊNCIA'
-            }).eq('id', tea.id);
+              itens: newFluxo
+            }).eq('documento', opId);
           }
         }
       }

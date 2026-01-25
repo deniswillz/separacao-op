@@ -233,8 +233,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
               data: new Date().toLocaleDateString('pt-BR')
             }];
             await supabase.from('historico').update({
-              itens: newFluxo,
-              status_atual: 'QUALIDADE'
+              itens: newFluxo
             }).eq('id', tea.id);
           }
         }
