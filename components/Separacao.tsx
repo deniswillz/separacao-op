@@ -308,7 +308,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
             }];
             await supabase.from('historico').update({
               itens: newFluxo
-            }).eq('documento', opId);
+            }).eq('documento', opId).eq('armazem', 'TEA');
           }
         }
       }

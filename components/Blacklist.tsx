@@ -146,6 +146,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
               const file = e.target.files?.[0];
               if (!file) return;
               setIsImporting(true);
+              setIsLoading(true);
               const reader = new FileReader();
               reader.onload = async (evt) => {
                 try {
@@ -174,6 +175,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
                   showAlert('Erro na importação: ' + err.message, 'error');
                 } finally {
                   setIsImporting(false);
+                  setIsLoading(false);
                   if (fileInputRef.current) fileInputRef.current.value = '';
                 }
               };
@@ -246,7 +248,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
               {isLoading ? (
                 <tr>
                   <td colSpan={5} className="px-10 py-20 text-center">
-                    <Loading message="Carregando Blacklist..." color="#EF4444" />
+                    <Loading message={isImporting ? "Processando Importação..." : "Carregando Blacklist..."} color="#EF4444" />
                   </td>
                 </tr>
               ) : filteredItems.length === 0 ? (

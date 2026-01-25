@@ -49,15 +49,23 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
   const [backups, setBackups] = useState<any[]>([]);
 
   const fetchBackups = async () => {
-    const { data, error } = await supabase.from('backups').select('*').order('data', { ascending: false });
-    if (data) setBackups(data);
+    // Try both naming conventions to be safe, starting with standard created_at
+    const { data, error } = await supabase.from('backups').select('*').order('created_at', { ascending: false });
+    if (error) {
+      // Fallback for custom 'data' column if it was created that way
+      const { data: altData } = await supabase.from('backups').select('*').order('data', { ascending: false });
+      if (altData) setBackups(altData);
+    } else if (data) {
+      setBackups(data);
+    }
   };
 
   const handlePruneBackups = async () => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const { error } = await supabase.from('backups').delete().lt('data', sevenDaysAgo.toISOString());
-    if (error) console.error('Erro ao podar backups:', error);
+    // Delete older than 7 days
+    await supabase.from('backups').delete().lt('created_at', sevenDaysAgo.toISOString());
+    await supabase.from('backups').delete().lt('data', sevenDaysAgo.toISOString());
   };
 
   const runAutoBackup = async () => {
@@ -82,7 +90,7 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
     if (data) {
       setUsers(data.map((u: any) => ({
         ...u,
-        permissions: typeof u.permissions === 'string' ? JSON.parse(u.permissions) : u.permissions
+        permissions: typeof u.permissions === 'string' ? JSON.parse(u.permissions) : (u.permissions || {})
       })));
     }
     setIsSyncing(false);
@@ -145,29 +153,33 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
       return;
     }
 
+    // Prepare data. Send as object (for JSONB). If table expects string, the update might fail with 400.
     const userData: any = {
       username: newUser.username,
       nome: newUser.nome,
       role: newUser.role,
-      permissions: JSON.stringify(newUser.permissions)
+      permissions: newUser.permissions // Send as object for JSONB
     };
 
     if (newUser.senha) {
-      userData.password = newUser.senha; // Using 'password' column as seen in App.tsx
+      userData.password = newUser.senha;
     }
 
-    let error;
-    if (editingUser) {
-      const { error: err } = await supabase.from('usuarios').update(userData).eq('username', editingUser);
-      error = err;
-    } else {
-      // Supabase uses created_at by default, 'criadoEm' does not exist in the schema
-      const { error: err } = await supabase.from('usuarios').insert([userData]);
-      error = err;
+    let result = editingUser
+      ? await supabase.from('usuarios').update(userData).eq('username', editingUser)
+      : await supabase.from('usuarios').insert([userData]);
+
+    if (result.error && result.error.message.includes('JSON')) {
+      // Fallback: Try stringified permissions if 400 occurs (maybe TEXT column)
+      userData.permissions = JSON.stringify(newUser.permissions);
+      result = editingUser
+        ? await supabase.from('usuarios').update(userData).eq('username', editingUser)
+        : await supabase.from('usuarios').insert([userData]);
     }
 
-    if (error) {
-      showAlert('Erro ao salvar usuário: ' + error.message, 'error');
+    if (result.error) {
+      console.error('Erro detalhado:', result.error);
+      showAlert(`Erro: ${result.error.message}. Verifique o esquema da tabela "usuarios".`, 'error');
     } else {
       showAlert(editingUser ? 'Usuário atualizado!' : 'Usuário criado!', 'success');
       setIsModalOpen(false);
@@ -212,17 +224,27 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
         backupData[table] = data || [];
       }
 
+      // Try inserting with created_at (auto) or explicit data if table requires it
       const { error } = await supabase.from('backups').insert([{
-        data: new Date().toISOString(),
         backup_json: JSON.stringify(backupData),
         responsavel: silent ? 'Sistema (Auto)' : (user.username || 'admin')
       }]);
 
-      if (error) throw error;
+      if (error) {
+        // Fallback for explicit 'data' column
+        const { error: err2 } = await supabase.from('backups').insert([{
+          data: new Date().toISOString(),
+          backup_json: JSON.stringify(backupData),
+          responsavel: silent ? 'Sistema (Auto)' : (user.username || 'admin')
+        }]);
+        if (err2) throw err2;
+      }
+
       if (!silent) showAlert('Backup manual salvo no Supabase!', 'success');
       fetchBackups();
     } catch (e: any) {
-      if (!silent) showAlert('Aviso: Tabela "backups" não encontrada ou erro ao salvar.', 'warning');
+      console.error('Erro no Backup Supabase:', e);
+      if (!silent) showAlert('Aviso: Tabela "backups" não encontrada ou erro de esquema.', 'warning');
     } finally {
       if (!silent) setIsSyncing(false);
     }
@@ -230,7 +252,8 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
 
   // 🔄 RESTAURAR BACKUP (Supabase - Specific ID)
   const handleRestoreBackup = async (backupItem: any) => {
-    if (!confirm(`Deseja restaurar o backup de ${new Date(backupItem.data).toLocaleString('pt-BR')}? Isso substituirá dados atuais.`)) return;
+    const dateStr = new Date(backupItem.created_at || backupItem.data).toLocaleString('pt-BR');
+    if (!confirm(`Deseja restaurar o backup de ${dateStr}? Isso substituirá dados atuais.`)) return;
 
     setIsSyncing(true);
     try {
@@ -340,6 +363,7 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
                     placeholder="ex: danilo_sep"
                     readOnly={!!editingUser}
                     value={newUser.username}
+                    autoComplete="username"
                     onChange={(e) => setNewUser({ ...newUser, username: e.target.value.toLowerCase() })}
                     className="w-full px-5 py-3.5 bg-[var(--bg-inner)] border border-[var(--border-light)] rounded-xl outline-none font-bold text-xs focus:ring-4 focus:ring-emerald-500/10 focus:bg-[var(--bg-secondary)] transition-all text-[var(--text-primary)]"
                   />
@@ -350,6 +374,7 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
                     type="text"
                     placeholder="Nome do Colaborador"
                     value={newUser.nome}
+                    autoComplete="name"
                     onChange={(e) => setNewUser({ ...newUser, nome: e.target.value })}
                     className="w-full px-5 py-3.5 bg-[var(--bg-inner)] border border-[var(--border-light)] rounded-xl outline-none font-bold text-xs focus:ring-4 focus:ring-emerald-500/10 focus:bg-[var(--bg-secondary)] transition-all text-[var(--text-primary)]"
                   />
@@ -360,6 +385,7 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
                     type="password"
                     placeholder="••••••••"
                     value={newUser.senha}
+                    autoComplete="new-password"
                     onChange={(e) => setNewUser({ ...newUser, senha: e.target.value })}
                     className="w-full px-5 py-3.5 bg-[var(--bg-inner)] border border-[var(--border-light)] rounded-xl outline-none font-bold text-xs focus:ring-4 focus:ring-emerald-500/10 focus:bg-[var(--bg-secondary)] transition-all text-[var(--text-primary)]"
                   />
@@ -370,6 +396,7 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
                     type="password"
                     placeholder="••••••••"
                     value={newUser.confirmarSenha}
+                    autoComplete="new-password"
                     onChange={(e) => setNewUser({ ...newUser, confirmarSenha: e.target.value })}
                     className="w-full px-5 py-3.5 bg-[var(--bg-inner)] border border-[var(--border-light)] rounded-xl outline-none font-bold text-xs focus:ring-4 focus:ring-emerald-500/10 focus:bg-[var(--bg-secondary)] transition-all text-[var(--text-primary)]"
                   />
@@ -453,9 +480,9 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
                         <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center text-xl">📦</div>
                         <div>
                           <p className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">
-                            {new Date(backup.data).toLocaleString('pt-BR')}
+                            {new Date(backup.created_at || backup.data).toLocaleString('pt-BR')}
                           </p>
-                          <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Resp: <span className="text-orange-600">{backup.responsavel}</span></p>
+                          <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Resp: <span className="text-orange-600">{backup.responsavel || 'Desconhecido'}</span></p>
                         </div>
                       </div>
                       <button

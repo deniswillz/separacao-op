@@ -41,26 +41,35 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
     if (error) {
       console.error(error);
     } else if (data) {
-      const formattedData = data.map((item: any) => {
-        const itensArr = Array.isArray(item.itens) ? item.itens : [];
-        const firstItem = itensArr[0] || {};
-        const lastItem = itensArr[itensArr.length - 1] || {};
+      // De-duplicação local para garantir que cada OP apareça apenas uma vez (caso existam duplicatas no banco)
+      const uniqueMap = new Map();
 
-        // Normalize status for internal tracking (Uppercase, No accents)
-        const rawStatus = lastItem.status || item.status_atual || 'Separação';
-        const normStatus = String(rawStatus).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+      data.forEach((item: any) => {
+        const doc = item.documento;
+        if (!uniqueMap.has(doc)) {
+          const itensArr = Array.isArray(item.itens) ? item.itens : [];
+          const lastItem = itensArr[itensArr.length - 1] || {};
+          const firstItem = itensArr[0] || {};
 
-        return {
-          ...item,
-          produto: firstItem.produto || item.produto || 'PA00000000000',
-          descricao: firstItem.descricao || item.descricao || 'DESCRIÇÃO NÃO CADASTRADA',
-          quantidade: firstItem.quantidade || item.quantidade || 0,
-          destino: firstItem.destino || item.destino || 'Não Definido',
-          status_atual: normStatus,
-          ultima_atualizacao: item.updated_at || item.data_finalizacao || new Date().toISOString(),
-          itens: itensArr
-        };
-      }).sort((a: any, b: any) => b.ultima_atualizacao.localeCompare(a.ultima_atualizacao));
+          const rawStatus = lastItem.status || item.status_atual || 'Separação';
+          const normStatus = String(rawStatus).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+
+          uniqueMap.set(doc, {
+            ...item,
+            produto: firstItem.produto || item.produto || 'PA0000',
+            descricao: firstItem.descricao || item.descricao || 'DESCRIÇÃO...',
+            quantidade: firstItem.quantidade || item.quantidade || 0,
+            destino: firstItem.destino || item.destino || 'Não Definido',
+            status_atual: normStatus,
+            ultima_atualizacao: item.updated_at || item.data_finalizacao || new Date().toISOString(),
+            itens: itensArr
+          });
+        }
+      });
+
+      const formattedData = Array.from(uniqueMap.values())
+        .sort((a: any, b: any) => b.ultima_atualizacao.localeCompare(a.ultima_atualizacao));
+
       setHistory(formattedData);
     }
     setIsLoading(false);
