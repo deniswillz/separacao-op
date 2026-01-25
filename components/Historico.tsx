@@ -115,7 +115,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
 
                 <div className="space-y-1">
                   <h4 className="text-[13px] font-black text-[#111827] uppercase leading-tight line-clamp-2 min-h-[32px]">
-                    📦 OP - {item.ordens.map(o => o.replace(/^00/, '').replace(/01001$/, '')).join(', ')}
+                    DOC - {item.documento.replace(/^DOC-/, '')}
                   </h4>
                   <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{item.nome}</p>
                 </div>
@@ -182,7 +182,13 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                   <div className="pt-2 border-t border-gray-50">
                     <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-2">Filtrar por OP</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {(selectedItem.ordens || []).map((op: any) => {
+                      <button
+                        onClick={() => setSelectedOpFilter(null)}
+                        className={`text-[9px] px-2.5 py-1 rounded-lg font-black border transition-all ${!selectedOpFilter ? 'bg-gray-900 text-white border-gray-900 shadow-lg scale-105' : 'bg-gray-50 text-gray-400 border-gray-100 hover:bg-gray-100'}`}
+                      >
+                        TODAS OP
+                      </button>
+                      {(selectedItem.ordens || []).sort().map((op: any) => {
                         const simpleOP = op.replace(/^00/, '').replace(/01001$/, '');
                         const isActive = selectedOpFilter === op;
                         return (
@@ -259,8 +265,8 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                           .map((c: any) => ({ op: c.op, text: c.observacao }));
 
                         // Calculate quantities based on active filter
-                        let solQty = item.original_solicitado || item.quantidade;
-                        let sepQty = item.quantidade;
+                        let solQty = 0;
+                        let sepQty = 0;
 
                         if (selectedOpFilter) {
                           const relevantComp = (item.composicao || []).find((c: any) => c.op === selectedOpFilter);
@@ -268,6 +274,10 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                             solQty = relevantComp.quantidade_original || relevantComp.quantidade || 0;
                             sepQty = relevantComp.qtd_separada || 0;
                           }
+                        } else {
+                          // Total Sum for "Todas OP"
+                          solQty = (item.composicao || []).reduce((acc: number, c: any) => acc + (c.quantidade_original || c.quantidade || 0), 0) || item.original_solicitado || item.quantidade;
+                          sepQty = (item.composicao || []).reduce((acc: number, c: any) => acc + (c.qtd_separada || 0), 0) || item.quantidade;
                         }
 
                         return (
