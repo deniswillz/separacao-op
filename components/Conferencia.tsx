@@ -401,12 +401,12 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                         const itemIsComplete = (item.ok === true || item.ok === 'true') && (item.composicao || []).every((c: any) => c.ok_conf && c.tr_conf);
                         const itemHasDivergence = (item.composicao || []).some((c: any) => c.falta_conf);
 
-                        const rowClass = itemHasDivergence ? 'bg-red-50 border-l-4 border-red-500' :
-                          itemIsComplete ? 'bg-emerald-50/80 border-l-4 border-emerald-500' :
+                        const rowClass = itemHasDivergence ? 'border-l-4 border-red-500 bg-red-50/30' :
+                          itemIsComplete ? 'border-l-4 border-emerald-500 bg-emerald-50/50' :
                             'border-l-4 border-transparent';
 
                         return comps.map((comp: any, cidx: number) => (
-                          <tr key={`${idx}-${cidx}`} className={`group ${rowClass} transition-all border-b border-gray-100 hover:bg-gray-50/30`}>
+                          <tr key={`${idx}-${cidx}`} className={`group ${rowClass} transition-all border-b border-gray-100 hover:bg-gray-100/30 ring-inset`}>
                             <td className="px-8 py-4">
                               <button
                                 onClick={() => { setObsItem({ ...item, currentOp: comp.op }); setShowObsModal(true); }}
