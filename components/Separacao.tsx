@@ -486,6 +486,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
             const progress = total > 0 ? Math.round((finalizedCount / total) * 100) : 0;
             const opRange = getOPDisplayRange(op.ordens);
 
+            const isEmUso = op.usuarioAtual && op.usuarioAtual !== user.nome;
             const borderClass = isEmUso ? 'border-blue-500' :
               op.status === 'Pendente' ? 'border-amber-500' : 'border-gray-50';
 

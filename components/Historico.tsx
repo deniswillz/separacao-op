@@ -35,10 +35,10 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
           ...record,
           op_range: meta.op_range || record.nome || record.documento,
           conferente: meta.conferente || record.conferente || 'N/A',
+          separador: meta.separador || record.separador || firstItem.usuario_atual || 'N/A',
+          ordens: meta.ordens || record.ordens || [],
           data_finalizacao: meta.data_finalizacao || record.data_finalizacao || record.updated_at || new Date().toISOString(),
           total_itens: meta.total_itens || (Array.isArray(record.itens) ? record.itens.length : 0),
-          separador: record.separador || firstItem.usuario_atual || 'N/A',
-          ordens: meta.ordens || record.ordens || []
         };
       }).sort((a: any, b: any) => new Date(b.data_finalizacao).getTime() - new Date(a.data_finalizacao).getTime());
       setHistory(formattedData);
