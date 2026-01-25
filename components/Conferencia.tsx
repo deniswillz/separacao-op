@@ -220,12 +220,12 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
       // TEA Sync: Update status to 'Qualidade' for all OPs in the lot
       if (selectedItem.ordens && selectedItem.ordens.length > 0) {
         for (const opId of selectedItem.ordens) {
-          const { data: tea } = await supabase.from('historico')
+          const { data: teaList } = await supabase.from('historico')
             .select('*')
-            .eq('documento', opId)
             .eq('armazem', 'TEA')
-            .maybeSingle();
+            .filter('documento', 'eq', opId);
 
+          const tea = teaList?.[0];
           if (tea) {
             const newFluxo = [...(tea.itens || []), {
               status: 'Qualidade',

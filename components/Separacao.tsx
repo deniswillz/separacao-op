@@ -294,12 +294,12 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
       // TEA Sync: Update status to 'Conferência' for all OPs in the lot
       if (selectedOP.ordens && selectedOP.ordens.length > 0) {
         for (const opId of selectedOP.ordens) {
-          const { data: tea } = await supabase.from('historico')
+          const { data: teaList } = await supabase.from('historico')
             .select('*')
-            .eq('documento', opId)
             .eq('armazem', 'TEA')
-            .maybeSingle();
+            .filter('documento', 'eq', opId);
 
+          const tea = teaList?.[0];
           if (tea) {
             const newFluxo = [...(tea.itens || []), {
               status: 'Conferência',

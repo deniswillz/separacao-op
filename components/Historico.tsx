@@ -28,7 +28,11 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
 
   const fetchHistory = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase.from('historico').select('*').order('id', { ascending: false });
+    const { data, error } = await supabase
+      .from('historico')
+      .select('*')
+      .neq('armazem', 'TEA')
+      .order('id', { ascending: false });
     if (error) console.error(error);
     else if (data) {
       const formattedData = data.map((record: any) => {

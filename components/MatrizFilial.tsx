@@ -70,6 +70,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   }, []);
 
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historySearchTerm, setHistorySearchTerm] = useState('');
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -94,10 +95,10 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
             status: 'Separação',
             icon: '📦',
             data: new Date().toLocaleDateString('pt-BR'),
-            produto: String(row[1] || '').trim(),
-            descricao: String(row[2] || '').trim(),
-            quantidade: Number(row[7]) || 0,
-            destino: 'Não Definido' // Default if imported here
+            produto: String(row[1] || '').trim(), // Column B
+            descricao: String(row[2] || '').trim(), // Column C
+            quantidade: Number(row[7]) || 0, // Column H
+            destino: 'Não Definido'
           }]
         }));
 
@@ -296,10 +297,26 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
       {showHistoryModal && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center animate-fadeIn p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowHistoryModal(false)}></div>
-          <div className="relative bg-white w-full max-w-4xl max-h-[80vh] rounded-[2.5rem] shadow-2xl p-10 space-y-8 animate-slideInUp flex flex-col overflow-hidden">
-            <div className="flex justify-between items-center border-b border-gray-50 pb-6 shrink-0">
-              <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Histórico de TEA Finalizados</h3>
-              <button onClick={() => setShowHistoryModal(false)} className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-all font-bold">✕</button>
+          <div className="relative bg-white w-full max-w-5xl max-h-[85vh] rounded-[2.5rem] shadow-2xl p-10 space-y-8 animate-slideInUp flex flex-col overflow-hidden">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-50 pb-6 shrink-0 gap-6">
+              <div className="space-y-1">
+                <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Histórico de TEA Finalizados</h3>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Apenas transferências com status CONCLUÍDO</p>
+              </div>
+
+              <div className="flex items-center gap-4 w-full md:w-auto">
+                <div className="relative flex-1 md:w-80">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300">🔍</span>
+                  <input
+                    type="text"
+                    placeholder="Filtrar por OP ou Produto..."
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-none rounded-xl text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-blue-500/10 outline-none"
+                    value={historySearchTerm}
+                    onChange={(e) => setHistorySearchTerm(e.target.value)}
+                  />
+                </div>
+                <button onClick={() => setShowHistoryModal(false)} className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-all font-bold">✕</button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
@@ -314,20 +331,26 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {history.filter(h => h.status_atual === 'CONCLUÍDO').map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="py-4 font-black text-xs">{item.documento}</td>
-                      <td className="py-4">
-                        <p className="text-[11px] font-bold text-blue-600 font-mono">{item.produto}</p>
-                        <p className="text-[9px] font-medium text-gray-400 truncate max-w-[200px] uppercase">{item.descricao}</p>
-                      </td>
-                      <td className="py-4 text-center font-black text-xs">{item.quantidade}</td>
-                      <td className="py-4 font-black text-[10px] text-purple-600 uppercase">{item.destino}</td>
-                      <td className="py-4 text-right text-[10px] font-bold text-gray-400">
-                        {new Date(item.ultima_atualizacao!).toLocaleString('pt-BR')}
-                      </td>
-                    </tr>
-                  ))}
+                  {history
+                    .filter(h => h.status_atual === 'CONCLUÍDO')
+                    .filter(h =>
+                      h.documento.toLowerCase().includes(historySearchTerm.toLowerCase()) ||
+                      h.produto?.toLowerCase().includes(historySearchTerm.toLowerCase())
+                    )
+                    .map((item) => (
+                      <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                        <td className="py-4 font-black text-xs">{item.documento}</td>
+                        <td className="py-4">
+                          <p className="text-[11px] font-bold text-blue-600 font-mono">{item.produto}</p>
+                          <p className="text-[9px] font-medium text-gray-400 truncate max-w-[200px] uppercase">{item.descricao}</p>
+                        </td>
+                        <td className="py-4 text-center font-black text-xs">{item.quantidade}</td>
+                        <td className="py-4 font-black text-[10px] text-purple-600 uppercase">{item.destino}</td>
+                        <td className="py-4 text-right text-[10px] font-bold text-gray-400">
+                          {new Date(item.ultima_atualizacao!).toLocaleString('pt-BR')}
+                        </td>
+                      </tr>
+                    ))}
                   {history.filter(h => h.status_atual === 'CONCLUÍDO').length === 0 && (
                     <tr>
                       <td colSpan={5} className="py-10 text-center text-xs font-black text-gray-300 uppercase tracking-widest">Nenhum registro finalizado</td>

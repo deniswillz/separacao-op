@@ -54,11 +54,11 @@ const Empenhos: React.FC = () => {
             };
           }
           opsMap[opId].itens.push({
-            codigo: String(row[20] || '').trim(), // Coluna U
-            descricao: String(row[21] || '').trim(), // Coluna V
-            quantidade: Number(row[22]) || 0, // Coluna W
+            codigo: String(row[1] || '').trim(), // Coluna B (Produto)
+            descricao: String(row[2] || '').trim(), // Coluna C (Descricao)
+            quantidade: Number(row[7]) || 0, // Coluna H (Qtde. a Prod.)
             unidade: 'UN',
-            observacao: String(row[23] || '').trim() // Coluna X
+            observacao: String(row[23] || '').trim() // Keeping Column X for observations
           });
         });
         const importedOps = Object.values(opsMap);
