@@ -148,15 +148,20 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
 
   const handleFinalize = async () => {
     if (!selectedItem) return;
+
     const isComplete = selectedItem.itens.every((item: any) => {
+      // Skip items that were not marked as OK in separation (e.g. OUT items)
+      if (item.ok !== true && item.ok !== 'true') return true;
+
       const blacklistItem = blacklist.find(b => b.sku === item.codigo);
       if (blacklistItem?.nao_sep) return true;
-      const isAnyDivergent = (item.composicao || []).some((c: any) => c.falta_conf);
-      if (isAnyDivergent) return false;
+
+      // Ensure all composition items are checked
       return (item.composicao || []).every((c: any) => c.ok_conf && c.tr_conf);
     });
+
     if (!isComplete) {
-      alert('⚠️ Bloqueio: Todos os itens devem estar em check (OK e TR) e sem divergências para finalizar.');
+      alert('⚠️ Bloqueio: Todos os itens conferidos devem estar em check (OK e TR) para finalizar.');
       return;
     }
 
@@ -385,14 +390,18 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                       .map((item: any, idx: number) => {
                         const comps = (item.composicao || []).filter((c: any) => {
                           const matchOp = !selectedOpForDetail || c.op === selectedOpForDetail;
-                          // FILTER: Only show items marked OK in separation logic
-                          // In Separacao.tsx, item.ok is set to true. 
-                          // We need to ensure that item level or comp level ok is used.
                           return matchOp && (item.ok === true || item.ok === 'true');
                         });
 
+                        const itemIsComplete = (item.ok === true || item.ok === 'true') && (item.composicao || []).every((c: any) => c.ok_conf && c.tr_conf);
+                        const itemHasDivergence = (item.composicao || []).some((c: any) => c.falta_conf);
+
+                        const rowClass = itemHasDivergence ? 'bg-red-50 border-l-4 border-red-500' :
+                          itemIsComplete ? 'bg-emerald-50/80 border-l-4 border-emerald-500' :
+                            'border-l-4 border-transparent';
+
                         return comps.map((comp: any, cidx: number) => (
-                          <tr key={`${idx}-${cidx}`} className="hover:bg-gray-50/50 transition-all group">
+                          <tr key={`${idx}-${cidx}`} className={`group ${rowClass} transition-all border-b border-gray-100 hover:bg-gray-50/30`}>
                             <td className="px-8 py-4">
                               <button
                                 onClick={() => { setObsItem({ ...item, currentOp: comp.op }); setShowObsModal(true); }}
@@ -437,7 +446,6 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                 </table>
               ) : (
                 <div className="p-0 animate-fadeIn">
-                  {/* Transfer List Logic */}
                   <table className="w-full text-left">
                     <thead className="bg-gray-50 border-b border-gray-100">
                       <tr className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
@@ -451,7 +459,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                     <tbody className="divide-y divide-gray-50">
                       {Object.values(
                         selectedItem.itens
-                          .filter((i: any) => i.ok === true || i.ok === 'true') // FILTER: Only OK items
+                          .filter((i: any) => i.ok === true || i.ok === 'true')
                           .reduce((acc: any, curr: any) => {
                             if (!acc[curr.codigo]) {
                               acc[curr.codigo] = { ...curr, totalSolic: 0, totalSepar: 0, isOk: true };
@@ -487,8 +495,8 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                   <span className="text-xs font-black text-gray-300 uppercase">Resumo da Conferência</span>
                   <div className="flex gap-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black text-gray-400">🔢 Itens:</span>
-                      <span className="text-xs font-black text-blue-600">{itensCompletosCount} / {totalOkItemsCount}</span>
+                      <span className="text-[10px] font-black text-gray-400">✅ Itens OK:</span>
+                      <span className="text-xs font-black text-blue-600 font-mono">{itensCompletosCount} / {totalOkItemsCount}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-black text-gray-400">Verificados:</span>
