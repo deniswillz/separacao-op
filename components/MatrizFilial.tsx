@@ -19,7 +19,7 @@ interface TEAItem {
   itens: any[];
 }
 
-const ARMAZENS = ['Armazém 04', 'Armazém 08', 'Armazém 11', 'Armazém 21', 'Filial Sul', 'Filial Norte'];
+
 
 const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   const { showAlert } = useAlert();
@@ -27,7 +27,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [history, setHistory] = useState<TEAItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDestino, setSelectedDestino] = useState('Armazém 04');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchHistory = async () => {
@@ -50,7 +50,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
           produto: firstItem.produto || item.produto || 'PA00000000000',
           descricao: firstItem.descricao || item.descricao || 'DESCRIÇÃO NÃO CADASTRADA',
           quantidade: firstItem.quantidade || item.quantidade || 0,
-          destino: item.destino || 'Não Definido',
+          destino: firstItem.destino || item.destino || 'Não Definido',
           status_atual: lastItem.status || item.status_atual || 'Separação',
           ultima_atualizacao: item.updated_at || item.data_finalizacao || new Date().toISOString(),
           itens: itensArr
@@ -68,6 +68,8 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
+
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -88,7 +90,6 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
           documento: String(row[0]).trim(),
           nome: String(row[0]).trim(),
           armazem: 'TEA',
-          destino: selectedDestino,
           itens: [{
             status: 'Separação',
             icon: '📦',
@@ -96,11 +97,12 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
             produto: String(row[1] || '').trim(),
             descricao: String(row[2] || '').trim(),
             quantidade: Number(row[7]) || 0,
+            destino: 'Não Definido' // Default if imported here
           }]
         }));
 
         await upsertBatched('historico', teaData, 900);
-        showAlert(`${teaData.length} OPs importadas para TEA com destino ${selectedDestino}!`, 'success');
+        showAlert(`${teaData.length} OPs importadas para TEA!`, 'success');
         fetchHistory();
       } catch (error: any) {
         showAlert('Erro ao importar Excel: ' + error.message, 'error');
@@ -172,9 +174,10 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const filteredHistory = history.filter(h =>
-    h.documento.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    h.produto?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    h.descricao?.toLowerCase().includes(searchTerm.toLowerCase())
+    h.status_atual !== 'CONCLUÍDO' &&
+    (h.documento.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      h.produto?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      h.descricao?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -188,22 +191,14 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
           <div className="space-y-1">
             <h1 className="text-2xl font-black text-[#111827] uppercase tracking-tight">TEA - Receber Matriz</h1>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">Gestão de Transferências entre Armazéns</p>
-            <div className="flex items-center gap-3 mt-3">
-              <select
-                value={selectedDestino}
-                onChange={(e) => setSelectedDestino(e.target.value)}
-                className="bg-gray-50 border-none rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
-              >
-                {ARMAZENS.map(a => <option key={a} value={a}>{a}</option>)}
-              </select>
+            <div className="mt-4">
               <button
-                onClick={() => fileInputRef.current?.click()}
-                className="px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all flex items-center gap-2"
+                onClick={() => setShowHistoryModal(true)}
+                className="px-6 py-2.5 bg-gray-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 shadow-lg shadow-gray-200 hover:bg-black transition-all flex items-center gap-2"
               >
-                {isImporting ? 'PROCESSANDO...' : 'Gerar Lista de Separação'} <span>✅</span>
+                📜 Histórico TEA
               </button>
             </div>
-            <input type="file" ref={fileInputRef} className="hidden" onChange={handleImportExcel} />
           </div>
         </div>
 
@@ -297,6 +292,53 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
           })
         )}
       </div>
+
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center animate-fadeIn p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowHistoryModal(false)}></div>
+          <div className="relative bg-white w-full max-w-4xl max-h-[80vh] rounded-[2.5rem] shadow-2xl p-10 space-y-8 animate-slideInUp flex flex-col overflow-hidden">
+            <div className="flex justify-between items-center border-b border-gray-50 pb-6 shrink-0">
+              <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Histórico de TEA Finalizados</h3>
+              <button onClick={() => setShowHistoryModal(false)} className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-all font-bold">✕</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
+              <table className="w-full text-left">
+                <thead className="sticky top-0 bg-white z-10">
+                  <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                    <th className="py-4">OP</th>
+                    <th className="py-4">PRODUTO</th>
+                    <th className="py-4 text-center">QUANTIDADE</th>
+                    <th className="py-4">DESTINO</th>
+                    <th className="py-4 text-right">CONCLUÍDO EM</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {history.filter(h => h.status_atual === 'CONCLUÍDO').map((item) => (
+                    <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="py-4 font-black text-xs">{item.documento}</td>
+                      <td className="py-4">
+                        <p className="text-[11px] font-bold text-blue-600 font-mono">{item.produto}</p>
+                        <p className="text-[9px] font-medium text-gray-400 truncate max-w-[200px] uppercase">{item.descricao}</p>
+                      </td>
+                      <td className="py-4 text-center font-black text-xs">{item.quantidade}</td>
+                      <td className="py-4 font-black text-[10px] text-purple-600 uppercase">{item.destino}</td>
+                      <td className="py-4 text-right text-[10px] font-bold text-gray-400">
+                        {new Date(item.ultima_atualizacao!).toLocaleString('pt-BR')}
+                      </td>
+                    </tr>
+                  ))}
+                  {history.filter(h => h.status_atual === 'CONCLUÍDO').length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-10 text-center text-xs font-black text-gray-300 uppercase tracking-widest">Nenhum registro finalizado</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

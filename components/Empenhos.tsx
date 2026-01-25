@@ -153,7 +153,6 @@ const Empenhos: React.FC = () => {
         documento: op.id,
         nome: op.id,
         armazem: 'TEA',
-        destino: destinoTea,
         itens: [{
           status: 'Separação',
           icon: '📦',
@@ -161,7 +160,8 @@ const Empenhos: React.FC = () => {
           produto: op.itens[0]?.codigo || 'DIVERSOS',
           descricao: op.itens[0]?.descricao || 'INÍCIO LOGÍSTICA',
           quantidade: op.itens.reduce((sum, i) => sum + i.quantidade, 0),
-          observacao: op.itens[0]?.observacao || ''
+          observacao: op.itens[0]?.observacao || '',
+          destino: destinoTea // Storing destination inside the item metadata
         }]
       }));
 
@@ -266,8 +266,6 @@ const Empenhos: React.FC = () => {
               <option value="Armazém 08">Armazém 08</option>
               <option value="Armazém 11">Armazém 11</option>
               <option value="Armazém 21">Armazém 21</option>
-              <option value="Filial Sul">Filial Sul</option>
-              <option value="Filial Norte">Filial Norte</option>
             </select>
           </div>
 
