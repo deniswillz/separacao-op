@@ -22,6 +22,8 @@ const Empenhos: React.FC = () => {
   const [destinoTea, setDestinoTea] = useState('Armazém 04');
   const [isImporting, setIsImporting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateItems, setDuplicateItems] = useState<{ op: string; status: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toggleSelect = (id: string) => {
@@ -83,11 +85,59 @@ const Empenhos: React.FC = () => {
     reader.readAsBinaryString(file);
   };
 
+  const checkExistingOPs = async (opIds: string[]) => {
+    const duplicates: { op: string; status: string }[] = [];
+
+    // 1. Check in Separacao (Active)
+    const { data: sepData } = await supabase.from('separacao').select('documento, ordens').overlaps('ordens', opIds);
+    if (sepData) {
+      sepData.forEach((row: any) => {
+        const found = row.ordens.filter((o: string) => opIds.includes(o));
+        found.forEach((o: string) => duplicates.push({ op: o, status: 'Em Separação' }));
+      });
+    }
+
+    // 2. Check in Conferencia (Auditing)
+    const { data: confData } = await supabase.from('conferencia').select('documento, ordens').overlaps('ordens', opIds);
+    if (confData) {
+      confData.forEach((row: any) => {
+        const found = row.ordens.filter((o: string) => opIds.includes(o));
+        found.forEach((o: string) => duplicates.push({ op: o, status: 'Em Conferência' }));
+      });
+    }
+
+    // 3. Check in Historico (Finished or TEA)
+    const { data: histData } = await supabase.from('historico').select('documento, armazem').in('documento', opIds);
+    if (histData) {
+      histData.forEach((row: any) => {
+        duplicates.push({
+          op: row.documento,
+          status: row.armazem === 'TEA' ? 'Em TEA (Pendente)' : 'Finalizada'
+        });
+      });
+    }
+
+    return duplicates;
+  };
+
   const handleGenerateList = async () => {
-    if (selectedIds.length === 0 || !globalWarehouse) return;
+    if (selectedIds.length === 0 || !globalWarehouse) {
+      showAlert('Selecione pelo menos uma OP e um armazém de destino.', 'warning');
+      return;
+    }
 
     setIsGenerating(true);
     const selectedOps = ops.filter(op => selectedIds.includes(op.id));
+    const opIds = selectedOps.map(o => o.id);
+
+    // Check for duplicates
+    const dups = await checkExistingOPs(opIds);
+    if (dups.length > 0) {
+      setDuplicateItems(dups);
+      setShowDuplicateModal(true);
+      setIsGenerating(false);
+      return;
+    }
 
     // Consolidate Items
     const consolidatedMap: { [key: string]: any } = {};
@@ -339,6 +389,75 @@ const Empenhos: React.FC = () => {
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      {/* Modal de Alerta de Duplicidade */}
+      <DuplicateOPModal
+        isOpen={showDuplicateModal}
+        onClose={() => setShowDuplicateModal(false)}
+        duplicates={duplicateItems}
+      />
+    </div>
+  );
+};
+
+const DuplicateOPModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  duplicates: { op: string; status: string }[]
+}> = ({ isOpen, onClose, duplicates }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fadeIn">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose}></div>
+      <div className="relative bg-[var(--bg-secondary)] w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleIn border border-red-500/20">
+        <div className="bg-[#EF4444] px-8 py-6 flex justify-between items-center text-white">
+          <div className="space-y-0.5">
+            <h3 className="text-sm font-black uppercase tracking-widest leading-none">Atenção: OPs Duplicadas</h3>
+            <p className="text-[9px] font-bold text-red-100 uppercase opacity-80">Risco de Duplicidade Detectado</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all text-xs">✕</button>
+        </div>
+
+        <div className="p-8 space-y-6 bg-[var(--bg-secondary)]">
+          <div className="space-y-2">
+            <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest text-center">
+              As seguintes Ordens de Produção já possuem registros ativos ou finalizados no sistema:
+            </p>
+          </div>
+
+          <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+            {duplicates.map((item, idx) => (
+              <div key={idx} className="flex items-center justify-between p-4 bg-[var(--bg-inner)] border border-[var(--border-light)] rounded-2xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-red-50 text-red-500 rounded-lg flex items-center justify-center text-xs">⚠️</div>
+                  <span className="text-xs font-black text-[var(--text-primary)] uppercase font-mono">{item.op}</span>
+                </div>
+                <span className={`px-2.5 py-1 rounded-md text-[7px] font-black uppercase tracking-widest ${item.status === 'Finalizada' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                  }`}>
+                  {item.status}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-start gap-3">
+            <span className="text-lg">💡</span>
+            <p className="text-[9px] font-black text-amber-700 uppercase leading-relaxed">
+              DICA: Remova as OPs duplicadas da exportação antes de tentar gerar uma nova lista de separação para evitar erros de logística.
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-[var(--bg-inner)] px-8 py-6 flex justify-center border-t border-[var(--border-light)]">
+          <button
+            onClick={onClose}
+            className="w-full py-3.5 bg-[#EF4444] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-red-500/10 hover:opacity-90 active:scale-95 transition-all"
+          >
+            Entendido, Vou Corrigir
+          </button>
         </div>
       </div>
     </div>
