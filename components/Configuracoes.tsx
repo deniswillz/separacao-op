@@ -49,26 +49,22 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
   const [backups, setBackups] = useState<any[]>([]);
 
   const fetchBackups = async () => {
-    // Try to fetch without specific ordering first to see what columns exist if it fails
-    const { data, error } = await supabase.from('backups').select('*').limit(5);
+    const { data, error } = await supabase.from('backups').select('*').order('data_backup', { ascending: false }).limit(50);
 
     if (error) {
       console.error('Erro ao buscar backups:', error);
       return;
     }
 
-    if (data && data.length > 0) {
+    if (data) {
       setBackups(data);
-      // Diagnostic: help the user/agent see the structure
-      console.log('Colunas detectadas em backups:', Object.keys(data[0]));
     }
   };
 
   const handlePruneBackups = async () => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    // Generic delete without column filter for now or try common ones
-    await supabase.from('backups').delete().lt('created_at', sevenDaysAgo.toISOString());
+    await supabase.from('backups').delete().lt('data_backup', sevenDaysAgo.toISOString());
   };
 
   const runAutoBackup = async () => {
@@ -250,29 +246,16 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
 
       const payload = JSON.stringify(backupData);
       const responsavel = silent ? 'Sistema (Auto)' : (user.username || 'admin');
+      const tipo = silent ? 'Automático' : 'Manual';
 
-      // Attempt fallbacks for the JSON column name
-      let success = false;
-      const columnTries = ['backup', 'dados', 'backup_json', 'json', 'payload', 'conteudo'];
+      const { error } = await supabase.from('backups').insert([{
+        dados: payload,
+        usuario: responsavel,
+        data_backup: new Date().toISOString(),
+        tipo: tipo
+      }]);
 
-      for (const col of columnTries) {
-        console.log(`Tentando backup na coluna: ${col}...`);
-        const { error } = await supabase.from('backups').insert([{
-          [col]: payload,
-          responsavel: responsavel,
-          created_at: new Date().toISOString() // Try explicit timestamp too
-        }]);
-        if (!error) { success = true; break; }
-
-        // Try without created_at if it failed (Supabase might auto-add it or use a different column name)
-        const { error: err2 } = await supabase.from('backups').insert([{
-          [col]: payload,
-          responsavel: responsavel
-        }]);
-        if (!err2) { success = true; break; }
-      }
-
-      if (!success) throw new Error('Falha ao inserir em todas as variações de coluna.');
+      if (error) throw error;
 
       if (!silent) showAlert('Backup manual salvo no Supabase!', 'success');
       fetchBackups();
@@ -286,16 +269,14 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
 
   // 🔄 RESTAURAR BACKUP (Supabase - Specific ID)
   const handleRestoreBackup = async (backupItem: any) => {
-    const dateStr = new Date(backupItem.created_at || backupItem.data).toLocaleString('pt-BR');
+    const dateStr = new Date(backupItem.data_backup).toLocaleString('pt-BR');
     if (!confirm(`Deseja restaurar o backup de ${dateStr}? Isso substituirá dados atuais.`)) return;
 
     setIsSyncing(true);
     try {
-      // Find the JSON column in the backup item
-      const jsonCol = ['backup', 'dados', 'backup_json', 'json', 'payload', 'conteudo'].find(col => backupItem[col]);
-      if (!jsonCol) throw new Error('Dados do backup não encontrados no registro.');
+      if (!backupItem.dados) throw new Error('Dados do backup não encontrados no registro.');
 
-      const backupData = JSON.parse(backupItem[jsonCol]);
+      const backupData = JSON.parse(backupItem.dados);
       for (const table in backupData) {
         if (Array.isArray(backupData[table]) && backupData[table].length > 0) {
           // Using upsert if possible, or insert
@@ -307,6 +288,21 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
       fetchUsers();
     } catch (e: any) {
       showAlert('Erro ao restaurar: ' + e.message, 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleDeleteBackup = async (id: string) => {
+    if (!confirm('Deseja realmente excluir este backup? Esta ação não pode ser desfeita.')) return;
+    setIsSyncing(true);
+    try {
+      const { error } = await supabase.from('backups').delete().eq('id', id);
+      if (error) throw error;
+      showAlert('Backup excluído com sucesso!', 'success');
+      fetchBackups();
+    } catch (e: any) {
+      showAlert('Erro ao excluir backup: ' + e.message, 'error');
     } finally {
       setIsSyncing(false);
     }
@@ -519,18 +515,32 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
                         <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center text-xl">📦</div>
                         <div>
                           <p className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">
-                            {new Date(backup.created_at || backup.data).toLocaleString('pt-BR')}
+                            {new Date(backup.data_backup).toLocaleString('pt-BR')}
                           </p>
-                          <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Resp: <span className="text-orange-600">{backup.responsavel || 'Desconhecido'}</span></p>
+                          <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">
+                            Resp: <span className="text-orange-600">{backup.usuario || 'Desconhecido'}</span> | Tipo: <span className="text-blue-500">{backup.tipo || 'Manual'}</span>
+                          </p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleRestoreBackup(backup)}
-                        disabled={isSyncing}
-                        className="px-6 py-2.5 bg-orange-100 text-orange-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 hover:text-white transition-all shadow-sm"
-                      >
-                        Restaurar
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleRestoreBackup(backup)}
+                          disabled={isSyncing}
+                          className="px-6 py-2.5 bg-orange-100 text-orange-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 hover:text-white transition-all shadow-sm"
+                        >
+                          Restaurar
+                        </button>
+                        {user.role === 'admin' && (
+                          <button
+                            onClick={() => handleDeleteBackup(backup.id)}
+                            disabled={isSyncing}
+                            className="w-10 h-10 flex items-center justify-center bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all border border-red-100"
+                            title="Excluir Backup"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))
                 )}

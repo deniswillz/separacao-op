@@ -49,6 +49,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
         };
       }).sort((a: any, b: any) => new Date(b.data_finalizacao).getTime() - new Date(a.data_finalizacao).getTime());
       setHistory(formattedData);
+      if (data.length > 0) console.log('Colunas detectadas em historico:', Object.keys(data[0]));
     }
     setIsLoading(false);
   };
