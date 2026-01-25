@@ -22,6 +22,9 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [selectedItem, setSelectedItem] = useState<FinishedOP | null>(null);
+  const [selectedOpFilter, setSelectedOpFilter] = useState<string | null>(null);
+  const [showObsModal, setShowObsModal] = useState(false);
+  const [obsData, setObsData] = useState<{ item: any; observations: any[] } | null>(null);
 
   const fetchHistory = async () => {
     setIsLoading(true);
@@ -110,10 +113,11 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                   )}
                 </div>
 
-                <div className="space-y-0.5">
-                  <h4 className="text-[13px] font-black text-[#111827] uppercase truncate">{item.nome || 'Lote Indefinido'}</h4>
-                  <p className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter truncate">({item.op_range})</p>
-                  <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{item.documento}</p>
+                <div className="space-y-1">
+                  <h4 className="text-[13px] font-black text-[#111827] uppercase leading-tight line-clamp-2 min-h-[32px]">
+                    📦 OP - {item.ordens.map(o => o.replace(/^00/, '').replace(/01001$/, '')).join(', ')}
+                  </h4>
+                  <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{item.nome}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-y-2 gap-x-2 border-t border-gray-50 pt-3">
@@ -129,16 +133,18 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
               </div>
 
               <div className="flex justify-between items-end mt-4">
-                <div>
+                <div className="space-y-1">
                   <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none">Data Fechamento</p>
                   <p className="text-[10px] font-black text-gray-400 italic">{new Date(item.data_finalizacao).toLocaleDateString('pt-BR')}</p>
                 </div>
-                <button
-                  onClick={() => setSelectedItem(item)}
-                  className="w-8 h-8 bg-[#111827] text-white rounded-lg flex items-center justify-center text-lg font-black shadow-lg hover:bg-emerald-700 transition-all"
-                >
-                  +
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setSelectedItem(item); setSelectedOpFilter(null); }}
+                    className="w-10 h-10 bg-[#111827] text-white rounded-lg flex items-center justify-center text-lg font-black shadow-lg hover:bg-emerald-700 transition-all"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -168,14 +174,24 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
             <div className="p-10 space-y-8 overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2">
-                  <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Armazém e Doc</p>
+                  <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Armazém, Doc e OP</p>
                   <div className="space-y-1">
-                    <p className="text-lg font-black text-gray-900 uppercase">{selectedItem.armazem}</p>
-                    <p className="text-xs font-bold text-emerald-600 font-mono italic break-all">{selectedItem.documento}</p>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {(selectedItem.ordens || []).map((op: any) => (
-                        <span key={op} className="text-[9px] bg-emerald-50 px-2 py-0.5 rounded text-emerald-700 font-black border border-emerald-100">{op}</span>
-                      ))}
+                    <p className="text-lg font-black text-gray-900 uppercase leading-none">{selectedItem.armazem}</p>
+                    <p className="text-[10px] font-bold text-emerald-600 font-mono italic break-all leading-tight">{selectedItem.documento}</p>
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      {(selectedItem.ordens || []).map((op: any) => {
+                        const simpleOP = op.replace(/^00/, '').replace(/01001$/, '');
+                        const isActive = selectedOpFilter === op;
+                        return (
+                          <button
+                            key={op}
+                            onClick={() => setSelectedOpFilter(isActive ? null : op)}
+                            className={`text-[9px] px-2.5 py-1 rounded-lg font-black border transition-all ${isActive ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg scale-105' : 'bg-gray-50 text-emerald-700 border-gray-100 hover:bg-emerald-50'}`}
+                          >
+                            {simpleOP}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -220,30 +236,45 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                     <tr>
                       <th className="px-8 py-5 text-[10px] font-black text-gray-300 uppercase tracking-widest">Código</th>
                       <th className="px-8 py-5 text-[10px] font-black text-gray-300 uppercase tracking-widest">Descrição</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-300 uppercase tracking-widest text-center">Qtd</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-300 uppercase tracking-widest text-center">OK</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-gray-300 uppercase tracking-widest text-center">Qtd Sol.</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-gray-300 uppercase tracking-widest text-center">Qtd Sep.</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-gray-300 uppercase tracking-widest text-center">OBS 🗨️</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {selectedItem.itens
-                      .filter((item: any) => (item.quantidade || 0) > 0)
+                      .filter((item: any) => {
+                        const hasQtd = (item.quantidade || 0) > 0;
+                        if (!hasQtd) return false;
+                        if (!selectedOpFilter) return true;
+                        return (item.composicao || []).some((c: any) => c.op === selectedOpFilter);
+                      })
                       .map((item: any, idx: number) => {
-                        const isOk = (item.composicao || []).every((c: any) => c.ok_conf && c.ok2_conf);
+                        // Consolidate observations from all composition items relevant to this document
+                        const observations = (item.composicao || [])
+                          .filter((c: any) => c.observacao)
+                          .map((c: any) => ({ op: c.op, text: c.observacao }));
+
                         return (
                           <tr key={idx} className="hover:bg-gray-50 transition-colors">
                             <td className="px-8 py-6 font-black text-emerald-600 text-[11px] font-mono tracking-tighter w-1/4">{item.codigo}</td>
                             <td className="px-8 py-6 text-[10px] font-black text-gray-500 uppercase tracking-tight">{item.descricao}</td>
-                            <td className="px-8 py-6 text-center text-sm font-black text-gray-900">{item.quantidade}</td>
+                            <td className="px-8 py-6 text-center text-[11px] font-black text-gray-300 font-mono italic">
+                              {item.original_solicitado || item.quantidade}
+                            </td>
+                            <td className="px-8 py-6 text-center text-sm font-black text-gray-900 font-mono">
+                              {item.quantidade}
+                            </td>
                             <td className="px-8 py-6 text-center">
-                              {isOk ? (
-                                <div className="flex justify-center">
-                                  <div className="w-6 h-6 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center text-[10px] shadow-sm">✅</div>
-                                </div>
-                              ) : (
-                                <div className="flex justify-center">
-                                  <div className="w-6 h-6 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center text-[10px] shadow-sm">⚠️</div>
-                                </div>
-                              )}
+                              <button
+                                onClick={() => {
+                                  setObsData({ item, observations });
+                                  setShowObsModal(true);
+                                }}
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center text-base transition-all ${observations.length > 0 ? 'bg-blue-50 text-blue-600 border border-blue-100 shadow-sm' : 'bg-gray-50 text-gray-200'}`}
+                              >
+                                🗨️
+                              </button>
                             </td>
                           </tr>
                         );
@@ -267,6 +298,47 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const ObservationsModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  data: { item: any; observations: any[] } | null;
+}> = ({ isOpen, onClose, data }) => {
+  if (!isOpen || !data) return null;
+
+  return (
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 animate-fadeIn">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}></div>
+      <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-slideInUp flex flex-col max-h-[80vh]">
+        <div className="bg-[#111827] px-8 py-5 flex justify-between items-center text-white shrink-0">
+          <div className="space-y-0.5">
+            <h3 className="text-[11px] font-black uppercase tracking-widest text-emerald-400">Log de Observações</h3>
+            <p className="text-[10px] font-bold text-gray-400 uppercase truncate max-w-[250px]">{data.item.codigo}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/20">✕</button>
+        </div>
+        <div className="p-8 space-y-4 overflow-y-auto custom-scrollbar bg-gray-50/50">
+          {data.observations.length === 0 ? (
+            <div className="py-20 text-center space-y-3 opacity-20">
+              <span className="text-4xl">🗨️</span>
+              <p className="text-[10px] font-black uppercase tracking-widest">Nenhuma nota para este item</p>
+            </div>
+          ) : (
+            data.observations.map((obs, idx) => (
+              <div key={idx} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-2">
+                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">OP {obs.op}</p>
+                <p className="text-xs font-bold text-gray-700 leading-relaxed italic">"{obs.text}"</p>
+              </div>
+            ))
+          )}
+        </div>
+        <div className="p-6 bg-white border-t border-gray-100 flex justify-center shrink-0">
+          <button onClick={onClose} className="px-10 py-3 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">Fechar</button>
+        </div>
+      </div>
     </div>
   );
 };

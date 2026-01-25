@@ -70,7 +70,6 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
     }
     setViewMode('list');
     setSelectedItem(null);
-    setActiveTab('dashboard');
   };
 
   const updateItemConf = async (itemCodigo: string, field: string, value: any) => {
@@ -321,7 +320,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                 </div>
                 <div className="space-y-1 bg-white p-4 rounded-2xl border border-gray-50 shadow-sm">
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">✅ Itens OK</p>
-                  <p className="text-xl font-black text-gray-900">{itensCompletosCount}<span className="text-xs text-gray-300 ml-1">/ {selectedItem.itens.length}</span></p>
+                  <p className="text-xl font-black text-gray-900">{totalConferidoQtd}<span className="text-xs text-gray-300 ml-1">/ {totalSeparado}</span></p>
                 </div>
                 <div className="space-y-1 bg-white p-4 rounded-2xl border border-gray-50 shadow-sm">
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">🚨 Divergências</p>
@@ -578,7 +577,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                     <div className="space-y-1 text-right">
                       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">🔢 Itens</p>
                       <p className="text-xs font-black text-gray-900">
-                        {item.itens?.filter((i: any) => (i.composicao || []).every((c: any) => c.ok_conf)).length || 0}/{item.itens?.length || 0} ITENS
+                        {item.itens?.reduce((acc: number, i: any) => acc + (i.composicao || []).reduce((cAcc: number, c: any) => c.ok_conf ? cAcc + (c.qtd_separada || 0) : cAcc, 0), 0)}/{item.itens?.reduce((acc: number, i: any) => acc + (i.quantidade || 0), 0)}
                       </p>
                     </div>
                   </div>

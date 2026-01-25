@@ -348,7 +348,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
     <div className="space-y-8 animate-fadeIn pb-20">
       <div className="flex justify-between items-center bg-white p-4 rounded-xl border-l-4 border-[#006B47] shadow-sm">
         <div className="flex items-center gap-4">
-          <h1 className="text-sm font-black text-[#006B47] uppercase tracking-widest">Separação</h1>
+          <h1 className="text-sm font-black text-[#006B47] uppercase tracking-widest">Seleção de OP</h1>
           {isFinalizing && (
             <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full animate-pulse border border-emerald-100">
               <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
@@ -369,7 +369,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
             <div className="bg-gray-50/50 p-8 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-gray-900 text-white rounded-2xl flex items-center justify-center text-xl font-black">📦</div>
-                <h2 className="text-2xl font-black tracking-tight uppercase">{selectedOP.opCode}</h2>
+                <h2 className="text-2xl font-black tracking-tight uppercase">Seleção de OP</h2>
               </div>
               <div className="flex items-center gap-6">
                 <div className="text-right bg-white p-2 px-4 rounded-xl border border-gray-100 shadow-sm">
@@ -618,8 +618,9 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
 
                 <div className="space-y-4 relative z-10">
                   <div className="flex flex-col gap-1">
-                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">📦 {op.opCode}</h3>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate">📦 OP - {op.ordens.map(o => o.replace(/^00/, '').replace(/01001$/, '')).join(', ')}</p>
+                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">
+                      📦 OP - {op.ordens.map(o => o.replace(/^00/, '').replace(/01001$/, '')).join(', ')}
+                    </h3>
                   </div>
                   <button
                     onClick={(e) => {
@@ -683,10 +684,10 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                     disabled={isEmUso}
                     className={`w-full py-4 rounded-[1.25rem] text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg active:scale-95 ${isEmUso
                       ? 'bg-gray-50 text-gray-300 cursor-not-allowed shadow-none'
-                      : 'bg-gray-900 text-white hover:bg-black shadow-gray-100'
+                      : progress === 100 ? 'bg-emerald-600 text-white shadow-emerald-100' : 'bg-gray-900 text-white hover:bg-black shadow-gray-100'
                       }`}
                   >
-                    {isEmUso ? 'Em Uso' : 'Iniciar Separação'}
+                    {isEmUso ? 'Em Uso' : progress === 100 ? 'Concluído' : 'Abrir Seleção'}
                   </button>
                 </div>
               </div>
