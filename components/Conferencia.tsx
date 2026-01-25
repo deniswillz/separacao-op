@@ -284,14 +284,14 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
     try {
       // 1. Prepare history data for the batch
       const batchHistoryData = {
-        opRange: getOPDisplayRange(selectedItem.ordens),
+        op_range: getOPDisplayRange(selectedItem.ordens),
         armazem: selectedItem.armazem,
         documento: selectedItem.documento,
         ordens: selectedItem.ordens.join(', '),
         separador: selectedItem.itens[0]?.usuario_atual || 'N/A',
         conferente: user.nome,
-        dataFinalizacao: new Date().toISOString(),
-        totalItens: selectedItem.itens.length,
+        data_finalizacao: new Date().toISOString(),
+        total_itens: selectedItem.itens.length,
         itens: selectedItem.itens
       };
 
