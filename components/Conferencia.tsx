@@ -96,7 +96,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
     if (!selectedItem) return;
     const newItens = selectedItem.itens.map((item: any) => {
       if (item.codigo === sku) {
-        const newComp = (item.composicao || []).map((c: any) => c.op === op ? { ...c, obs_conf: text } : c);
+        const newComp = (item.composicao || []).map((c: any) => c.op === op ? { ...c, observacao: text } : c);
         return { ...item, composicao: newComp };
       }
       return item;
@@ -137,9 +137,13 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
     const isComplete = selectedItem.itens.every((item: any) => {
       const blacklistItem = blacklist.find(b => b.sku === item.codigo);
       if (blacklistItem?.nao_sep) return true;
-      return (item.composicao || []).every((c: any) => c.ok_conf);
+      if (item.div_conferencia) return false; // Divergence blocks finalization until resolved (removed)
+      return (item.composicao || []).every((c: any) => c.ok_conf && c.tr_conf);
     });
-    if (!isComplete && !confirm('Alguns itens não foram conferidos. Finalizar assim mesmo?')) return;
+    if (!isComplete) {
+      alert('⚠️ Bloqueio: Todos os itens devem estar em check (OK e TR) e sem divergências para finalizar.');
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -165,10 +169,14 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
       };
 
       const { data: existingRecord } = await supabase.from('historico').select('id').eq('documento', historyDocId).maybeSingle();
+
+      // Calculate total separated quantity
+      const totalSeparatedSum = selectedItem.itens.reduce((acc: number, item: any) => acc + (item.quantidade || 0), 0);
+
       if (existingRecord) {
-        await supabase.from('historico').update(batchHistoryData).eq('id', existingRecord.id);
+        await supabase.from('historico').update({ ...batchHistoryData, total_itens: totalSeparatedSum }).eq('id', existingRecord.id);
       } else {
-        await supabase.from('historico').insert([batchHistoryData]);
+        await supabase.from('historico').insert([{ ...batchHistoryData, total_itens: totalSeparatedSum }]);
       }
 
       await supabase.from('conferencia').delete().eq('id', selectedItem.id);
@@ -177,7 +185,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
     } catch (e) {
       console.error(e);
       alert('Erro ao finalizar');
-    } finally { setIsLoading(true); fetchItems(); }
+    } finally { setIsLoading(false); fetchItems(); }
   };
 
   const handleSavePendency = async () => {
@@ -202,7 +210,13 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
         documento: selectedItem.nome || selectedItem.documento,
         armazem: selectedItem.armazem,
         ordens: selectedItem.ordens,
-        itens: selectedItem.itens.map((i: any) => ({ ...i, quantidade: i.original_solicitado || i.quantidade })),
+        itens: selectedItem.itens.map((i: any) => ({
+          ...i,
+          quantidade: i.original_solicitado || i.quantidade,
+          ok: false,
+          tr: false,
+          composicao: (i.composicao || []).map((c: any) => ({ ...c, concluido: false, ok_conf: false, tr_conf: false }))
+        })),
         status: 'Pendente'
       };
       await supabase.from('conferencia').delete().eq('id', selectedItem.id);
@@ -255,7 +269,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
                     <span className="text-xs font-black text-blue-600 uppercase tracking-widest">Conferindo Lote</span>
                     <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-black uppercase">LIVE</span>
                   </div>
-                  <h2 className="text-2xl font-black tracking-tighter uppercase">{selectedItem.nome || selectedItem.documento}</h2>
+                  <h2 className="text-2xl font-black tracking-tighter uppercase">{selectedItem.itens[0]?.doc_transferencia || selectedItem.documento}</h2>
                 </div>
               </div>
 
@@ -302,6 +316,21 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
                 >Lista de Transferência</button>
               </div>
 
+              {showTransferList && (
+                <button
+                  onClick={() => {
+                    const allOk = selectedItem.itens.every((i: any) => (i.composicao || []).every((c: any) => c.tr_conf));
+                    const newItens = selectedItem.itens.map((i: any) => ({
+                      ...i,
+                      composicao: (i.composicao || []).map((c: any) => ({ ...c, tr_conf: !allOk }))
+                    }));
+                    setSelectedItem({ ...selectedItem, itens: newItens });
+                    supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
+                  }}
+                  className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-emerald-100 transition-all"
+                >Marcar Todos TR</button>
+              )}
+
               {!showTransferList && (
                 <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scroll-hide">
                   <button
@@ -343,7 +372,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
                             <td className="px-8 py-4">
                               <button
                                 onClick={() => { setObsItem({ ...item, currentOp: comp.op }); setShowObsModal(true); }}
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all ${comp.obs_conf ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-200 group-hover:text-blue-200'}`}
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all ${comp.observacao ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-200 group-hover:text-blue-200'}`}
                               >🗨️</button>
                             </td>
                             <td className="px-6 py-4">
@@ -354,7 +383,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
                               </div>
                             </td>
                             <td className="px-6 py-4 text-center">
-                              <p className="text-xs font-black text-gray-400 font-mono">{(comp.quantidade_original || comp.qtd_separada)}</p>
+                              <p className="text-xs font-black text-gray-400 font-mono">{(comp.quantidade_original || comp.quantidade || comp.qtd_separada)}</p>
                             </td>
                             <td className="px-6 py-4 text-center">
                               <p className="text-sm font-black text-gray-900 font-mono">{comp.qtd_separada}</p>
@@ -362,12 +391,14 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
                             <td className="px-8 py-4 text-right">
                               <div className="flex justify-end gap-2">
                                 <button
+                                  disabled={!!item.div_conferencia}
                                   onClick={() => handleToggleIndivComp(item.codigo, comp.op, 'ok_conf', !comp.ok_conf)}
-                                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border ${comp.ok_conf ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-emerald-200 group-hover:bg-emerald-50'}`}
+                                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border ${comp.ok_conf ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-emerald-200 group-hover:bg-emerald-50'} ${item.div_conferencia ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >OK</button>
                                 <button
+                                  disabled={!!item.div_conferencia}
                                   onClick={() => handleToggleIndivComp(item.codigo, comp.op, 'tr_conf', !comp.tr_conf)}
-                                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border ${comp.tr_conf ? 'bg-blue-600 text-white border-blue-600 shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-blue-200 group-hover:bg-blue-50'}`}
+                                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border ${comp.tr_conf ? 'bg-blue-600 text-white border-blue-600 shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-blue-200 group-hover:bg-blue-50'} ${item.div_conferencia ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >TR</button>
                                 <button
                                   onClick={() => handleDivergencia(item)}
@@ -399,9 +430,9 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
                           if (!acc[curr.codigo]) {
                             acc[curr.codigo] = { ...curr, totalSolic: 0, totalSepar: 0, isOk: true };
                           }
-                          acc[curr.codigo].totalSolic += (curr.composicao || []).reduce((a: number, c: any) => a + (c.quantidade_original || c.qtd_separada), 0);
+                          acc[curr.codigo].totalSolic += (curr.composicao || []).reduce((a: number, c: any) => a + (c.quantidade_original || c.quantidade || c.qtd_separada), 0);
                           acc[curr.codigo].totalSepar += (curr.quantidade || 0);
-                          acc[curr.codigo].isOk = acc[curr.codigo].isOk && (curr.composicao || []).every((c: any) => c.ok_conf);
+                          acc[curr.codigo].isOk = acc[curr.codigo].isOk && (curr.composicao || []).every((c: any) => c.tr_conf);
                           return acc;
                         }, {})
                       ).map((row: any, ridx: number) => (
@@ -576,7 +607,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
               <textarea
                 className="w-full h-40 bg-white border border-gray-200 rounded-2xl p-6 text-sm font-bold text-gray-800 outline-none focus:ring-4 focus:ring-blue-50 transition-all resize-none"
                 placeholder="Observação da conferência..."
-                defaultValue={(obsItem.composicao || []).find((c: any) => c.op === obsItem.currentOp)?.obs_conf || ''}
+                defaultValue={(obsItem.composicao || []).find((c: any) => c.op === obsItem.currentOp)?.observacao || ''}
                 onBlur={(e) => handleSaveObs(obsItem.codigo, obsItem.currentOp, e.target.value)}
               />
               <button onClick={() => setShowObsModal(false)} className="w-full py-5 bg-gray-900 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all">Confirmar e Fechar</button>
