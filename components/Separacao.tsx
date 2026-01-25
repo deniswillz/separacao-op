@@ -4,6 +4,8 @@ import { UrgencyLevel, User } from '../types';
 import { BlacklistItem } from '../App';
 import { supabase } from '../services/supabaseClient';
 import Loading from './Loading';
+import { useAlert } from './AlertContext';
+
 
 
 interface OPMock {
@@ -23,7 +25,9 @@ interface OPMock {
 }
 
 const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab: (tab: string) => void }> = ({ blacklist, user, setActiveTab }) => {
+  const { showAlert } = useAlert();
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
+
   const [isSyncing, setIsSyncing] = useState(true);
   const [ops, setOps] = useState<OPMock[]>([]);
   const [selectedOP, setSelectedOP] = useState<OPMock | null>(null);
@@ -109,7 +113,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
 
   const handleStart = async (op: OPMock) => {
     if (op.usuarioAtual && op.usuarioAtual !== user.nome) {
-      alert(`⚠️ Bloqueio: Em uso por "${op.usuarioAtual}"`);
+      showAlert(`Bloqueio: Em uso por "${op.usuarioAtual}"`, 'warning');
       return;
     }
     await supabase.from('separacao').update({ usuario_atual: user.nome }).eq('id', op.id);
@@ -161,7 +165,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
 
   const handleFinalize = async () => {
     if (!selectedOP || !docTransferencia) {
-      alert('⚠️ Informe o Documento de Transferência');
+      showAlert('Informe o Documento de Transferência', 'warning');
       return;
     }
 
@@ -180,7 +184,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
     });
 
     if (!isComplete) {
-      alert('❌ PROCESSO IMPEDIDO\n\nItens marcados como OK devem ter a Lupa finalizada e o Check TR marcado.');
+      showAlert('Itens marcados como OK devem ter a Lupa finalizada e o Check TR marcado.', 'error');
       return;
     }
 
@@ -225,7 +229,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
       setViewMode('list'); setSelectedOP(null);
       setActiveTab('conferencia');
     } catch (e: any) {
-      alert('Erro ao finalizar: ' + e.message);
+      showAlert('Erro ao finalizar: ' + e.message, 'error');
     } finally { setIsFinalizing(false); }
   };
 
@@ -240,7 +244,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
     });
 
     const { error } = await supabase.from('separacao').update({ itens: newItens }).eq('id', selectedOP.id);
-    if (error) alert('Erro ao salvar observação: ' + error.message);
+    if (error) showAlert('Erro ao salvar observação: ' + error.message, 'error');
     else setSelectedOP({ ...selectedOP, rawItens: newItens });
   };
 
@@ -303,7 +307,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
 
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead className="bg-gray-50 text-[10px] font-black uppercase tracking-widest text-gray-400">
+                <thead className="bg-gray-50 text-xs font-black uppercase tracking-widest text-gray-400">
                   <tr>
                     <th className="px-8 py-5 text-center">LUPA</th>
                     <th className="px-8 py-5">PRODUTO</th>
@@ -356,30 +360,30 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                           </td>
                           <td className="px-8 py-6">
                             <div className="flex items-center gap-2">
-                              <p className="font-black text-[#111827] text-sm font-mono tracking-tighter">
+                              <p className="font-black text-[#111827] text-base font-mono tracking-tighter">
                                 {item.codigo}
                               </p>
                               {isTalvez && <span className="px-2 py-0.5 bg-amber-500 text-white text-[8px] rounded-full uppercase">TALVEZ</span>}
                               <button
                                 onClick={() => { setObsItem(item); setShowObsModal(true); }}
-                                className={`text-xs hover:scale-125 transition-transform ${item.composicao?.some((c: any) => c.observacao) ? 'text-blue-500' : 'text-gray-300'}`}
+                                className={`text-base hover:scale-125 transition-transform ${item.composicao?.some((c: any) => c.observacao) ? 'text-blue-500' : 'text-gray-300'}`}
                                 title="Observações / Notas (🗨️)"
                               >
                                 🗨️
                               </button>
                             </div>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight mb-2">{item.descricao}</p>
-                            <div className="flex items-center gap-4 text-[9px] font-black uppercase text-gray-400">
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-tight mb-2">{item.descricao}</p>
+                            <div className="flex items-center gap-4 text-[10px] font-black uppercase text-gray-400">
                               <p>.Armazém: <span className="text-gray-900">{armazem}</span></p>
                               <p>Endereço: <span className="text-emerald-600 font-mono tracking-widest">{endereco}</span></p>
                             </div>
                           </td>
-                          <td className="px-6 py-6 text-center text-lg font-black text-gray-900">{item.quantidade}</td>
+                          <td className="px-6 py-6 text-center text-xl font-black text-gray-900">{item.quantidade}</td>
                           <td className="px-6 py-6 text-center">
                             <input
                               type="number"
                               disabled={isOut}
-                              className={`w-20 px-3 py-2 bg-white border rounded-xl text-center font-black text-sm outline-none transition-all ${isOut ? 'opacity-20 bg-gray-50' : item.qtd_separada > item.quantidade ? 'border-red-500 ring-4 ring-red-50' : 'border-gray-200 focus:ring-4 focus:ring-emerald-50'}`}
+                              className={`w-20 px-3 py-2 bg-white border rounded-xl text-center font-black text-base outline-none transition-all ${isOut ? 'opacity-20 bg-gray-50' : item.qtd_separada > item.quantidade ? 'border-red-500 ring-4 ring-red-50' : 'border-gray-200 focus:ring-4 focus:ring-emerald-50'}`}
                               value={item.qtd_separada || 0}
                               onChange={(e) => updateItem(item.codigo, 'qtd_separada', Number(e.target.value))}
                             />
@@ -389,7 +393,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                               <button
                                 disabled={isOut}
                                 onClick={() => updateItem(item.codigo, 'ok', !item.ok)}
-                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : item.ok ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50'}`}
+                                className={`w-12 h-12 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : item.ok ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50'}`}
                                 title="1. OK - Separado"
                               >
                                 OK
@@ -397,7 +401,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                               <button
                                 disabled={isOut}
                                 onClick={() => updateItem(item.codigo, 'tr', !item.tr)}
-                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : item.tr ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-gray-200 text-blue-600 hover:bg-blue-50'}`}
+                                className={`w-12 h-12 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : item.tr ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-gray-200 text-blue-600 hover:bg-blue-50'}`}
                                 title="3. TR - Transferido"
                               >
                                 TR
@@ -412,7 +416,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                                     updateItem(item.codigo, 'tr', false);
                                   }
                                 }}
-                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.falta ? 'bg-red-600 text-white shadow-lg shadow-red-100' : 'bg-white border border-gray-200 text-red-600 hover:bg-red-50'}`}
+                                className={`w-12 h-12 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center ${item.falta ? 'bg-red-600 text-white shadow-lg shadow-red-100' : 'bg-white border border-gray-200 text-red-600 hover:bg-red-50'}`}
                                 title="OUT - Falta/Divergência"
                               >
                                 OUT
@@ -448,7 +452,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                       setActiveTab('dashboard');
                     } catch (err) {
                       console.error('Erro ao salvar pendência:', err);
-                      alert('Erro ao salvar. Tente novamente.');
+                      showAlert('Erro ao salvar. Tente novamente.', 'error');
                     } finally {
                       setIsFinalizing(false);
                     }

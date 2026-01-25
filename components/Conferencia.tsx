@@ -2,9 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { User } from '../types';
 import Loading from './Loading';
+import { useAlert } from './AlertContext';
+
 
 const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: string) => void }> = ({ user, blacklist, setActiveTab }) => {
+  const { showAlert } = useAlert();
   const [items, setItems] = useState<any[]>([]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
@@ -50,7 +54,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
 
   const handleStart = async (item: any) => {
     if (item.responsavel_conferencia && item.responsavel_conferencia !== user.nome) {
-      alert(`⚠️ Bloqueio: Em uso por "${item.responsavel_conferencia}"`);
+      showAlert(`Bloqueio: Em uso por "${item.responsavel_conferencia}"`, 'warning');
       return;
     }
     const sortedItens = [...(item.itens || [])].sort((a, b) => a.codigo.localeCompare(b.codigo));
@@ -160,7 +164,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
     });
 
     if (!isComplete) {
-      alert('⚠️ Bloqueio: Todos os itens conferidos devem estar em check (OK e TR) para finalizar.');
+      showAlert('Bloqueio: Todos os itens conferidos devem estar em check (OK e TR) para finalizar.', 'warning');
       return;
     }
 
@@ -174,17 +178,19 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
         documento: historyDocId,
         nome: selectedItem.nome || selectedItem.documento,
         armazem: selectedItem.armazem,
-        itens: selectedItem.itens.map((item: any, idx: number) => ({
-          ...item,
-          metadata: idx === 0 ? {
-            conferente: currentConferente,
-            separador: item.usuario_atual || 'N/A',
-            data_finalizacao: new Date().toISOString(),
-            total_itens: selectedItem.itens.length,
-            op_range: getOPDisplayRange(selectedItem.ordens),
-            ordens: selectedItem.ordens
-          } : undefined
-        }))
+        itens: selectedItem.itens
+          .filter((item: any) => (item.quantidade || 0) > 0) // Only items with separated quantity
+          .map((item: any, idx: number) => ({
+            ...item,
+            metadata: {
+              conferente: currentConferente,
+              separador: item.usuario_atual || 'N/A',
+              data_finalizacao: new Date().toISOString(),
+              total_itens: selectedItem.itens.length,
+              op_range: getOPDisplayRange(selectedItem.ordens),
+              ordens: selectedItem.ordens
+            }
+          }))
       };
 
       const { data: existingRecord } = await supabase.from('historico').select('id').eq('documento', historyDocId).maybeSingle();
@@ -199,12 +205,12 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
       }
 
       await supabase.from('conferencia').delete().eq('id', selectedItem.id);
-      alert('Conferência finalizada!');
+      showAlert('Conferência finalizada!', 'success');
       setViewMode('list'); setSelectedItem(null);
       setActiveTab('historico');
     } catch (e) {
       console.error(e);
-      alert('Erro ao finalizar');
+      showAlert('Erro ao finalizar', 'error');
     } finally { setIsLoading(false); fetchItems(); }
   };
 
@@ -213,7 +219,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
     setIsSaving(true);
     try {
       await supabase.from('conferencia').update({ status: 'Aguardando', responsavel_conferencia: null }).eq('id', selectedItem.id);
-      alert('Conferência salva como Pendente.');
+      showAlert('Conferência salva como Pendente.', 'info');
       setViewMode('list');
       setSelectedItem(null);
       setActiveTab('dashboard');
@@ -242,11 +248,11 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
       };
       await supabase.from('conferencia').delete().eq('id', selectedItem.id);
       await supabase.from('separacao').insert([separationData]);
-      alert('Lote revertido para Separação com sucesso!');
+      showAlert('Lote revertido para Separação com sucesso!', 'success');
       setViewMode('list'); setSelectedItem(null);
     } catch (e) {
       console.error(e);
-      alert('Erro ao reverter');
+      showAlert('Erro ao reverter', 'error');
     } finally { setIsReverting(false); }
   };
 
@@ -375,7 +381,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
               {!showTransferList ? (
                 <table className="w-full text-left">
                   <thead className="sticky top-0 bg-white z-20 border-b border-gray-100">
-                    <tr className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                    <tr className="text-xs font-black text-gray-400 uppercase tracking-widest">
                       <th className="px-8 py-4">OBS 🗨️</th>
                       <th className="px-6 py-4">PRODUTO / OP</th>
                       <th className="px-6 py-4 text-center">SOLICITADO</th>
@@ -409,16 +415,16 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                             </td>
                             <td className="px-6 py-4">
                               <div className="space-y-0.5">
-                                <p className="text-xs font-black text-gray-900 tracking-tight">{item.codigo}</p>
-                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter truncate max-w-[200px]">{item.descricao}</p>
-                                <p className="text-[8px] font-black text-blue-500 font-mono italic">OP {comp.op}</p>
+                                <p className="text-base font-black text-gray-900 tracking-tight">{item.codigo}</p>
+                                <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter truncate max-w-[200px]">{item.descricao}</p>
+                                <p className="text-[10px] font-black text-blue-500 font-mono italic">OP {comp.op}</p>
                               </div>
                             </td>
                             <td className="px-6 py-4 text-center">
-                              <p className="text-xs font-black text-gray-400 font-mono">{(comp.quantidade_original || comp.quantidade || comp.qtd_separada)}</p>
+                              <p className="text-base font-black text-gray-400 font-mono">{(comp.quantidade_original || comp.quantidade || comp.qtd_separada)}</p>
                             </td>
                             <td className="px-6 py-4 text-center">
-                              <p className="text-sm font-black text-gray-900 font-mono">{comp.qtd_separada}</p>
+                              <p className="text-xl font-black text-gray-900 font-mono">{comp.qtd_separada}</p>
                             </td>
                             <td className="px-8 py-4 text-right">
                               <div className="flex justify-end gap-2">
@@ -475,10 +481,10 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                               {row.isOk && '✓'}
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-xs font-black text-gray-900">{row.codigo}</td>
-                          <td className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase truncate max-w-[300px]">{row.descricao}</td>
-                          <td className="px-6 py-4 text-center text-xs font-black text-gray-400 font-mono">{row.totalSolic}</td>
-                          <td className="px-8 py-4 text-center text-sm font-black text-gray-900 font-mono">{row.totalSepar}</td>
+                          <td className="px-6 py-4 text-sm font-black text-gray-900">{row.codigo}</td>
+                          <td className="px-6 py-4 text-xs font-bold text-gray-400 uppercase truncate max-w-[300px]">{row.descricao}</td>
+                          <td className="px-6 py-4 text-center text-sm font-black text-gray-400 font-mono">{row.totalSolic}</td>
+                          <td className="px-8 py-4 text-center text-lg font-black text-gray-900 font-mono">{row.totalSepar}</td>
                         </tr>
                       ))}
                     </tbody>

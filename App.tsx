@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
@@ -12,6 +11,7 @@ import Historico from './components/Historico';
 import Configuracoes from './components/Configuracoes';
 import { User } from './types';
 import { supabase } from './services/supabaseClient';
+import { AlertProvider } from './components/AlertContext';
 
 // Interface compartilhada para a BlackList
 export interface BlacklistItem {
@@ -50,13 +50,10 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Session is now in-memory only (Supabase-only persistence for data)
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    // Hardcoded admin login (always works)
     if (loginData.username === 'admin' && loginData.password === '12dfe13dfe') {
       const adminUser: User = { id: 1, username: 'admin', nome: 'Administrador', role: 'admin', permissions: ['all'] };
       setUser(adminUser);
@@ -64,7 +61,6 @@ const App: React.FC = () => {
       return;
     }
 
-    // Try Supabase for other users
     try {
       const { data, error: sbError } = await supabase
         .from('usuarios')
@@ -144,8 +140,6 @@ const App: React.FC = () => {
                   onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
                   placeholder="admin"
                   autoComplete="username"
-                  name="username"
-                  id="username"
                   className="w-full px-6 py-5 bg-[#F0F4F8] border-none rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#006B47]/20 focus:bg-white transition-all text-sm font-bold text-gray-700 placeholder-[#8E9EAD]"
                 />
               </div>
@@ -162,8 +156,6 @@ const App: React.FC = () => {
                   onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                   placeholder="••••••••••"
                   autoComplete="current-password"
-                  name="password"
-                  id="password"
                   className="w-full px-6 py-5 bg-[#F0F4F8] border-none rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#006B47]/20 focus:bg-white transition-all text-sm font-bold text-gray-700 placeholder-[#8E9EAD]"
                 />
               </div>
@@ -196,8 +188,6 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     const isVisitor = user?.role === 'visitor';
-
-    // Lista de módulos permitidos para visitantes
     const visitorModules = ['dashboard', 'transferencia', 'historico'];
 
     if (isVisitor && !visitorModules.includes(activeTab)) {
@@ -218,23 +208,16 @@ const App: React.FC = () => {
       case 'blacklist': return <Blacklist items={blacklist} setItems={setBlacklist} user={user!} />;
       case 'historico': return <Historico user={user!} />;
       case 'configuracoes': return user?.role === 'admin' ? <Configuracoes /> : <Dashboard />;
-      default: return (
-        <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-white rounded-3xl shadow-sm border border-gray-100">
-          <div className="text-6xl">🚧</div>
-          <div>
-            <h3 className="text-xl font-bold text-gray-800">Em Desenvolvimento</h3>
-            <p className="text-gray-500 text-sm">O módulo de <strong>{activeTab}</strong> está sendo migrado.</p>
-          </div>
-          <button onClick={() => setActiveTab('dashboard')} className="px-6 py-2 bg-emerald-700 text-white rounded-full text-sm font-bold">Voltar ao Dashboard</button>
-        </div>
-      );
+      default: return null;
     }
   };
 
   return (
-    <Layout user={user!} onLogout={handleLogout} activeTab={activeTab} setActiveTab={setActiveTab}>
-      <div className="max-w-7xl mx-auto">{renderContent()}</div>
-    </Layout>
+    <AlertProvider>
+      <Layout user={user!} onLogout={handleLogout} activeTab={activeTab} setActiveTab={setActiveTab}>
+        <div className="max-w-7xl mx-auto">{renderContent()}</div>
+      </Layout>
+    </AlertProvider>
   );
 };
 
