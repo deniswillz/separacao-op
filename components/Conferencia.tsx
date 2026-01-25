@@ -3,7 +3,7 @@ import { supabase } from '../services/supabaseClient';
 import { User } from '../types';
 import Loading from './Loading';
 
-const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blacklist }) => {
+const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: string) => void }> = ({ user, blacklist, setActiveTab }) => {
   const [items, setItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
@@ -66,6 +66,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
     }
     setViewMode('list');
     setSelectedItem(null);
+    setActiveTab('dashboard');
   };
 
   const updateItemConf = async (itemCodigo: string, field: string, value: any) => {
@@ -107,9 +108,9 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
     setSelectedItem({ ...selectedItem, itens: newItens });
   };
 
-  const handleDivergencia = (item: any) => {
-    setDivItem(item);
-    setDivReason(item.div_conferencia || '');
+  const handleDivergencia = (item: any, comp: any) => {
+    setDivItem({ ...item, currentOp: comp.op });
+    setDivReason(comp.motivo_divergencia || '');
     setShowDivModal(true);
   };
 
@@ -120,14 +121,27 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
     if (divReason.trim().length > 0) {
       window.dispatchEvent(new CustomEvent('falta-detectada', {
         detail: {
-          op: selectedItem.documento,
+          op: divItem.currentOp,
           produto: divItem.codigo,
           motivo: `Divergência na Conferência: ${divReason}`
         }
       }));
     }
 
-    updateItemConf(divItem.codigo, 'div_conferencia', divReason);
+    const newItens = selectedItem.itens.map((item: any) => {
+      if (item.codigo === divItem.codigo) {
+        const newComp = (item.composicao || []).map((c: any) =>
+          c.op === divItem.currentOp ? { ...c, falta_conf: !!divReason.trim(), motivo_divergencia: divReason } : c
+        );
+        return { ...item, composicao: newComp };
+      }
+      return item;
+    });
+
+    setIsSaving(true);
+    await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
+    setIsSaving(false);
+    setSelectedItem({ ...selectedItem, itens: newItens });
     setShowDivModal(false);
     setDivItem(null);
   };
@@ -137,7 +151,8 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
     const isComplete = selectedItem.itens.every((item: any) => {
       const blacklistItem = blacklist.find(b => b.sku === item.codigo);
       if (blacklistItem?.nao_sep) return true;
-      if (item.div_conferencia) return false; // Divergence blocks finalization until resolved (removed)
+      const isAnyDivergent = (item.composicao || []).some((c: any) => c.falta_conf);
+      if (isAnyDivergent) return false;
       return (item.composicao || []).every((c: any) => c.ok_conf && c.tr_conf);
     });
     if (!isComplete) {
@@ -196,6 +211,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
       alert('Conferência salva como Pendente.');
       setViewMode('list');
       setSelectedItem(null);
+      setActiveTab('dashboard');
     } catch (err) {
       console.error(err);
     } finally { setIsSaving(false); }
@@ -391,18 +407,18 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
                             <td className="px-8 py-4 text-right">
                               <div className="flex justify-end gap-2">
                                 <button
-                                  disabled={!!item.div_conferencia}
+                                  disabled={!!comp.falta_conf}
                                   onClick={() => handleToggleIndivComp(item.codigo, comp.op, 'ok_conf', !comp.ok_conf)}
-                                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border ${comp.ok_conf ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-emerald-200 group-hover:bg-emerald-50'} ${item.div_conferencia ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border ${comp.ok_conf ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-emerald-200 group-hover:bg-emerald-50'} ${comp.falta_conf ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >OK</button>
                                 <button
-                                  disabled={!!item.div_conferencia}
+                                  disabled={!!comp.falta_conf}
                                   onClick={() => handleToggleIndivComp(item.codigo, comp.op, 'tr_conf', !comp.tr_conf)}
-                                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border ${comp.tr_conf ? 'bg-blue-600 text-white border-blue-600 shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-blue-200 group-hover:bg-blue-50'} ${item.div_conferencia ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border ${comp.tr_conf ? 'bg-blue-600 text-white border-blue-600 shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-blue-200 group-hover:bg-blue-50'} ${comp.falta_conf ? 'opacity-50 cursor-not-allowed' : ''}`}
                                 >TR</button>
                                 <button
-                                  onClick={() => handleDivergencia(item)}
-                                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm transition-all border ${item.div_conferencia ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-200 border-gray-100 hover:border-orange-200 group-hover:bg-orange-50'}`}
+                                  onClick={() => handleDivergencia(item, comp)}
+                                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm transition-all border ${comp.falta_conf ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-200 border-gray-100 hover:border-orange-200 group-hover:bg-orange-50'}`}
                                 >⚠️</button>
                               </div>
                             </td>

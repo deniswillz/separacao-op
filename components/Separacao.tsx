@@ -22,7 +22,7 @@ interface OPMock {
   rawItens: any[];
 }
 
-const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ blacklist, user }) => {
+const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab: (tab: string) => void }> = ({ blacklist, user, setActiveTab }) => {
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [isSyncing, setIsSyncing] = useState(true);
   const [ops, setOps] = useState<OPMock[]>([]);
@@ -439,6 +439,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
 
                       setSelectedOP(null);
                       setViewMode('list');
+                      setActiveTab('dashboard');
                     } catch (err) {
                       console.error('Erro ao salvar pendência:', err);
                       alert('Erro ao salvar. Tente novamente.');
@@ -523,7 +524,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                 {/* OP Section */}
                 <div className="space-y-4 relative z-10">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter">OP Lote: {opRange}</h3>
+                    <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter">Lote: {op.ordens.map(o => o.replace(/^00/, '').replace(/01001$/, '')).join(', ')}</h3>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

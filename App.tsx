@@ -212,8 +212,8 @@ const App: React.FC = () => {
       case 'dashboard': return <Dashboard />;
       case 'enderecos': return <Enderecos user={user!} />;
       case 'empenhos': return <Empenhos />;
-      case 'separacao': return <Separacao blacklist={blacklist} user={user!} />;
-      case 'conferencia': return <Conferencia blacklist={blacklist} user={user!} />;
+      case 'separacao': return <Separacao blacklist={blacklist} user={user!} setActiveTab={setActiveTab} />;
+      case 'conferencia': return <Conferencia blacklist={blacklist} user={user!} setActiveTab={setActiveTab} />;
       case 'transferencia': return <MatrizFilial user={user!} />;
       case 'blacklist': return <Blacklist items={blacklist} setItems={setBlacklist} user={user!} />;
       case 'historico': return <Historico user={user!} />;
