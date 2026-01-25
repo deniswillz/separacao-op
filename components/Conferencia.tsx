@@ -25,7 +25,10 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
   const [selectedItem, setSelectedItem] = useState<ConfItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [isReverting, setIsReverting] = useState(false);
   const [showTransferList, setShowTransferList] = useState(false);
+  const [showLupaModal, setShowLupaModal] = useState(false);
   const [selectedOpForDetail, setSelectedOpForDetail] = useState<string | null>(null);
   const [showObsModal, setShowObsModal] = useState(false);
   const [obsItem, setObsItem] = useState<any | null>(null);
@@ -119,6 +122,48 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
 
     if (!error) setSelectedItem({ ...selectedItem, itens: newItens, responsavel_conferencia: user.nome });
     else console.error('Erro ao sincronizar check:', error);
+  };
+
+  const handleRevert = async () => {
+    if (!selectedItem) return;
+    if (!confirm('Deseja realmente retornar este lote para a Separação?')) return;
+
+    setIsReverting(true);
+    try {
+      // 1. Re-insert into separacao
+      const { error: insErr } = await supabase.from('separacao').insert([{
+        nome: selectedItem.nome,
+        documento: selectedItem.documento,
+        armazem: selectedItem.armazem,
+        ordens: selectedItem.ordens,
+        itens: selectedItem.itens,
+        status: 'Pendente',
+        urgencia: 'media',
+        data_criacao: new Date().toISOString()
+      }]);
+
+      if (insErr) throw insErr;
+
+      // 2. Delete from conferencia
+      const { error: delErr } = await supabase.from('conferencia').delete().eq('id', selectedItem.id);
+      if (delErr) throw delErr;
+
+      // 3. Log in history
+      const { data: hist } = await supabase.from('historico').select('*').eq('documento', selectedItem.nome).maybeSingle();
+      if (hist) {
+        const newFluxo = [...(hist.itens || []), { status: 'Retornado p/ Separação', icon: '↩️', data: new Date().toLocaleDateString('pt-BR') }];
+        await supabase.from('historico').update({ itens: newFluxo }).eq('id', hist.id);
+      }
+
+      alert('Lote retornado para a Separação com sucesso!');
+      setViewMode('list');
+      setSelectedItem(null);
+      fetchItems();
+    } catch (e: any) {
+      alert('Erro ao reverter: ' + e.message);
+    } finally {
+      setIsReverting(false);
+    }
   };
 
   const handleToggleGroupTR = async (sku: string, value: boolean) => {
@@ -330,7 +375,16 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
       {viewMode === 'detail' && selectedItem ? (
         <div className="space-y-6 animate-fadeIn">
           <div className="flex justify-between items-center">
-            <button onClick={handleBack} className="px-6 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">← Voltar</button>
+            <div className="flex gap-3">
+              <button onClick={handleBack} className="px-6 py-2 bg-white border border-gray-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">← Voltar</button>
+              <button
+                onClick={handleRevert}
+                disabled={isReverting}
+                className="px-6 py-2 bg-orange-50 border border-orange-200 text-orange-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-100 transition-all disabled:opacity-50"
+              >
+                {isReverting ? 'Revertendo...' : '↩️ Voltar Situação'}
+              </button>
+            </div>
             <div className="flex gap-4">
               <div className="text-right">
                 <p className="text-[10px] font-black text-gray-400 uppercase">Documento</p>
