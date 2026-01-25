@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { UrgencyLevel } from '../types';
 import * as XLSX from 'xlsx';
 import { supabase, upsertBatched } from '../services/supabaseClient';
+import { useAlert } from './AlertContext';
+
 
 interface PendingOP {
   id: string;
@@ -12,7 +14,9 @@ interface PendingOP {
 }
 
 const Empenhos: React.FC = () => {
+  const { showAlert } = useAlert();
   const [ops, setOps] = useState<PendingOP[]>([]);
+
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [globalWarehouse, setGlobalWarehouse] = useState('');
   const [isImporting, setIsImporting] = useState(false);
@@ -56,12 +60,11 @@ const Empenhos: React.FC = () => {
             observacao: String(row[23] || '').trim() // Coluna X
           });
         });
-
         const importedOps = Object.values(opsMap);
         setOps(prev => [...prev, ...importedOps]);
         setSelectedIds(prev => [...prev, ...importedOps.map(op => op.id)]);
       } catch (error: any) {
-        alert('Erro: ' + error.message);
+        showAlert('Erro: ' + error.message, 'error');
       } finally {
         setIsImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -162,7 +165,7 @@ const Empenhos: React.FC = () => {
 
       await upsertBatched('historico', teaRecords, 900);
 
-      alert(`Sucesso! Gerado 1 lote consolidado para as OPs selecionadas.`);
+      showAlert(`Sucesso! Gerado 1 lote consolidado para as OPs selecionadas.`, 'success');
       setOps(prev => prev.filter(op => !selectedIds.includes(op.id)));
       setSelectedIds([]);
     } catch (error: any) {

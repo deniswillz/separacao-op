@@ -3,6 +3,8 @@ import { BlacklistItem } from '../App';
 import { User } from '../types';
 import { supabase, upsertBatched } from '../services/supabaseClient';
 import Loading from './Loading';
+import { useAlert } from './AlertContext';
+
 
 import * as XLSX from 'xlsx';
 
@@ -12,7 +14,9 @@ interface BlacklistProps {
 }
 
 const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems, user }) => {
+  const { showAlert } = useAlert();
   const [search, setSearch] = useState('');
+
   const [newCode, setNewCode] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -34,7 +38,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
     };
 
     const { data, error } = await supabase.from('blacklist').insert(newItem).select();
-    if (error) alert('Erro ao adicionar à BlackList: ' + error.message);
+    if (error) showAlert('Erro ao adicionar à BlackList: ' + error.message, 'error');
     else if (data) {
       setItems(prev => [...prev, data[0]]);
       setNewCode('');
@@ -56,7 +60,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
       .eq('id', id);
 
     if (error) {
-      alert('Erro ao atualizar status: ' + error.message);
+      showAlert('Erro ao atualizar status: ' + error.message, 'error');
       // Revert on error
       setItems(prev => prev.map(i => i.id === id ? { ...i, [field]: !newValue } : i));
     }
@@ -77,7 +81,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
   const handleRemove = async (id: string) => {
     if (confirm('Deseja remover este item da BlackList?')) {
       const { error } = await supabase.from('blacklist').delete().eq('id', id);
-      if (error) alert('Erro ao remover: ' + error.message);
+      if (error) showAlert('Erro ao remover: ' + error.message, 'error');
       else setItems(prev => prev.filter(item => item.id !== id));
     }
   };
@@ -86,7 +90,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
   const handleClearAll = async () => {
     if (confirm('Deseja limpar toda a BlackList?')) {
       const { error } = await supabase.from('blacklist').delete().neq('id', '0');
-      if (error) alert('Erro ao limpar: ' + error.message);
+      if (error) showAlert('Erro ao limpar: ' + error.message, 'error');
     }
   };
 
@@ -160,14 +164,14 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
                   }));
 
                   if (blacklistItems.length === 0) {
-                    alert('Nenhum dado válido encontrado (verifique a partir da linha 3).');
+                    showAlert('Nenhum dado válido encontrado (verifique a partir da linha 3).', 'warning');
                     return;
                   }
 
                   await upsertBatched('blacklist', blacklistItems, 500);
-                  alert(`${blacklistItems.length} itens adicionados à BlackList!`);
+                  showAlert(`${blacklistItems.length} itens adicionados à BlackList!`, 'success');
                 } catch (err: any) {
-                  alert('Erro na importação: ' + err.message);
+                  showAlert('Erro na importação: ' + err.message, 'error');
                 } finally {
                   setIsImporting(false);
                   if (fileInputRef.current) fileInputRef.current.value = '';

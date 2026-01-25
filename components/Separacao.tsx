@@ -250,7 +250,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
 
   const handleFinalize = async () => {
     if (!selectedOP || !docTransferencia) {
-      alert('⚠️ Informe o Documento de Transferência');
+      showAlert('Informe o Documento de Transferência', 'warning');
       return;
     }
 
@@ -269,7 +269,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
     });
 
     if (!isComplete) {
-      alert('❌ PROCESSO IMPEDIDO\n\nItens marcados como OK devem ter a Lupa finalizada e o Check TR marcado.');
+      showAlert('PROCESSO IMPEDIDO: Itens marcados como OK devem ter a Lupa finalizada e o Check TR marcado.', 'error');
       return;
     }
 
@@ -314,7 +314,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
       setViewMode('list'); setSelectedOP(null);
       setActiveTab('conferencia');
     } catch (e: any) {
-      alert('Erro ao finalizar: ' + e.message);
+      showAlert('Erro ao finalizar: ' + e.message, 'error');
     } finally { setIsFinalizing(false); }
   };
 
@@ -329,7 +329,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
     });
 
     const { error } = await supabase.from('separacao').update({ itens: newItens }).eq('id', selectedOP.id);
-    if (error) alert('Erro ao salvar observação: ' + error.message);
+    if (error) showAlert('Erro ao salvar observação: ' + error.message, 'error');
     else setSelectedOP({ ...selectedOP, rawItens: newItens });
   };
 
@@ -537,7 +537,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                       setActiveTab('dashboard');
                     } catch (err) {
                       console.error('Erro ao salvar pendência:', err);
-                      alert('Erro ao salvar. Tente novamente.');
+                      showAlert('Erro ao salvar. Tente novamente.', 'error');
                     } finally {
                       setIsFinalizing(false);
                     }

@@ -2,6 +2,8 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, User } from '../types';
 import { supabase, upsertBatched } from '../services/supabaseClient';
 import Loading from './Loading';
+import { useAlert } from './AlertContext';
+
 
 import * as XLSX from 'xlsx';
 
@@ -12,7 +14,9 @@ const initialItems: Product[] = [
 ];
 
 const Enderecos: React.FC<{ user: User }> = ({ user }) => {
+  const { showAlert } = useAlert();
   const [items, setItems] = useState<Product[]>(initialItems);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -79,7 +83,7 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
       .eq('id', id);
 
     if (error) {
-      alert('Erro ao excluir endereço: ' + error.message);
+      showAlert('Erro ao excluir endereço: ' + error.message, 'error');
     } else {
       setItems(prev => prev.filter(item => item.id !== id));
     }
@@ -93,7 +97,7 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
         .neq('id', 0); // Delete all
 
       if (error) {
-        alert('Erro ao limpar endereços: ' + error.message);
+        showAlert('Erro ao limpar endereços: ' + error.message, 'error');
       } else {
         setItems([]);
       }
@@ -125,17 +129,17 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
         }));
 
         if (products.length === 0) {
-          alert('Nenhum dado válido encontrado (verifique a partir da linha 3).');
+          showAlert('Nenhum dado válido encontrado (verifique a partir da linha 3).', 'warning');
           setIsImporting(false);
           return;
         }
 
         await upsertBatched('enderecos', products, 900);
 
-        alert(`${products.length} endereços importados com sucesso!`);
+        showAlert(`${products.length} endereços importados com sucesso!`, 'success');
         // O fetchEnderecos no useEffect cuidará da atualização via Realtime ou recarregue manual
       } catch (error: any) {
-        alert('Erro ao processar Excel: ' + error.message);
+        showAlert('Erro ao processar Excel: ' + error.message, 'error');
       } finally {
         setIsImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';

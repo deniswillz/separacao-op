@@ -4,6 +4,8 @@ import { User } from '../types';
 import { supabase, upsertBatched } from '../services/supabaseClient';
 import Loading from './Loading';
 import * as XLSX from 'xlsx';
+import { useAlert } from './AlertContext';
+
 
 
 interface TEAItem {
@@ -20,7 +22,9 @@ interface TEAItem {
 }
 
 const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
+  const { showAlert } = useAlert();
   const [isImporting, setIsImporting] = useState(false);
+
   const [isLoading, setIsLoading] = useState(true);
   const [history, setHistory] = useState<TEAItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -95,10 +99,10 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
         }));
 
         await upsertBatched('historico', teaData, 900);
-        alert(`${teaData.length} OPs importadas individualmente para TEA!`);
+        showAlert(`${teaData.length} OPs importadas individualmente para TEA!`, 'success');
         fetchHistory();
       } catch (error: any) {
-        alert('Erro ao importar Excel: ' + error.message);
+        showAlert('Erro ao importar Excel: ' + error.message, 'error');
       } finally {
         setIsImporting(false);
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -110,7 +114,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   const deleteItem = async (id: string) => {
     if (!confirm('Deseja excluir este rastreio?')) return;
     const { error } = await supabase.from('historico').delete().eq('id', id);
-    if (error) alert(error.message);
+    if (error) showAlert(error.message, 'error');
     else fetchHistory();
   };
 
@@ -130,7 +134,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
       })
       .eq('id', item.id);
 
-    if (error) alert('Erro: ' + error.message);
+    if (error) showAlert('Erro: ' + error.message, 'error');
     else fetchHistory();
   };
 

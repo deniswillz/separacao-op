@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 import { supabase } from '../services/supabaseClient';
+import { useAlert } from './AlertContext';
+
 
 interface SystemUser extends User {
   criadoEm: string;
@@ -17,7 +19,9 @@ const mockUsers: SystemUser[] = [
 ];
 
 const Configuracoes: React.FC = () => {
+  const { showAlert } = useAlert();
   const [users, setUsers] = useState<User[]>([]);
+
   const [isSyncing, setIsSyncing] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newUser, setNewUser] = useState({
@@ -59,14 +63,14 @@ const Configuracoes: React.FC = () => {
     if (username === 'admin') return;
     if (confirm(`Deseja realmente excluir o usuário ${username}?`)) {
       const { error } = await supabase.from('usuarios').delete().eq('username', username);
-      if (error) alert('Erro ao excluir: ' + error.message);
+      if (error) showAlert('Erro ao excluir: ' + error.message, 'error');
     }
   };
 
   const handleSaveUser = async () => {
     if (!newUser.username || !newUser.nome || !newUser.senha) return;
     if (newUser.senha !== newUser.confirmarSenha) {
-      alert('Senhas não conferem');
+      showAlert('Senhas não conferem', 'warning');
       return;
     }
 
@@ -80,7 +84,7 @@ const Configuracoes: React.FC = () => {
     }]);
 
     if (error) {
-      alert('Erro ao salvar usuário: ' + error.message);
+      showAlert('Erro ao salvar usuário: ' + error.message, 'error');
     } else {
       setIsModalOpen(false);
       setNewUser({

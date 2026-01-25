@@ -2,9 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { User } from '../types';
 import Loading from './Loading';
+import { useAlert } from './AlertContext';
+
 
 const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: string) => void }> = ({ user, blacklist, setActiveTab }) => {
+  const { showAlert } = useAlert();
   const [items, setItems] = useState<any[]>([]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
   const [selectedItem, setSelectedItem] = useState<any | null>(null);
@@ -50,7 +54,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
 
   const handleStart = async (item: any) => {
     if (item.responsavel_conferencia && item.responsavel_conferencia !== user.nome) {
-      alert(`⚠️ Bloqueio: Em uso por "${item.responsavel_conferencia}"`);
+      showAlert(`Bloqueio: Em uso por "${item.responsavel_conferencia}"`, 'warning');
       return;
     }
     const sortedItens = [...(item.itens || [])].sort((a, b) => a.codigo.localeCompare(b.codigo));
@@ -161,7 +165,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
     });
 
     if (!isComplete) {
-      alert('⚠️ Bloqueio: Todos os itens conferidos devem estar em check (OK e TR) para finalizar.');
+      showAlert('Bloqueio: Todos os itens conferidos devem estar em check (OK e TR) para finalizar.', 'warning');
       return;
     }
 
@@ -200,12 +204,12 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
       }
 
       await supabase.from('conferencia').delete().eq('id', selectedItem.id);
-      alert('Conferência finalizada!');
+      showAlert('Conferência finalizada!', 'success');
       setViewMode('list'); setSelectedItem(null);
       setActiveTab('historico');
     } catch (e) {
       console.error(e);
-      alert('Erro ao finalizar');
+      showAlert('Erro ao finalizar', 'error');
     } finally { setIsLoading(false); fetchItems(); }
   };
 
@@ -214,7 +218,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
     setIsSaving(true);
     try {
       await supabase.from('conferencia').update({ status: 'Aguardando', responsavel_conferencia: null }).eq('id', selectedItem.id);
-      alert('Conferência salva como Pendente.');
+      showAlert('Conferência salva como Pendente.', 'info');
       setViewMode('list');
       setSelectedItem(null);
       setActiveTab('dashboard');
@@ -243,11 +247,11 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
       };
       await supabase.from('conferencia').delete().eq('id', selectedItem.id);
       await supabase.from('separacao').insert([separationData]);
-      alert('Lote revertido para Separação com sucesso!');
+      showAlert('Lote revertido para Separação com sucesso!', 'success');
       setViewMode('list'); setSelectedItem(null);
     } catch (e) {
       console.error(e);
-      alert('Erro ao reverter');
+      showAlert('Erro ao reverter', 'error');
     } finally { setIsReverting(false); }
   };
 
