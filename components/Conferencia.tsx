@@ -289,12 +289,13 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
         armazem: selectedItem.armazem,
         itens: selectedItem.itens.map((item: any, idx: number) => ({
           ...item,
-          // Embed metadata in each item or first item for the detailed modal
           metadata: idx === 0 ? {
             conferente: user.nome,
+            separador: selectedItem.itens[0]?.usuario_atual || 'N/A',
             data_finalizacao: new Date().toISOString(),
             total_itens: selectedItem.itens.length,
-            op_range: getOPDisplayRange(selectedItem.ordens)
+            op_range: getOPDisplayRange(selectedItem.ordens),
+            ordens: selectedItem.ordens
           } : undefined
         }))
       };
@@ -303,7 +304,7 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
       const { error: histInsErr } = await supabase.from('historico').insert([batchHistoryData]);
       if (histInsErr) throw histInsErr;
 
-      // 3. Update individual OP TEA records
+      // 3. Update individual OP TEA records - ONLY update 'itens' JSON column to avoid 400
       const uniqueOps = [...new Set(selectedItem.itens.flatMap(i => i.composicao?.map((c: any) => c.op) || []))];
 
       for (const opCode of uniqueOps) {
@@ -313,13 +314,11 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
           const newFluxo = [...(histData.itens || []), {
             status: 'Qualidade',
             icon: '🔍',
-            data: new Date().toLocaleDateString('pt-BR')
+            data: new Date().toLocaleDateString('pt-BR'),
+            conferente: user.nome
           }];
           await supabase.from('historico').update({
-            itens: newFluxo,
-            status_atual: 'Qualidade',
-            data_finalizacao: new Date().toISOString(),
-            conferente: user.nome
+            itens: newFluxo
           }).eq('id', histData.id);
         }
       }
@@ -425,20 +424,26 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
             </div>
             <div className="flex flex-wrap gap-2">
               {[...new Set(selectedItem.itens.flatMap(i => (i.composicao || []).map((c: any) => c.op)))].map(opCode => {
-                const opItensComps = selectedItem.itens.flatMap(i => (i.composicao || []).filter((c: any) => c.op === opCode));
-                const isDone = opItensComps.every(c => c.ok_conf);
+                // Determine if this specific OP in this batch is fully checked
+                const opItensComps = selectedItem.itens.flatMap(i =>
+                  (i.composicao || []).filter((c: any) => c.op === opCode)
+                );
+
+                // An OP is "Done" if all its components in this batch are ok_conf and ok2_conf
+                const isDone = opItensComps.length > 0 && opItensComps.every(c => c.ok_conf && c.ok2_conf);
                 const isSelected = selectedOpForDetail === opCode;
+
                 return (
                   <button
                     key={opCode}
                     onClick={() => setSelectedOpForDetail(isSelected ? null : opCode)}
-                    className={`px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 transition-all border ${isSelected ? 'ring-2 ring-emerald-500 ring-offset-2' : ''
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 transition-all border ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
                       } ${isDone
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm'
                         : 'bg-gray-50 border-gray-200 text-gray-500'
                       }`}
                   >
-                    {isDone ? '✅' : '⏳'} OP {opCode}
+                    <span>{isDone ? '✅' : '⏳'}</span> OP {opCode}
                   </button>
                 );
               })}
