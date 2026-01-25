@@ -87,7 +87,8 @@ const Configuracoes: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSaveUser = async () => {
+  const handleSaveUser = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!newUser.username || !newUser.nome) {
       showAlert('Preencha os campos obrigatórios', 'warning');
       return;
@@ -119,7 +120,7 @@ const Configuracoes: React.FC = () => {
       const { error: err } = await supabase.from('usuarios').update(userData).eq('username', editingUser);
       error = err;
     } else {
-      userData.criadoEm = new Date().toISOString();
+      // Supabase uses created_at by default, 'criadoEm' does not exist in the schema
       const { error: err } = await supabase.from('usuarios').insert([userData]);
       error = err;
     }
@@ -135,10 +136,10 @@ const Configuracoes: React.FC = () => {
     }
   };
 
-  // 📤 EXPORTAR BACKUP JSON
-  const handleExport = async () => {
+  // 📤 EXPORTAR BACKUP JSON (Local)
+  const handleExportLocal = async () => {
     try {
-      const tables = ['usuarios', 'dashboard', 'enderecos', 'empenhos', 'separacao', 'conferencia', 'historico', 'blacklist'];
+      const tables = ['usuarios', 'enderecos', 'separacao', 'conferencia', 'historico', 'blacklist'];
       const backup: any = {};
 
       for (const table of tables) {
@@ -158,8 +159,59 @@ const Configuracoes: React.FC = () => {
     }
   };
 
-  // 📥 IMPORTAR BACKUP JSON
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // 🔄 BACKUP MANUAL (Supabase)
+  const handleSupabaseBackup = async () => {
+    setIsSyncing(true);
+    try {
+      const tables = ['usuarios', 'enderecos', 'separacao', 'conferencia', 'historico', 'blacklist'];
+      const backupData: any = {};
+
+      for (const table of tables) {
+        const { data } = await supabase.from(table).select('*');
+        backupData[table] = data || [];
+      }
+
+      const { error } = await supabase.from('backups').insert([{
+        data: new Date().toISOString(),
+        backup_json: JSON.stringify(backupData),
+        responsavel: 'admin'
+      }]);
+
+      if (error) throw error;
+      showAlert('Backup manual salvo no Supabase!', 'success');
+    } catch (e: any) {
+      showAlert('Aviso: Tabela "backups" não encontrada ou erro ao salvar. Use a Exportação JSON.', 'warning');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // 🔄 RESTAURAR BACKUP MANUAL (Supabase)
+  const handleRestoreBackup = async () => {
+    if (!confirm('Deseja restaurar o backup mais recente do servidor? Isso substituirá dados atuais.')) return;
+
+    setIsSyncing(true);
+    try {
+      const { data, error } = await supabase.from('backups').select('*').order('id', { ascending: false }).limit(1).single();
+      if (error || !data) throw new Error('Nenhum backup encontrado no servidor.');
+
+      const backup = JSON.parse(data.backup_json);
+      for (const table in backup) {
+        if (Array.isArray(backup[table]) && backup[table].length > 0) {
+          await supabase.from(table).upsert(backup[table]);
+        }
+      }
+      showAlert('Backup restaurado do servidor com sucesso!', 'success');
+      fetchUsers();
+    } catch (e: any) {
+      showAlert('Erro ao restaurar: ' + e.message, 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // 📥 IMPORTAR BACKUP JSON (Local)
+  const handleImportLocal = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -187,13 +239,13 @@ const Configuracoes: React.FC = () => {
 
   // 🗑️ RESETAR SISTEMA
   const handleResetSystem = async () => {
-    if (!confirm('PERIGO: Esta ação apagará TODOS os dados de todos os módulos. Esta ação é irreversível. Confirmar reset total?')) return;
-    if (!confirm('ÚLTIMO AVISO: Todos os registros serão perdidos. Prosseguir?')) return;
+    if (!confirm('PERIGO: Esta ação apagará TODOS os dados operacionais. Confirmar reset total?')) return;
+    if (!confirm('ÚLTIMO AVISO: Dashboard, Endereços, Empenhos, Separação, Conferência, TEA, BlackList e Histórico serão limpos. Prosseguir?')) return;
 
-    const tables = ['dashboard', 'enderecos', 'empenhos', 'separacao', 'conferencia', 'historico', 'blacklist'];
+    const tables = ['enderecos', 'separacao', 'conferencia', 'historico', 'blacklist'];
     try {
       for (const table of tables) {
-        const { error } = await supabase.from(table).delete().neq('id', '000000'); // Delete everything
+        const { error } = await supabase.from(table).delete().neq('id', '000000');
         if (error) console.error(`Erro ao resetar ${table}:`, error);
       }
       showAlert('Sistema resetado com sucesso!', 'success');
@@ -225,18 +277,18 @@ const Configuracoes: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-fadeIn pb-16">
-      <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleImport} />
+      <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleImportLocal} />
 
       {/* Modal Novo Usuário */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+        <form onSubmit={handleSaveUser} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
           <div className="bg-[var(--bg-secondary)] rounded-[2rem] w-full max-w-4xl overflow-hidden shadow-2xl animate-scaleIn border border-[var(--border-light)] flex flex-col max-h-[90vh]">
             <div className="bg-[#006B47] px-8 py-5 flex justify-between items-center text-white">
               <div className="space-y-0.5">
                 <h3 className="text-sm font-black uppercase tracking-widest">{editingUser ? 'Editar Perfil' : 'Novo Perfil de Acesso'}</h3>
                 <p className="text-emerald-100 text-[9px] font-bold uppercase opacity-80">Segurança e Permissões</p>
               </div>
-              <button onClick={() => { setIsModalOpen(false); setEditingUser(null); }} className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all text-xs">✕</button>
+              <button type="button" onClick={() => { setIsModalOpen(false); setEditingUser(null); }} className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all text-xs">✕</button>
             </div>
 
             <div className="p-8 space-y-6 overflow-y-auto custom-scrollbar bg-[var(--bg-secondary)]">
@@ -330,12 +382,12 @@ const Configuracoes: React.FC = () => {
 
             <div className="bg-[var(--bg-inner)] px-8 py-6 flex justify-end gap-3 border-t border-[var(--border-light)]">
               <button type="button" onClick={() => { setIsModalOpen(false); setEditingUser(null); }} className="px-6 py-3 bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-muted)] rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--bg-inner)] transition-all">Sair</button>
-              <button onClick={handleSaveUser} className="px-8 py-3 bg-[#006B47] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/10">
+              <button type="submit" className="px-8 py-3 bg-[#006B47] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/10">
                 {editingUser ? 'Atualizar Usuário' : 'Confirmar Cadastro'}
               </button>
             </div>
           </div>
-        </div>
+        </form>
       )}
 
       {/* Header Compacto */}
@@ -357,7 +409,7 @@ const Configuracoes: React.FC = () => {
           <span className="text-[8px] font-black text-emerald-50 uppercase tracking-widest">Novo Usuário</span>
         </button>
 
-        <button onClick={handleExport} className="bg-[var(--bg-secondary)] p-4 rounded-[1.5rem] border border-[var(--border-light)] flex flex-col items-center justify-center gap-2 hover:bg-[var(--bg-inner)] transition-all shadow-sm">
+        <button onClick={handleExportLocal} className="bg-[var(--bg-secondary)] p-4 rounded-[1.5rem] border border-[var(--border-light)] flex flex-col items-center justify-center gap-2 hover:bg-[var(--bg-inner)] transition-all shadow-sm">
           <span className="text-xl">📤</span>
           <span className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest">Exportar</span>
         </button>
@@ -369,9 +421,14 @@ const Configuracoes: React.FC = () => {
 
         <div className="hidden lg:block w-px h-full bg-[var(--border-light)] mx-auto"></div>
 
-        <button onClick={handleExport} title="Simular backup manual via export" className="bg-[#F2A516]/10 border border-[#F2A516]/20 p-4 rounded-[1.5rem] flex flex-col items-center justify-center gap-2 hover:bg-[#F2A516]/20 transition-all group">
+        <button onClick={handleSupabaseBackup} title="Salvar backup manual no Supabase" className="bg-[#F2A516]/10 border border-[#F2A516]/20 p-4 rounded-[1.5rem] flex flex-col items-center justify-center gap-2 hover:bg-[#F2A516]/20 transition-all group">
           <span className="text-xl group-hover:rotate-12 transition-transform">🔄</span>
           <span className="text-[8px] font-black text-[#F2A516] uppercase tracking-widest">Backup</span>
+        </button>
+
+        <button onClick={handleRestoreBackup} title="Restaurar backup do Supabase" className="bg-[#F2A516]/10 border border-[#F2A516]/20 p-4 rounded-[1.5rem] flex flex-col items-center justify-center gap-2 hover:bg-[#F2A516]/20 transition-all group">
+          <span className="text-xl group-hover:scale-110 transition-transform">📥</span>
+          <span className="text-[8px] font-black text-[#F2A516] uppercase tracking-widest">Restaura</span>
         </button>
 
         <button onClick={handleLogoutAll} className="bg-[#F2A516]/10 border border-[#F2A516]/20 p-4 rounded-[1.5rem] flex flex-col items-center justify-center gap-2 hover:bg-[#F2A516]/20 transition-all group">
