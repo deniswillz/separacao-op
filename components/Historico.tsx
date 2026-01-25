@@ -173,12 +173,15 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
 
             <div className="p-10 space-y-8 overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2">
-                  <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Armazém, Doc e OP</p>
+                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-3">
+                  <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Armazém e Doc</p>
                   <div className="space-y-1">
-                    <p className="text-lg font-black text-gray-900 uppercase leading-none">{selectedItem.armazem}</p>
-                    <p className="text-[10px] font-bold text-emerald-600 font-mono italic break-all leading-tight">{selectedItem.documento}</p>
-                    <div className="flex flex-wrap gap-1.5 mt-3">
+                    <p className="text-xl font-black text-gray-900 uppercase leading-none">{selectedItem.armazem}</p>
+                    <p className="text-xs font-bold text-emerald-600 font-mono italic break-all leading-tight">{selectedItem.documento}</p>
+                  </div>
+                  <div className="pt-2 border-t border-gray-50">
+                    <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-2">Filtrar por OP</p>
+                    <div className="flex flex-wrap gap-1.5">
                       {(selectedItem.ordens || []).map((op: any) => {
                         const simpleOP = op.replace(/^00/, '').replace(/01001$/, '');
                         const isActive = selectedOpFilter === op;
@@ -255,15 +258,27 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                           .filter((c: any) => c.observacao)
                           .map((c: any) => ({ op: c.op, text: c.observacao }));
 
+                        // Calculate quantities based on active filter
+                        let solQty = item.original_solicitado || item.quantidade;
+                        let sepQty = item.quantidade;
+
+                        if (selectedOpFilter) {
+                          const relevantComp = (item.composicao || []).find((c: any) => c.op === selectedOpFilter);
+                          if (relevantComp) {
+                            solQty = relevantComp.quantidade_original || relevantComp.quantidade || 0;
+                            sepQty = relevantComp.qtd_separada || 0;
+                          }
+                        }
+
                         return (
                           <tr key={idx} className="hover:bg-gray-50 transition-colors">
                             <td className="px-8 py-6 font-black text-emerald-600 text-[11px] font-mono tracking-tighter w-1/4">{item.codigo}</td>
                             <td className="px-8 py-6 text-[10px] font-black text-gray-500 uppercase tracking-tight">{item.descricao}</td>
                             <td className="px-8 py-6 text-center text-[11px] font-black text-gray-300 font-mono italic">
-                              {item.original_solicitado || item.quantidade}
+                              {solQty}
                             </td>
                             <td className="px-8 py-6 text-center text-sm font-black text-gray-900 font-mono">
-                              {item.quantidade}
+                              {sepQty}
                             </td>
                             <td className="px-8 py-6 text-center">
                               <button
