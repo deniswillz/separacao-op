@@ -255,6 +255,7 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
     }
   };
 
+
   const handleFinalize = async () => {
     if (!selectedItem) return;
 
@@ -281,18 +282,29 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
 
     setIsLoading(true);
     try {
-      // 1. Move conference to finished (status update)
-      await supabase.from('conferencia').update({
-        status: 'Finalizado',
-        data_conferencia: new Date().toISOString(),
-        responsavel_conferencia: user.nome
-      }).eq('id', selectedItem.id);
+      // 1. Prepare history data for the batch
+      const batchHistoryData = {
+        opRange: getOPDisplayRange(selectedItem.ordens),
+        armazem: selectedItem.armazem,
+        documento: selectedItem.documento,
+        ordens: selectedItem.ordens.join(', '),
+        separador: selectedItem.itens[0]?.usuario_atual || 'N/A',
+        conferente: user.nome,
+        dataFinalizacao: new Date().toISOString(),
+        totalItens: selectedItem.itens.length,
+        itens: selectedItem.itens
+      };
 
-      // 2. Update TEA (historico table) to "Qualidade" for each OP
-      const uniqueOps = [...new Set(selectedItem.itens.map(i => i.op))];
+      // 2. Insert into historico table
+      const { error: histInsErr } = await supabase.from('historico').insert([batchHistoryData]);
+      if (histInsErr) throw histInsErr;
+
+      // 3. Update individual OP TEA records
+      const uniqueOps = [...new Set(selectedItem.itens.flatMap(i => i.composicao?.map((c: any) => c.op) || []))];
+
       for (const opCode of uniqueOps) {
-        // Find the record in historico for this OP
-        const { data: histData } = await supabase.from('historico').select('*').eq('documento', opCode).single();
+        if (!opCode) continue;
+        const { data: histData } = await supabase.from('historico').select('*').eq('documento', opCode).maybeSingle();
         if (histData) {
           const newFluxo = [...(histData.itens || []), {
             status: 'Qualidade',
@@ -301,12 +313,17 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
           }];
           await supabase.from('historico').update({
             itens: newFluxo,
-            status_atual: 'Qualidade'
+            status_atual: 'Qualidade',
+            data_finalizacao: new Date().toISOString(),
+            conferente: user.nome
           }).eq('id', histData.id);
         }
       }
 
-      alert('Conferência finalizada e TEA atualizado!');
+      // 4. Delete from conferencia table
+      await supabase.from('conferencia').delete().eq('id', selectedItem.id);
+
+      alert('Conferência finalizada e arquivada em Histórico!');
       setViewMode('list');
       setSelectedItem(null);
       fetchItems();

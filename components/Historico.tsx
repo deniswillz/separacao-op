@@ -36,7 +36,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
           dataFinalizacao: item.data_finalizacao || item.data || new Date().toISOString(),
           totalItens: item.totalItens || (Array.isArray(item.itens) ? item.itens.length : 0)
         }))
-        .sort((a: any, b: any) => a.documento.localeCompare(b.documento));
+        .sort((a: any, b: any) => new Date(b.dataFinalizacao).getTime() - new Date(a.dataFinalizacao).getTime());
       setHistory(sortedHistory);
     }
     setIsLoading(false);
