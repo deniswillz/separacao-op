@@ -255,7 +255,8 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
   }, 0) || 0;
 
   const progressoGeral = totalSeparado > 0 ? Math.round((totalConferidoQtd / totalSeparado) * 100) : 0;
-  const itensCompletosCount = selectedItem?.itens.filter((i: any) => (i.composicao || []).every((c: any) => c.ok_conf)).length || 0;
+  const totalOkItemsCount = selectedItem?.itens.filter((i: any) => i.ok === true || i.ok === 'true').length || 0;
+  const itensCompletosCount = selectedItem?.itens.filter((i: any) => (i.ok === true || i.ok === 'true') && (i.composicao || []).every((c: any) => c.ok_conf)).length || 0;
   const divergenciasCount = selectedItem?.itens.filter((i: any) => i.div_conferencia).length || 0;
 
   return (
@@ -487,11 +488,11 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                   <div className="flex gap-4">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-black text-gray-400">🔢 Itens:</span>
-                      <span className="text-xs font-black text-blue-600">{itensCompletosCount} / {selectedItem.itens.length} ITENS</span>
+                      <span className="text-xs font-black text-blue-600">{itensCompletosCount} / {totalOkItemsCount}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-black text-gray-400">Verificados:</span>
-                      <span className="text-xs font-black text-emerald-600">{totalConferidoQtd} / {totalSeparado} ⏳</span>
+                      <span className="text-xs font-black text-emerald-600 font-mono tracking-tighter">{totalConferidoQtd} / {totalSeparado} ⏳</span>
                     </div>
                   </div>
                 </div>

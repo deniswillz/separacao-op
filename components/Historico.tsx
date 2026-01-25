@@ -111,8 +111,9 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                 </div>
 
                 <div className="space-y-0.5">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter truncate">{item.documento}</p>
-                  <h4 className="text-[13px] font-black text-[#111827] uppercase truncate">OP {item.op_range}</h4>
+                  <h4 className="text-[13px] font-black text-[#111827] uppercase truncate">{item.nome || 'Lote Indefinido'}</h4>
+                  <p className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter truncate">({item.op_range})</p>
+                  <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{item.documento}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-y-2 gap-x-2 border-t border-gray-50 pt-3">

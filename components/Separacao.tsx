@@ -525,7 +525,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                 {/* OP Section */}
                 <div className="space-y-4 relative z-10">
                   <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter">Lote: {op.ordens.map(o => o.replace(/^00/, '').replace(/01001$/, '')).join(', ')}</h3>
+                    <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter">📦 {op.opCode} ({op.ordens.map(o => o.replace(/^00/, '').replace(/01001$/, '')).join(', ')})</h3>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
