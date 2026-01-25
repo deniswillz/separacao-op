@@ -198,9 +198,11 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
             const badge = getStatusBadge(item.itens);
             const isCompleted = item.status_atual === 'CONCLUÍDO' || badge.label === 'Concluído';
             const isEmUso = item.responsavel && item.responsavel !== user.nome;
+            const borderClass = isCompleted ? 'border-emerald-500' :
+              isEmUso ? 'border-blue-500' : 'border-gray-100';
 
             return (
-              <div key={item.id} className={`bg-white rounded-[2rem] border border-gray-100 p-6 flex flex-col justify-between h-[28rem] shadow-sm hover:shadow-md transition-all relative group overflow-hidden ${isEmUso ? 'bg-gray-50 grayscale' : ''}`}>
+              <div key={item.id} className={`bg-white rounded-[2rem] border-2 ${borderClass} p-6 flex flex-col justify-between h-[28rem] shadow-sm hover:shadow-md transition-all relative group overflow-hidden ${isEmUso ? 'bg-gray-50' : ''}`}>
                 {/* In-Use Overlay */}
                 {isEmUso && (
                   <div className="absolute inset-0 bg-gray-100/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center text-center p-4">

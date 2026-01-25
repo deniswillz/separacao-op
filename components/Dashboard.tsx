@@ -220,29 +220,33 @@ const Dashboard: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {opStatusList
             .filter(op => (op as any).data?.startsWith(dateFilter))
-            .map((op, idx) => (
-              <div key={`${op.id}-${idx}`} className="bg-white border border-gray-100 p-4 rounded-2xl shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-start mb-3">
-                  <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase ${op.type === 'Separação' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
-                    {op.type}
-                  </span>
-                  <span className="text-[10px] font-black text-gray-300">#{op.id.toString().slice(-4)}</span>
-                </div>
-                <p className="text-xs font-black text-gray-900 mb-1 truncate">OP {op.id.toString().slice(0, 6)}</p>
-                <div className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${op.status === 'Finalizado' ? 'bg-emerald-500' : 'bg-orange-500 animation-pulse'}`}></div>
-                  <p className="text-[10px] font-bold text-gray-500 uppercase">{op.status}</p>
-                </div>
-                {op.usuario && (
-                  <div className="mt-2 pt-2 border-t border-gray-50 flex items-center gap-2">
-                    <div className="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center text-[8px] font-black text-emerald-700">
-                      {op.usuario.charAt(0)}
-                    </div>
-                    <span className="text-[9px] font-bold text-gray-400 truncate">{op.usuario}</span>
+            .map((op, idx) => {
+              const borderClass = op.status === 'Finalizado' ? 'border-emerald-500' :
+                op.usuario ? 'border-blue-500' : 'border-gray-100';
+              return (
+                <div key={`${op.id}-${idx}`} className={`bg-white border-2 ${borderClass} p-4 rounded-2xl shadow-sm hover:shadow-md transition-shadow`}>
+                  <div className="flex justify-between items-start mb-3">
+                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase ${op.type === 'Separação' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
+                      {op.type}
+                    </span>
+                    <span className="text-[10px] font-black text-gray-300">#{op.id.toString().slice(-4)}</span>
                   </div>
-                )}
-              </div>
-            ))}
+                  <p className="text-xs font-black text-gray-900 mb-1 truncate">OP {op.id.toString().slice(0, 6)}</p>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-1.5 h-1.5 rounded-full ${op.status === 'Finalizado' ? 'bg-emerald-500' : 'bg-orange-500 animation-pulse'}`}></div>
+                    <p className="text-[10px] font-bold text-gray-500 uppercase">{op.status}</p>
+                  </div>
+                  {op.usuario && (
+                    <div className="mt-2 pt-2 border-t border-gray-50 flex items-center gap-2">
+                      <div className="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center text-[8px] font-black text-emerald-700">
+                        {op.usuario.charAt(0)}
+                      </div>
+                      <span className="text-[9px] font-bold text-gray-400 truncate">{op.usuario}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           {opStatusList.length === 0 && (
             <div className="w-full py-8 text-center text-[10px] font-black text-gray-300 uppercase tracking-widest">
               Nenhuma OP ativa no momento
