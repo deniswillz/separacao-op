@@ -138,7 +138,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
             return {
               ...c,
               qtd_separada: newQty,
-              concluido: newQty >= requested && requested > 0
+              concluido: c.concluido // Leave as is unless explicitly toggled by OK button
             };
           }
           return c;
@@ -176,11 +176,10 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
       if (item.codigo === itemCodigo) {
         const newComp = (item.composicao || []).map((c: any) => {
           if (c.op === op) {
-            const requested = c.quantidade_original || c.quantidade || 0;
             return {
               ...c,
               concluido: isFinalize,
-              qtd_separada: isFinalize ? requested : 0
+              qtd_separada: isFinalize ? (c.qtd_separada || c.quantidade_original || c.quantidade || 0) : 0
             };
           }
           return c;
@@ -230,22 +229,12 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
 
   const getOPDisplayRange = (ordens: string[]) => {
     if (!ordens || ordens.length === 0) return 'S/N';
-    if (ordens.length === 1) {
-      // If matches 00XXXX01001 pattern, extract XXXX
-      const match = ordens[0].match(/00(\d{4})01001/);
-      return match ? match[1] : ordens[0].slice(-6);
-    }
-
     const formatted = ordens.map(op => {
-      const match = op.match(/00(\d{4})01001/);
-      return match ? match[1] : op.slice(-6);
+      // Logic: remove 00 at start and 01001 at end
+      return op.replace(/^00/, '').replace(/01001$/, '');
     });
-
     const unique = Array.from(new Set(formatted)).sort();
-    if (unique.length > 1) {
-      return `${unique[0]} - ${unique[unique.length - 1]}`;
-    }
-    return unique[0];
+    return unique.length > 1 ? `${unique[0]} - ${unique[unique.length - 1]}` : unique[0] || 'S/N';
   };
 
   const handleFinalize = async () => {
@@ -616,61 +605,38 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                   )}
                 </div>
 
-                <div className="space-y-4 relative z-10">
-                  <div className="flex flex-col gap-1">
-                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">
-                      📦 OP - {op.ordens.map(o => o.replace(/^00/, '').replace(/01001$/, '')).join(', ')}
+                <div className="space-y-2 relative z-10 flex-1">
+                  <div className="flex flex-col gap-1 items-start">
+                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-tighter leading-none">
+                      📦 OP - {opRange}
                     </h3>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedOpForList(op);
-                      setShowOpListModal(true);
-                    }}
-                    className="text-blue-500 text-xs hover:scale-125 transition-transform p-1"
-                    title="Ver lista completa de OPs"
-                  >
-                    🔍
-                  </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">📍 Armazém</p>
-                    <p className="text-xs font-black text-gray-900 truncate">{op.armazem}</p>
+                <div className="grid grid-cols-2 gap-y-3 gap-x-4 border-t border-gray-50 pt-4">
+                  <div className="space-y-0.5">
+                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none">📍 Armazém</p>
+                    <p className="text-[10px] font-black text-gray-900 truncate">{op.armazem}</p>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">📦 Ordens</p>
-                    <p className="text-xs font-black text-gray-900">{op.ordens.length}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">📋 Itens</p>
-                    <p className="text-xs font-black text-gray-900">{finalizedCount}/{total}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">👤 Resp.</p>
-                    <p className={`text-xs font-black truncate ${op.usuarioAtual ? 'text-emerald-600' : 'text-gray-300'}`}>
+                  <div className="space-y-0.5">
+                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none">👤 Resp.</p>
+                    <p className={`text-[10px] font-black truncate ${op.usuarioAtual ? 'text-emerald-600' : 'text-gray-300'}`}>
                       {op.usuarioAtual || 'Aguardando'}
                     </p>
                   </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none">📋 Itens</p>
+                    <p className="text-[10px] font-black text-gray-900">{finalizedCount}/{total}</p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none">📈 Progresso</p>
+                    <p className={`text-[10px] font-black ${progress === 100 ? 'text-emerald-600' : 'text-gray-900'}`}>{progress}%</p>
+                  </div>
                 </div>
 
-                {/* Progress Visual */}
-                <div className="space-y-3 relative z-10 pt-4 border-t border-gray-50">
-                  <div className="flex justify-between items-end">
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Concluídos</p>
-                      <p className="text-sm font-black text-gray-900">{finalizedCount}/{total}</p>
-                    </div>
-                    <div className="text-right space-y-1">
-                      <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Progresso</p>
-                      <p className={`text-sm font-black ${progress === 100 ? 'text-emerald-600' : 'text-gray-900'}`}>{progress}%</p>
-                    </div>
-                  </div>
-                  <div className="w-full h-2 bg-gray-50 rounded-full overflow-hidden">
-                    <div className={`h-full transition-all duration-700 ${progress === 100 ? 'bg-emerald-500' : 'bg-gray-900'}`} style={{ width: `${progress}%` }}></div>
-                  </div>
+                {/* Progress Visual Mini */}
+                <div className="w-full h-1 bg-gray-50 rounded-full overflow-hidden mt-2">
+                  <div className={`h-full transition-all duration-700 ${progress === 100 ? 'bg-emerald-500' : 'bg-gray-900'}`} style={{ width: `${progress}%` }}></div>
                 </div>
 
                 {/* Footer and Button */}
@@ -682,9 +648,9 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                   <button
                     onClick={() => handleStart(op)}
                     disabled={isEmUso}
-                    className={`w-full py-4 rounded-[1.25rem] text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg active:scale-95 ${isEmUso
+                    className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 ${isEmUso
                       ? 'bg-gray-50 text-gray-300 cursor-not-allowed shadow-none'
-                      : progress === 100 ? 'bg-emerald-600 text-white shadow-emerald-100' : 'bg-gray-900 text-white hover:bg-black shadow-gray-100'
+                      : progress === 100 ? 'bg-emerald-600 text-white shadow-emerald-50' : 'bg-gray-900 text-white hover:bg-black shadow-gray-100'
                       }`}
                   >
                     {isEmUso ? 'Em Uso' : progress === 100 ? 'Concluído' : 'Abrir Seleção'}

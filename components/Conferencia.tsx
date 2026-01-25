@@ -396,54 +396,56 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                           return matchOp && (item.ok === true || item.ok === 'true');
                         });
 
-                        const itemIsComplete = (item.ok === true || item.ok === 'true') && (item.composicao || []).every((c: any) => c.ok_conf && c.tr_conf);
-                        const itemHasDivergence = (item.composicao || []).some((c: any) => c.falta_conf);
+                        return comps.map((comp: any, cidx: number) => {
+                          const isCompComplete = comp.ok_conf && comp.tr_conf;
+                          const hasCompDivergence = !!comp.falta_conf;
 
-                        const rowClass = itemHasDivergence ? 'bg-red-50' :
-                          itemIsComplete ? 'bg-emerald-50/80' :
-                            '';
+                          const rowClass = hasCompDivergence ? 'bg-red-50' :
+                            isCompComplete ? 'bg-emerald-50/80' :
+                              '';
 
-                        return comps.map((comp: any, cidx: number) => (
-                          <tr key={`${idx}-${cidx}`} className={`group ${rowClass} transition-all border-b border-gray-100 hover:bg-gray-50/30`}>
-                            <td className={`px-8 py-4 border-l-4 ${itemHasDivergence ? 'border-red-500' : itemIsComplete ? 'border-emerald-500' : 'border-transparent'}`}>
-                              <button
-                                onClick={() => { setObsItem({ ...item, currentOp: comp.op }); setShowObsModal(true); }}
-                                className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all ${comp.observacao ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-200 group-hover:text-blue-200'}`}
-                              >🗨️</button>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="space-y-0.5">
-                                <p className="text-xs font-black text-gray-900 tracking-tight">{item.codigo}</p>
-                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter truncate max-w-[200px]">{item.descricao}</p>
-                                <p className="text-[8px] font-black text-blue-500 font-mono italic">OP {comp.op}</p>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <p className="text-xs font-black text-gray-400 font-mono">{(comp.quantidade_original || comp.quantidade || comp.qtd_separada)}</p>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <p className="text-sm font-black text-gray-900 font-mono">{comp.qtd_separada}</p>
-                            </td>
-                            <td className="px-8 py-4 text-right">
-                              <div className="flex justify-end gap-2">
+                          return (
+                            <tr key={`${idx}-${cidx}`} className={`group ${rowClass} transition-all border-b border-gray-100 hover:bg-gray-50/30`}>
+                              <td className={`px-8 py-4 border-l-4 ${hasCompDivergence ? 'border-red-500' : isCompComplete ? 'border-emerald-500' : 'border-transparent'}`}>
                                 <button
-                                  disabled={!!comp.falta_conf}
-                                  onClick={() => handleToggleIndivComp(item.codigo, comp.op, 'ok_conf', !comp.ok_conf)}
-                                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border ${comp.ok_conf ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-emerald-200 group-hover:bg-emerald-50'} ${comp.falta_conf ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >OK</button>
-                                <button
-                                  disabled={!!comp.falta_conf}
-                                  onClick={() => handleToggleIndivComp(item.codigo, comp.op, 'tr_conf', !comp.tr_conf)}
-                                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border ${comp.tr_conf ? 'bg-blue-600 text-white border-blue-600 shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-blue-200 group-hover:bg-blue-50'} ${comp.falta_conf ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >TR</button>
-                                <button
-                                  onClick={() => handleDivergencia(item, comp)}
-                                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm transition-all border ${comp.falta_conf ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-200 border-gray-100 hover:border-orange-200 group-hover:bg-orange-50'}`}
-                                >⚠️</button>
-                              </div>
-                            </td>
-                          </tr>
-                        ));
+                                  onClick={() => { setObsItem({ ...item, currentOp: comp.op }); setShowObsModal(true); }}
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all ${comp.observacao ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-200 group-hover:text-blue-200'}`}
+                                >🗨️</button>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="space-y-0.5">
+                                  <p className="text-xs font-black text-gray-900 tracking-tight">{item.codigo}</p>
+                                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter truncate max-w-[200px]">{item.descricao}</p>
+                                  <p className="text-[8px] font-black text-blue-500 font-mono italic">OP {comp.op}</p>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <p className="text-xs font-black text-gray-400 font-mono">{(comp.quantidade_original || comp.quantidade || comp.qtd_separada)}</p>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <p className="text-sm font-black text-gray-900 font-mono">{comp.qtd_separada}</p>
+                              </td>
+                              <td className="px-8 py-4 text-right">
+                                <div className="flex justify-end gap-2">
+                                  <button
+                                    disabled={!!comp.falta_conf}
+                                    onClick={() => handleToggleIndivComp(item.codigo, comp.op, 'ok_conf', !comp.ok_conf)}
+                                    className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border ${comp.ok_conf ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-emerald-200 group-hover:bg-emerald-50'} ${comp.falta_conf ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  >OK</button>
+                                  <button
+                                    disabled={!!comp.falta_conf}
+                                    onClick={() => handleToggleIndivComp(item.codigo, comp.op, 'tr_conf', !comp.tr_conf)}
+                                    className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border ${comp.tr_conf ? 'bg-blue-600 text-white border-blue-600 shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-blue-200 group-hover:bg-blue-50'} ${comp.falta_conf ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  >TR</button>
+                                  <button
+                                    onClick={() => handleDivergencia(item, comp)}
+                                    className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm transition-all border ${comp.falta_conf ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-200 border-gray-100 hover:border-orange-200 group-hover:bg-orange-50'}`}
+                                  >⚠️</button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        });
                       })}
                   </tbody>
                 </table>
