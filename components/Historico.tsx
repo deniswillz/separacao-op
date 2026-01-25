@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { User } from '../types';
 import Loading from './Loading';
-import { useAlert } from './AlertContext';
-
 
 interface FinishedOP {
   id: string;
@@ -20,14 +18,10 @@ interface FinishedOP {
 }
 
 const Historico: React.FC<{ user: User }> = ({ user }) => {
-  const { showAlert } = useAlert();
   const [history, setHistory] = useState<FinishedOP[]>([]);
-
   const [isLoading, setIsLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [selectedItem, setSelectedItem] = useState<FinishedOP | null>(null);
-  const [selectedOpFilter, setSelectedOpFilter] = useState<string | null>(null);
-  const [obsToView, setObsToView] = useState<string[] | null>(null);
 
   const fetchHistory = async () => {
     setIsLoading(true);
@@ -106,7 +100,6 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                         e.stopPropagation();
                         if (confirm(`Excluir histórico ${item.documento}?`)) {
                           await supabase.from('historico').delete().eq('id', item.id);
-                          showAlert('Registro removido do histórico', 'success');
                           fetchHistory();
                         }
                       }}
@@ -118,8 +111,9 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                 </div>
 
                 <div className="space-y-0.5">
-                  <h4 className="text-[11px] font-black text-[#111827] uppercase truncate">{item.documento}</h4>
+                  <h4 className="text-[13px] font-black text-[#111827] uppercase truncate">{item.nome || 'Lote Indefinido'}</h4>
                   <p className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter truncate">({item.op_range})</p>
+                  <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{item.documento}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-y-2 gap-x-2 border-t border-gray-50 pt-3">
@@ -140,7 +134,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                   <p className="text-[10px] font-black text-gray-400 italic">{new Date(item.data_finalizacao).toLocaleDateString('pt-BR')}</p>
                 </div>
                 <button
-                  onClick={() => { setSelectedItem(item); setSelectedOpFilter(null); }}
+                  onClick={() => setSelectedItem(item)}
                   className="w-8 h-8 bg-[#111827] text-white rounded-lg flex items-center justify-center text-lg font-black shadow-lg hover:bg-emerald-700 transition-all"
                 >
                   +
@@ -174,21 +168,13 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
             <div className="p-10 space-y-8 overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2">
-                  <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Armazém e Doc (Armazém, Doc e OP)</p>
+                  <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Armazém e Doc</p>
                   <div className="space-y-1">
                     <p className="text-lg font-black text-gray-900 uppercase">{selectedItem.armazem}</p>
                     <p className="text-xs font-bold text-emerald-600 font-mono italic break-all">{selectedItem.documento}</p>
-                    <div className="flex flex-wrap gap-1 mt-3">
-                      <button
-                        onClick={() => setSelectedOpFilter(null)}
-                        className={`text-[9px] px-2 py-0.5 rounded font-black border transition-all ${!selectedOpFilter ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100'}`}
-                      >TODAS</button>
+                    <div className="flex flex-wrap gap-1 mt-2">
                       {(selectedItem.ordens || []).map((op: any) => (
-                        <button
-                          key={op}
-                          onClick={() => setSelectedOpFilter(selectedOpFilter === op ? null : op)}
-                          className={`text-[9px] px-2 py-0.5 rounded font-black border transition-all ${selectedOpFilter === op ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100'}`}
-                        >{op.replace(/^00/, '').replace(/01001$/, '')}</button>
+                        <span key={op} className="text-[9px] bg-emerald-50 px-2 py-0.5 rounded text-emerald-700 font-black border border-emerald-100">{op}</span>
                       ))}
                     </div>
                   </div>
@@ -232,37 +218,31 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                 <table className="w-full text-left bg-white">
                   <thead className="bg-[#FFFFFF] border-b border-gray-50">
                     <tr>
-                      <th className="px-8 py-5 text-xs font-black text-gray-300 uppercase tracking-widest">Código</th>
-                      <th className="px-8 py-5 text-xs font-black text-gray-300 uppercase tracking-widest">Descrição</th>
-                      <th className="px-4 py-5 text-xs font-black text-gray-300 uppercase tracking-widest text-center">Qtd Sol.</th>
-                      <th className="px-4 py-5 text-xs font-black text-gray-300 uppercase tracking-widest text-center">Qtd Sep.</th>
-                      <th className="px-8 py-5 text-xs font-black text-gray-300 uppercase tracking-widest text-center">OBS 🗨️</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-gray-300 uppercase tracking-widest">Código</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-gray-300 uppercase tracking-widest">Descrição</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-gray-300 uppercase tracking-widest text-center">Qtd</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-gray-300 uppercase tracking-widest text-center">OK</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {selectedItem.itens
                       .filter((item: any) => (item.quantidade || 0) > 0)
-                      .filter((item: any) => !selectedOpFilter || (item.composicao || []).some((c: any) => c.op === selectedOpFilter))
                       .map((item: any, idx: number) => {
-                        const obsList = Array.from(new Set((item.composicao || [])
-                          .filter((c: any) => !selectedOpFilter || c.op === selectedOpFilter)
-                          .map((c: any) => c.observacao)
-                          .filter(Boolean)));
-
+                        const isOk = (item.composicao || []).every((c: any) => c.ok_conf && c.ok2_conf);
                         return (
                           <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-8 py-6 font-black text-emerald-600 text-sm font-mono tracking-tighter">{item.codigo}</td>
-                            <td className="px-8 py-6 text-xs font-black text-gray-500 uppercase tracking-tight">{item.descricao}</td>
-                            <td className="px-4 py-6 text-center text-base font-black text-gray-400 font-mono">{item.original_solicitado || item.quantidade}</td>
-                            <td className="px-4 py-6 text-center text-xl font-black text-gray-900 font-mono">{item.quantidade}</td>
-                            <td className="px-8 py-6 flex justify-center">
-                              {obsList.length > 0 ? (
-                                <button
-                                  onClick={() => setObsToView(obsList)}
-                                  className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl shadow-sm hover:bg-blue-100 transition-all active:scale-95"
-                                >🗨️</button>
+                            <td className="px-8 py-6 font-black text-emerald-600 text-[11px] font-mono tracking-tighter w-1/4">{item.codigo}</td>
+                            <td className="px-8 py-6 text-[10px] font-black text-gray-500 uppercase tracking-tight">{item.descricao}</td>
+                            <td className="px-8 py-6 text-center text-sm font-black text-gray-900">{item.quantidade}</td>
+                            <td className="px-8 py-6 text-center">
+                              {isOk ? (
+                                <div className="flex justify-center">
+                                  <div className="w-6 h-6 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center text-[10px] shadow-sm">✅</div>
+                                </div>
                               ) : (
-                                <span className="text-gray-200">--</span>
+                                <div className="flex justify-center">
+                                  <div className="w-6 h-6 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center text-[10px] shadow-sm">⚠️</div>
+                                </div>
                               )}
                             </td>
                           </tr>
@@ -283,32 +263,6 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
               <button className="px-10 py-4 bg-[#006B47] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-100 flex items-center gap-3 hover:bg-[#005538] transition-all active:scale-95">
                 <span>📥</span> Exportar Relatório
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Observações */}
-      {obsToView && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fadeIn">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setObsToView(null)}></div>
-          <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-slideInUp">
-            <div className="bg-blue-600 px-8 py-6 flex justify-between items-center text-white">
-              <h3 className="text-lg font-black uppercase tracking-tight">Observações do Item</h3>
-              <button onClick={() => setObsToView(null)} className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center hover:bg-white/30 transition-all">✕</button>
-            </div>
-            <div className="p-8 space-y-4 max-h-[60vh] overflow-y-auto">
-              {obsToView.map((obs, idx) => (
-                <div key={idx} className="bg-blue-50 p-6 rounded-3xl border-l-4 border-blue-500 shadow-sm">
-                  <p className="text-gray-900 font-bold italic leading-relaxed text-sm">“{obs}”</p>
-                </div>
-              ))}
-            </div>
-            <div className="p-8 border-t border-gray-100 flex justify-end">
-              <button
-                onClick={() => setObsToView(null)}
-                className="px-8 py-3 bg-gray-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all"
-              >Entendido</button>
             </div>
           </div>
         </div>

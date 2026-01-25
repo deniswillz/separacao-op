@@ -4,8 +4,6 @@ import { UrgencyLevel, User } from '../types';
 import { BlacklistItem } from '../App';
 import { supabase } from '../services/supabaseClient';
 import Loading from './Loading';
-import { useAlert } from './AlertContext';
-
 
 
 interface OPMock {
@@ -25,9 +23,7 @@ interface OPMock {
 }
 
 const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab: (tab: string) => void }> = ({ blacklist, user, setActiveTab }) => {
-  const { showAlert } = useAlert();
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
-
   const [isSyncing, setIsSyncing] = useState(true);
   const [ops, setOps] = useState<OPMock[]>([]);
   const [selectedOP, setSelectedOP] = useState<OPMock | null>(null);
@@ -113,7 +109,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
 
   const handleStart = async (op: OPMock) => {
     if (op.usuarioAtual && op.usuarioAtual !== user.nome) {
-      showAlert(`Bloqueio: Em uso por "${op.usuarioAtual}"`, 'warning');
+      alert(`⚠️ Bloqueio: Em uso por "${op.usuarioAtual}"`);
       return;
     }
     await supabase.from('separacao').update({ usuario_atual: user.nome }).eq('id', op.id);
@@ -140,52 +136,6 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
       setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
     } else {
       console.error('Erro ao auto-salvar item:', error);
-      showAlert('Erro ao salvar alteração no banco', 'error');
-    }
-  };
-
-  const updateLupaQuantity = async (itemCodigo: string, op: string, newQty: number) => {
-    if (!selectedOP) return;
-
-    const newItens = selectedOP.rawItens.map(item => {
-      if (item.codigo === itemCodigo) {
-        const newComp = (item.composicao || []).map((c: any) => {
-          if (c.op === op) {
-            return {
-              ...c,
-              qtd_separada: newQty,
-              concluido: newQty >= (c.quantidade_original || c.quantidade)
-            };
-          }
-          return c;
-        });
-
-        // Sincroniza o total do item com a soma das OPs
-        const newTotalSeparated = newComp.reduce((sum: number, c: any) => sum + (Number(c.qtd_separada) || 0), 0);
-
-        return {
-          ...item,
-          composicao: newComp,
-          qtd_separada: newTotalSeparated,
-          // Se a soma atingiu o total solicitado, marca OK automaticamente? 
-          // O usuário prefere manual, mas vamos manter a inteligência da Lupa se solicitada.
-          // Por enquanto, apenas atualizamos a quantidade separada total.
-        };
-      }
-      return item;
-    });
-
-    setIsFinalizing(true);
-    const { error } = await supabase.from('separacao').update({ itens: newItens }).eq('id', selectedOP.id);
-    setIsFinalizing(false);
-
-    if (!error) {
-      setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
-      // Atualiza o item aberto no modal também
-      const updatedLupaItem = newItens.find(i => i.codigo === itemCodigo);
-      if (updatedLupaItem) setLupaItem(updatedLupaItem);
-    } else {
-      showAlert('Erro ao sincronizar Distribuição: ' + error.message, 'error');
     }
   };
 
@@ -211,7 +161,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
 
   const handleFinalize = async () => {
     if (!selectedOP || !docTransferencia) {
-      showAlert('Informe o Documento de Transferência', 'warning');
+      alert('⚠️ Informe o Documento de Transferência');
       return;
     }
 
@@ -230,7 +180,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
     });
 
     if (!isComplete) {
-      showAlert('Itens marcados como OK devem ter a Lupa finalizada e o Check TR marcado.', 'error');
+      alert('❌ PROCESSO IMPEDIDO\n\nItens marcados como OK devem ter a Lupa finalizada e o Check TR marcado.');
       return;
     }
 
@@ -275,7 +225,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
       setViewMode('list'); setSelectedOP(null);
       setActiveTab('conferencia');
     } catch (e: any) {
-      showAlert('Erro ao finalizar: ' + e.message, 'error');
+      alert('Erro ao finalizar: ' + e.message);
     } finally { setIsFinalizing(false); }
   };
 
@@ -290,7 +240,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
     });
 
     const { error } = await supabase.from('separacao').update({ itens: newItens }).eq('id', selectedOP.id);
-    if (error) showAlert('Erro ao salvar observação: ' + error.message, 'error');
+    if (error) alert('Erro ao salvar observação: ' + error.message);
     else setSelectedOP({ ...selectedOP, rawItens: newItens });
   };
 
@@ -353,7 +303,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
 
             <div className="overflow-x-auto">
               <table className="w-full text-left">
-                <thead className="bg-gray-50 text-xs font-black uppercase tracking-widest text-gray-400">
+                <thead className="bg-gray-50 text-[10px] font-black uppercase tracking-widest text-gray-400">
                   <tr>
                     <th className="px-8 py-5 text-center">LUPA</th>
                     <th className="px-8 py-5">PRODUTO</th>
@@ -406,30 +356,30 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                           </td>
                           <td className="px-8 py-6">
                             <div className="flex items-center gap-2">
-                              <p className="font-black text-[#111827] text-base font-mono tracking-tighter">
+                              <p className="font-black text-[#111827] text-sm font-mono tracking-tighter">
                                 {item.codigo}
                               </p>
                               {isTalvez && <span className="px-2 py-0.5 bg-amber-500 text-white text-[8px] rounded-full uppercase">TALVEZ</span>}
                               <button
                                 onClick={() => { setObsItem(item); setShowObsModal(true); }}
-                                className={`text-base hover:scale-125 transition-transform ${item.composicao?.some((c: any) => c.observacao) ? 'text-blue-500' : 'text-gray-300'}`}
+                                className={`text-xs hover:scale-125 transition-transform ${item.composicao?.some((c: any) => c.observacao) ? 'text-blue-500' : 'text-gray-300'}`}
                                 title="Observações / Notas (🗨️)"
                               >
                                 🗨️
                               </button>
                             </div>
-                            <p className="text-xs font-bold text-gray-400 uppercase tracking-tight mb-2">{item.descricao}</p>
-                            <div className="flex items-center gap-4 text-[10px] font-black uppercase text-gray-400">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight mb-2">{item.descricao}</p>
+                            <div className="flex items-center gap-4 text-[9px] font-black uppercase text-gray-400">
                               <p>.Armazém: <span className="text-gray-900">{armazem}</span></p>
                               <p>Endereço: <span className="text-emerald-600 font-mono tracking-widest">{endereco}</span></p>
                             </div>
                           </td>
-                          <td className="px-6 py-6 text-center text-xl font-black text-gray-900">{item.quantidade}</td>
+                          <td className="px-6 py-6 text-center text-lg font-black text-gray-900">{item.quantidade}</td>
                           <td className="px-6 py-6 text-center">
                             <input
                               type="number"
                               disabled={isOut}
-                              className={`w-20 px-3 py-2 bg-white border rounded-xl text-center font-black text-base outline-none transition-all ${isOut ? 'opacity-20 bg-gray-50' : item.qtd_separada > item.quantidade ? 'border-red-500 ring-4 ring-red-50' : 'border-gray-200 focus:ring-4 focus:ring-emerald-50'}`}
+                              className={`w-20 px-3 py-2 bg-white border rounded-xl text-center font-black text-sm outline-none transition-all ${isOut ? 'opacity-20 bg-gray-50' : item.qtd_separada > item.quantidade ? 'border-red-500 ring-4 ring-red-50' : 'border-gray-200 focus:ring-4 focus:ring-emerald-50'}`}
                               value={item.qtd_separada || 0}
                               onChange={(e) => updateItem(item.codigo, 'qtd_separada', Number(e.target.value))}
                             />
@@ -439,7 +389,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                               <button
                                 disabled={isOut}
                                 onClick={() => updateItem(item.codigo, 'ok', !item.ok)}
-                                className={`w-12 h-12 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : item.ok ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50'}`}
+                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : item.ok ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50'}`}
                                 title="1. OK - Separado"
                               >
                                 OK
@@ -447,7 +397,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                               <button
                                 disabled={isOut}
                                 onClick={() => updateItem(item.codigo, 'tr', !item.tr)}
-                                className={`w-12 h-12 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : item.tr ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-gray-200 text-blue-600 hover:bg-blue-50'}`}
+                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : item.tr ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-gray-200 text-blue-600 hover:bg-blue-50'}`}
                                 title="3. TR - Transferido"
                               >
                                 TR
@@ -462,7 +412,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                                     updateItem(item.codigo, 'tr', false);
                                   }
                                 }}
-                                className={`w-12 h-12 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center ${item.falta ? 'bg-red-600 text-white shadow-lg shadow-red-100' : 'bg-white border border-gray-200 text-red-600 hover:bg-red-50'}`}
+                                className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.falta ? 'bg-red-600 text-white shadow-lg shadow-red-100' : 'bg-white border border-gray-200 text-red-600 hover:bg-red-50'}`}
                                 title="OUT - Falta/Divergência"
                               >
                                 OUT
@@ -498,7 +448,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                       setActiveTab('dashboard');
                     } catch (err) {
                       console.error('Erro ao salvar pendência:', err);
-                      showAlert('Erro ao salvar. Tente novamente.', 'error');
+                      alert('Erro ao salvar. Tente novamente.');
                     } finally {
                       setIsFinalizing(false);
                     }
@@ -579,7 +529,8 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
 
                 <div className="space-y-4 relative z-10">
                   <div className="flex flex-col gap-1">
-                    <p className="text-[11px] font-black text-blue-600 uppercase tracking-widest mb-1">📦 SELEÇÃO DE OP - {op.ordens.map(o => o.replace(/^00/, '').replace(/01001$/, '')).sort().join(', ')}</p>
+                    <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">📦 {op.opCode}</h3>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate">📦 OP - {op.ordens.map(o => o.replace(/^00/, '').replace(/01001$/, '')).join(', ')}</p>
                   </div>
                   <button
                     onClick={(e) => {
@@ -664,7 +615,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
             <div className="relative bg-white w-full max-w-md h-full shadow-2xl border-l border-gray-100 flex flex-col animate-slideInRight">
               <div className="p-8 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter leading-none mb-1 text-emerald-600 italic">Distribuição Manual - Seleção de OP</h3>
+                  <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter leading-none mb-1 text-emerald-600">Distribuição de Lote</h3>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{lupaItem.codigo}</p>
                 </div>
                 <button onClick={() => { setShowLupaModal(false); setLupaItem(null); }} className="w-10 h-10 bg-white border border-gray-200 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-all font-bold">✕</button>
@@ -701,29 +652,47 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                         <div className="flex justify-between items-center">
                           <div className="space-y-1">
                             <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">OP {comp.op}</p>
-                            <p className="text-[9px] font-bold text-gray-400 uppercase">Solicitado: {comp.quantidade_original} UN</p>
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm font-black text-gray-900">{comp.qtd_separada || 0}</span>
+                              <span className="text-gray-200">/</span>
+                              <span className="text-[10px] font-bold text-gray-400">{comp.quantidade_original} UN</span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <div className="flex flex-col items-center">
-                              <label className="text-[8px] font-black text-gray-300 uppercase mb-1">QTD</label>
-                              <input
-                                type="number"
-                                className="w-20 px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-center font-black text-base focus:ring-4 focus:ring-emerald-50 outline-none transition-all"
-                                value={comp.qtd_separada || 0}
-                                onChange={(e) => updateLupaQuantity(lupaItem.codigo, comp.op, Number(e.target.value))}
-                              />
-                            </div>
-                            <div className="flex items-center gap-1 mt-4">
-                              {comp.concluido ? (
-                                <div className="w-8 h-8 bg-emerald-500 text-white rounded-lg flex items-center justify-center text-[10px] font-black shadow-sm shadow-emerald-200">OK</div>
-                              ) : (
-                                <div className="w-8 h-8 bg-gray-100 text-gray-300 rounded-lg flex items-center justify-center text-[10px] font-black">--</div>
-                              )}
+                          <div className="flex items-center gap-2">
+                            {comp.concluido ? (
+                              <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center text-xs font-black">OK</div>
+                            ) : (
                               <button
-                                onClick={() => updateLupaQuantity(lupaItem.codigo, comp.op, 0)}
-                                className="w-8 h-8 bg-white border border-gray-100 text-gray-300 rounded-lg flex items-center justify-center hover:bg-red-50 hover:text-red-500 hover:border-red-100 transition-all"
-                              >✕</button>
-                            </div>
+                                onClick={() => {
+                                  if (!selectedOP) return;
+                                  const newItens = selectedOP.rawItens.map(i => {
+                                    if (i.codigo === lupaItem.codigo) {
+                                      const newComp = (i.composicao || []).map((c: any) => c.op === comp.op ? { ...c, concluido: true, qtd_separada: c.quantidade_original } : c);
+                                      return { ...i, composicao: newComp };
+                                    }
+                                    return i;
+                                  });
+                                  setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
+                                  setLupaItem({ ...lupaItem, composicao: (lupaItem.composicao || []).map((c: any) => c.op === comp.op ? { ...c, concluido: true, qtd_separada: c.quantidade_original } : c) });
+                                }}
+                                className="px-3 py-2 bg-gray-900 text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-black transition-all"
+                              >Finalizar</button>
+                            )}
+                            <button
+                              onClick={() => {
+                                if (!selectedOP) return;
+                                const newItens = selectedOP.rawItens.map(i => {
+                                  if (i.codigo === lupaItem.codigo) {
+                                    const newComp = (i.composicao || []).map((c: any) => c.op === comp.op ? { ...c, concluido: false, qtd_separada: 0 } : c);
+                                    return { ...i, composicao: newComp };
+                                  }
+                                  return i;
+                                });
+                                setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
+                                setLupaItem({ ...lupaItem, composicao: (lupaItem.composicao || []).map((c: any) => c.op === comp.op ? { ...c, concluido: false, qtd_separada: 0 } : c) });
+                              }}
+                              className="w-8 h-8 bg-gray-50 text-gray-300 rounded-lg flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all"
+                            >✕</button>
                           </div>
                         </div>
                       </div>
