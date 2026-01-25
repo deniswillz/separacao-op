@@ -158,6 +158,10 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const revertStatus = async (item: TEAItem) => {
+    if (['SEPARACAO', 'CONFERENCIA', 'QUALIDADE'].includes(item.status_atual || '')) {
+      showAlert('Não é possível reverter antes desta etapa.', 'warning');
+      return;
+    }
     if (item.itens.length <= 1) {
       showAlert('Não é possível reverter a situação inicial.', 'warning');
       return;
@@ -281,14 +285,15 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => revertStatus(item)}
-                        className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-blue-500 hover:bg-blue-500/10 transition-all font-bold"
-                        title="Voltar Situação"
-                        disabled={item.itens.length <= 1}
-                      >
-                        ↩️
-                      </button>
+                      {!['SEPARACAO', 'CONFERENCIA', 'QUALIDADE'].includes(item.status_atual || '') && (
+                        <button
+                          onClick={() => revertStatus(item)}
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-blue-500 hover:bg-blue-500/10 transition-all font-bold"
+                          title="Voltar Situação"
+                        >
+                          ↩️
+                        </button>
+                      )}
                       <button onClick={() => deleteItem(item.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 transition-all font-bold">✕</button>
                     </div>
                   </div>
