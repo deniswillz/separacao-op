@@ -726,13 +726,12 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-4 bg-[var(--bg-inner)]/50 rounded-2xl border border-[var(--border-light)]">
                       <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1">Solicitado</p>
-                      <p className="text-base font-black text-[var(--text-primary)]">{lupaItem.quantidade} <span className="text-[10px] text-[var(--text-muted)] font-bold ml-1">UN</span></p>
+                      <p className="text-base font-black text-[var(--text-primary)]">{lupaItem.quantidade}</p>
                     </div>
                     <div className="p-4 bg-[var(--bg-inner)]/50 rounded-2xl border border-[var(--border-light)]">
                       <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest mb-1">Separado</p>
                       <p className="text-base font-black text-emerald-600">
                         {lupaItem.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0)}
-                        <span className="text-[10px] text-[var(--text-muted)] font-bold ml-1">UN</span>
                       </p>
                     </div>
                   </div>

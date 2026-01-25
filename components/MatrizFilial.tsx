@@ -157,6 +157,41 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
     else fetchHistory();
   };
 
+  const revertStatus = async (item: TEAItem) => {
+    if (item.itens.length <= 1) {
+      showAlert('Não é possível reverter a situação inicial.', 'warning');
+      return;
+    }
+    const newFluxo = [...item.itens];
+    newFluxo.pop();
+
+    const { error } = await supabase
+      .from('historico')
+      .update({
+        itens: newFluxo,
+        data_finalizacao: null
+      })
+      .eq('id', item.id);
+
+    if (error) showAlert('Erro: ' + error.message, 'error');
+    else fetchHistory();
+  };
+
+  const updateDestino = async (item: TEAItem, newDestino: string) => {
+    const newItens = [...item.itens];
+    if (newItens[0]) {
+      newItens[0] = { ...newItens[0], destino: newDestino };
+    }
+
+    const { error } = await supabase
+      .from('historico')
+      .update({ itens: newItens })
+      .eq('id', item.id);
+
+    if (error) showAlert('Erro: ' + error.message, 'error');
+    else fetchHistory();
+  };
+
   const getStatusDisplay = (status: string) => {
     const s = String(status || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
     switch (s) {
@@ -245,7 +280,17 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                         <span>{statusInfo.icon}</span> {statusInfo.label}
                       </div>
                     </div>
-                    <button onClick={() => deleteItem(item.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 transition-all font-bold">✕</button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => revertStatus(item)}
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-blue-500 hover:bg-blue-500/10 transition-all font-bold"
+                        title="Voltar Situação"
+                        disabled={item.itens.length <= 1}
+                      >
+                        ↩️
+                      </button>
+                      <button onClick={() => deleteItem(item.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 transition-all font-bold">✕</button>
+                    </div>
                   </div>
 
                   {/* Product Info */}
@@ -257,13 +302,21 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                   </div>
 
                   {/* Quantity and Destination Grid */}
-                  <div className="bg-[#F8FAFC] rounded-2xl p-5 grid grid-cols-2 gap-4 border border-gray-50 shadow-inner">
-                    <div className="text-center space-y-1 text-gray-900">
-                      <p className="text-xl font-black text-gray-900 leading-none">{item.quantidade}</p>
+                  <div className="bg-[var(--bg-inner)] rounded-2xl p-5 grid grid-cols-2 gap-4 border border-[var(--border-light)] shadow-inner">
+                    <div className="text-center space-y-1">
+                      <p className="text-xl font-black text-[var(--text-primary)] leading-none">{item.quantidade}</p>
                       <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest">Qtd Sol.</p>
                     </div>
-                    <div className="text-center space-y-1 border-l border-gray-200 pl-4 flex flex-col justify-center">
-                      <p className="text-[10px] font-black text-[var(--text-primary)] leading-none truncate uppercase">{item.destino}</p>
+                    <div className="text-center space-y-1 border-l border-[var(--border-light)] pl-4 flex flex-col justify-center">
+                      <select
+                        value={item.destino}
+                        onChange={(e) => updateDestino(item, e.target.value)}
+                        className="bg-transparent text-[10px] font-black text-[var(--text-primary)] leading-none border-none outline-none uppercase cursor-pointer hover:text-blue-500 transition-colors w-full text-center appearance-none"
+                      >
+                        {['Não Definido', '04', '08', '11', '21', '26', '31', '35', '41', '45', '51'].map(val => (
+                          <option key={val} value={val} className="bg-white text-black">{val}</option>
+                        ))}
+                      </select>
                       <p className="text-[8px] font-black text-[#2563EB] uppercase tracking-widest">Destino</p>
                     </div>
                   </div>
