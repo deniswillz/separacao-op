@@ -38,6 +38,16 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  const getOPDisplayRange = (ordens: string[]) => {
+    if (!ordens || ordens.length === 0) return 'S/N';
+    const formatted = ordens.map(op => {
+      // Logic: remove 00 at start and 01001 at end
+      return op.replace(/^00/, '').replace(/01001$/, '');
+    });
+    const unique = Array.from(new Set(formatted)).sort();
+    return unique.length > 1 ? `${unique[0]} - ${unique[unique.length - 1]}` : unique[0];
+  };
+
   const handleStart = async (item: any) => {
     if (item.responsavel_conferencia && item.responsavel_conferencia !== user.nome) {
       alert(`⚠️ Bloqueio: Em uso por "${item.responsavel_conferencia}"`);
@@ -67,7 +77,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
     if (!error) setSelectedItem({ ...selectedItem, itens: newItens });
   };
 
-  const handleToggleIndivComp = async (itemCodigo: string, op: string, field: 'ok_conf' | 'ok2_conf', value: boolean) => {
+  const handleToggleIndivComp = async (itemCodigo: string, op: string, field: 'ok_conf' | 'ok2_conf' | 'tr_conf', value: boolean) => {
     if (!selectedItem) return;
     const newItens = selectedItem.itens.map((item: any) => {
       if (item.codigo === itemCodigo) {
@@ -80,22 +90,6 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
     const { error } = await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
     setIsSaving(false);
     if (!error) setSelectedItem({ ...selectedItem, itens: newItens });
-  };
-
-  const handleToggleGroupTR = async (opCode: string, value: boolean) => {
-    if (!selectedItem) return;
-    const newItens = selectedItem.itens.map((item: any) => {
-      const hasOp = item.composicao?.some((c: any) => c.op === opCode);
-      if (hasOp) {
-        const newComp = item.composicao.map((c: any) => c.op === opCode ? { ...c, tr_conf: value } : c);
-        return { ...item, composicao: newComp };
-      }
-      return item;
-    });
-    setIsSaving(true);
-    await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
-    setIsSaving(false);
-    setSelectedItem({ ...selectedItem, itens: newItens });
   };
 
   const handleSaveObs = async (sku: string, op: string, text: string) => {
@@ -120,26 +114,70 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
   };
 
   const handleConfirmDivergencia = async () => {
-    if (!divItem) return;
+    if (!divItem || !selectedItem) return;
+
+    // Alert logic for Dashboard
+    if (divReason.trim().length > 0) {
+      window.dispatchEvent(new CustomEvent('falta-detectada', {
+        detail: {
+          op: selectedItem.documento,
+          produto: divItem.codigo,
+          motivo: `Divergência na Conferência: ${divReason}`
+        }
+      }));
+    }
+
     updateItemConf(divItem.codigo, 'div_conferencia', divReason);
     setShowDivModal(false);
     setDivItem(null);
   };
 
-  const handleToggleGroup = async (opCode: string, field: 'ok_conf' | 'ok2_conf', value: boolean) => {
+  const handleFinalize = async () => {
     if (!selectedItem) return;
-    const newItens = selectedItem.itens.map((item: any) => {
-      const hasOp = item.composicao?.some((c: any) => c.op === opCode);
-      if (hasOp) {
-        const newComp = item.composicao.map((c: any) => c.op === opCode ? { ...c, [field]: value } : c);
-        return { ...item, composicao: newComp };
-      }
-      return item;
+    const isComplete = selectedItem.itens.every((item: any) => {
+      const blacklistItem = blacklist.find(b => b.sku === item.codigo);
+      if (blacklistItem?.nao_sep) return true;
+      return (item.composicao || []).every((c: any) => c.ok_conf);
     });
-    setIsSaving(true);
-    await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
-    setIsSaving(false);
-    setSelectedItem({ ...selectedItem, itens: newItens });
+    if (!isComplete && !confirm('Alguns itens não foram conferidos. Finalizar assim mesmo?')) return;
+
+    setIsLoading(true);
+    try {
+      const docTransf = selectedItem.itens[0]?.doc_transferencia || selectedItem.documento;
+      const historyDocId = docTransf.startsWith('DOC-') ? docTransf : `DOC-${docTransf}`;
+      const currentConferente = manualConferente || user.nome;
+
+      const batchHistoryData = {
+        documento: historyDocId,
+        nome: selectedItem.nome || selectedItem.documento,
+        armazem: selectedItem.armazem,
+        itens: selectedItem.itens.map((item: any, idx: number) => ({
+          ...item,
+          metadata: idx === 0 ? {
+            conferente: currentConferente,
+            separador: item.usuario_atual || 'N/A',
+            data_finalizacao: new Date().toISOString(),
+            total_itens: selectedItem.itens.length,
+            op_range: getOPDisplayRange(selectedItem.ordens),
+            ordens: selectedItem.ordens
+          } : undefined
+        }))
+      };
+
+      const { data: existingRecord } = await supabase.from('historico').select('id').eq('documento', historyDocId).maybeSingle();
+      if (existingRecord) {
+        await supabase.from('historico').update(batchHistoryData).eq('id', existingRecord.id);
+      } else {
+        await supabase.from('historico').insert([batchHistoryData]);
+      }
+
+      await supabase.from('conferencia').delete().eq('id', selectedItem.id);
+      alert('Conferência finalizada!');
+      setViewMode('list'); setSelectedItem(null);
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao finalizar');
+    } finally { setIsLoading(true); fetchItems(); }
   };
 
   const handleSavePendency = async () => {
@@ -177,81 +215,17 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
     } finally { setIsReverting(false); }
   };
 
-  const getOPDisplayRange = (ordens: string[]) => {
-    if (!ordens || ordens.length === 0) return 'S/N';
-    const formatted = ordens.map(op => {
-      const match = op.match(/00(\d{4})01001/);
-      return match ? match[1] : op.slice(-6);
-    });
-    const unique = Array.from(new Set(formatted)).sort();
-    return unique.length > 1 ? `${unique[0]} - ${unique[unique.length - 1]}` : unique[0];
-  };
-
-  const handleFinalize = async () => {
-    if (!selectedItem) return;
-    const isComplete = selectedItem.itens.every((item: any) => {
-      const blacklistItem = blacklist.find(b => b.sku === item.codigo);
-      if (blacklistItem?.nao_sep) return true;
-      return (item.composicao || []).every((c: any) => c.ok_conf && c.ok2_conf);
-    });
-    if (!isComplete && !confirm('Alguns itens não foram conferidos. Finalizar assim mesmo?')) return;
-
-    setIsLoading(true);
-    try {
-      const docTransf = selectedItem.itens[0]?.doc_transferencia || selectedItem.documento;
-      const historyDocId = docTransf.startsWith('DOC-') ? docTransf : `DOC-${docTransf}`;
-      const currentConferente = manualConferente || user.nome;
-
-      const batchHistoryData = {
-        documento: historyDocId,
-        nome: selectedItem.nome || selectedItem.documento,
-        armazem: selectedItem.armazem,
-        itens: selectedItem.itens.map((item: any, idx: number) => ({
-          ...item,
-          metadata: idx === 0 ? {
-            conferente: currentConferente,
-            separador: item.usuario_atual || 'N/A',
-            data_finalizacao: new Date().toISOString(),
-            total_itens: selectedItem.itens.length,
-            op_range: getOPDisplayRange(selectedItem.ordens),
-            ordens: selectedItem.ordens
-          } : undefined
-        }))
-      };
-
-      try {
-        const { data: existingRecord } = await supabase.from('historico').select('id').eq('documento', historyDocId).maybeSingle();
-        if (existingRecord) {
-          await supabase.from('historico').update(batchHistoryData).eq('id', existingRecord.id);
-        } else {
-          await supabase.from('historico').insert([batchHistoryData]);
-        }
-      } catch (err) {
-        console.error('Erro no arquivamento:', err);
-        await supabase.from('historico').insert([batchHistoryData]);
-      }
-
-      const uniqueOps = [...new Set(selectedItem.itens.flatMap((i: any) => i.composicao?.map((c: any) => c.op) || []))];
-      for (const opCode of uniqueOps) {
-        if (!opCode) continue;
-        const { data: histData } = await supabase.from('historico').select('*').eq('documento', opCode).maybeSingle();
-        if (histData) {
-          const newFluxo = [...(histData.itens || []), {
-            status: 'Qualidade', icon: '🔍', data: new Date().toLocaleDateString('pt-BR'), conferente: currentConferente, lote_conferencia: historyDocId
-          }];
-          await supabase.from('historico').update({ itens: newFluxo }).eq('id', histData.id);
-        }
-      }
-      await supabase.from('conferencia').delete().eq('id', selectedItem.id);
-      alert('Conferência finalizada!');
-      setViewMode('list'); setSelectedItem(null);
-    } catch (e) {
-      console.error(e);
-      alert('Erro ao finalizar');
-    } finally { setIsLoading(true); fetchItems(); }
-  };
-
   if (isLoading && items.length === 0) return <Loading message="Sincronizando Conferência..." />;
+
+  // Calculate stats for Detail View
+  const totalSeparado = selectedItem?.itens.reduce((acc: number, item: any) => acc + (item.quantidade || 0), 0) || 0;
+  const totalConferidoQtd = selectedItem?.itens.reduce((acc: number, item: any) => {
+    return acc + (item.composicao || []).reduce((cAcc: number, c: any) => c.ok_conf ? cAcc + (c.qtd_separada || 0) : cAcc, 0);
+  }, 0) || 0;
+
+  const progressoGeral = totalSeparado > 0 ? Math.round((totalConferidoQtd / totalSeparado) * 100) : 0;
+  const itensCompletosCount = selectedItem?.itens.filter((i: any) => (i.composicao || []).every((c: any) => c.ok_conf)).length || 0;
+  const divergenciasCount = selectedItem?.itens.filter((i: any) => i.div_conferencia).length || 0;
 
   return (
     <div className="space-y-8 animate-fadeIn pb-20">
@@ -271,135 +245,226 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
 
       {viewMode === 'detail' && selectedItem ? (
         <div className="space-y-6 animate-fadeIn">
-          <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
-            <div className="bg-gray-50/50 p-8 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
+          {/* Header Resumo */}
+          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-gray-50/50 p-8 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start gap-8">
               <div className="flex items-center gap-6">
-                <button onClick={handleBack} className="w-12 h-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-lg hover:bg-gray-50 transition-all">←</button>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center text-xl font-black">🔍</div>
-                  <h2 className="text-2xl font-black tracking-tight uppercase">{selectedItem.nome || selectedItem.documento}</h2>
+                <button onClick={handleBack} className="w-12 h-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-lg hover:bg-gray-50 transition-all shadow-sm">←</button>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-blue-600 uppercase tracking-widest">Conferindo Lote</span>
+                    <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-black uppercase">LIVE</span>
+                  </div>
+                  <h2 className="text-2xl font-black tracking-tighter uppercase">{selectedItem.nome || selectedItem.documento}</h2>
                 </div>
-                <button
-                  disabled={isReverting}
-                  onClick={handleRevert}
-                  className="px-6 py-2 bg-white border-2 border-orange-50 text-orange-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-orange-100 transition-all"
-                >
-                  {isReverting ? 'Revertendo...' : '↩️ Voltar Situação'}
-                </button>
               </div>
-              <div className="flex gap-4 items-center">
-                <div className="text-right">
-                  <p className="text-[10px] font-black text-gray-400 uppercase">Documento</p>
-                  <p className="text-xs font-black text-gray-900">{selectedItem.itens[0]?.doc_transferencia || 'N/A'}</p>
-                </div>
-                <div className="text-right bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
-                  <p className="text-[10px] font-black text-gray-400 uppercase">Responsável</p>
+
+              <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-6 w-full md:w-auto">
+                <div className="space-y-1 bg-white p-4 rounded-2xl border border-gray-50 shadow-sm">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">👤 Responsável</p>
                   <input
                     type="text"
                     value={manualConferente}
                     onChange={(e) => setManualConferente(e.target.value.toUpperCase())}
-                    className="text-xs font-black text-blue-600 text-right bg-transparent border-none p-0 focus:ring-0 uppercase w-32"
+                    className="text-[11px] font-black text-blue-600 bg-transparent border-none p-0 focus:ring-0 uppercase w-full"
                   />
                 </div>
+                <div className="space-y-1 bg-gray-900 p-4 rounded-2xl shadow-xl text-white">
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest leading-none mb-2">📈 Progresso Geral</p>
+                  <div className="flex items-end gap-2">
+                    <p className="text-xl font-black italic">{progressoGeral}%</p>
+                    <div className="flex-1 h-1.5 bg-white/10 rounded-full mb-1.5 overflow-hidden">
+                      <div className="h-full bg-blue-500 transition-all duration-500" style={{ width: `${progressoGeral}%` }}></div>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-1 bg-white p-4 rounded-2xl border border-gray-50 shadow-sm">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">✅ Itens OK</p>
+                  <p className="text-xl font-black text-gray-900">{itensCompletosCount}<span className="text-xs text-gray-300 ml-1">/ {selectedItem.itens.length}</span></p>
+                </div>
+                <div className="space-y-1 bg-white p-4 rounded-2xl border border-gray-50 shadow-sm">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">🚨 Divergências</p>
+                  <p className={`text-xl font-black ${divergenciasCount > 0 ? 'text-red-500' : 'text-gray-900'}`}>{divergenciasCount}</p>
+                </div>
               </div>
             </div>
 
-            <div className="p-10 space-y-8 overflow-y-auto max-h-[70vh] custom-scrollbar">
-              <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
-                <div className="flex items-center gap-2 text-[11px] font-black text-gray-500 uppercase tracking-tight">
-                  <span>📋</span> Ordens de Produção - Status
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {[...new Set(selectedItem.itens.flatMap((i: any) => (i.composicao || []).map((c: any) => c.op)))].map(opCode => {
-                    const opItensComps = selectedItem.itens.flatMap((i: any) => (i.composicao || []).filter((c: any) => c.op === opCode));
-                    const isDone = opItensComps.length > 0 && opItensComps.every((c: any) => c.ok_conf && c.ok2_conf);
-                    const isSelected = selectedOpForDetail === opCode;
-                    return (
-                      <button
-                        key={opCode}
-                        onClick={() => setSelectedOpForDetail(isSelected ? null : (opCode as any))}
-                        className={`px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 transition-all border ${isSelected ? 'border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-200' : isDone ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-gray-50 border-gray-200 text-gray-500'}`}
-                      >
-                        <span>{isDone ? '✅' : '⏳'}</span> OP {opCode}
-                      </button>
-                    );
-                  })}
-                </div>
+            {/* Abas e Filtros */}
+            <div className="px-10 py-6 border-b border-gray-50 flex flex-wrap gap-4 items-center justify-between">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowTransferList(false)}
+                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${!showTransferList ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                >Lista de Itens</button>
+                <button
+                  onClick={() => setShowTransferList(true)}
+                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showTransferList ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                >Lista de Transferência</button>
               </div>
 
-              <div className="grid grid-cols-1 gap-4">
-                {selectedItem.itens
-                  .filter((item: any) => !selectedOpForDetail || item.composicao?.some((c: any) => c.op === selectedOpForDetail))
-                  .map((item: any, idx: number) => {
-                    const isOk = (item.composicao || []).every((c: any) => c.ok_conf && c.ok2_conf);
-                    return (
-                      <div key={idx} className={`p-6 bg-white rounded-3xl border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between items-center gap-6 hover:shadow-md transition-all ${isOk ? 'border-l-4 border-l-emerald-500' : ''}`}>
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-3">
-                            <span className="text-xl">📦</span>
-                            <p className="font-black text-gray-900 text-lg font-mono tracking-tighter">{item.codigo}</p>
-                            <button
-                              onClick={() => { setObsItem(item); setShowObsModal(true); }}
-                              className={`text-xs hover:scale-125 transition-transform ${item.composicao?.some((c: any) => c.obs_conf) ? 'text-blue-500' : 'text-gray-300'}`}
-                            >🗨️</button>
-                          </div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">{item.descricao}</p>
-                        </div>
+              {!showTransferList && (
+                <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scroll-hide">
+                  <button
+                    onClick={() => setSelectedOpForDetail(null)}
+                    className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase border transition-all ${!selectedOpForDetail ? 'bg-gray-900 text-white' : 'bg-white text-gray-400 border-gray-100 hover:bg-gray-50'}`}
+                  >Todas OPs</button>
+                  {[...new Set(selectedItem.itens.flatMap((i: any) => (i.composicao || []).map((c: any) => c.op)))].map((opCode: any) => (
+                    <button
+                      key={opCode}
+                      onClick={() => setSelectedOpForDetail(selectedOpForDetail === opCode ? null : (opCode as string))}
+                      className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase border transition-all ${selectedOpForDetail === opCode ? 'bg-blue-600 text-white' : 'bg-white text-gray-400 border-gray-100 hover:bg-gray-50'}`}
+                    >OP {(opCode as string).replace(/^00/, '').replace(/01001$/, '')}</button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-                        <div className="flex-1 w-full max-w-2xl bg-gray-50/50 p-4 rounded-2xl space-y-3">
-                          {(item.composicao || [])
-                            .filter((c: any) => !selectedOpForDetail || c.op === selectedOpForDetail)
-                            .map((comp: any, cidx: number) => (
-                              <div key={cidx} className="flex flex-col md:flex-row items-center justify-between gap-4 p-3 bg-white rounded-xl border border-gray-50 group hover:border-blue-200 transition-all">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 bg-gray-900 text-white rounded-lg flex items-center justify-center text-[8px] font-black">{comp.op.slice(-4)}</div>
-                                  <p className="text-[10px] font-black text-gray-400 font-mono italic">{comp.op}</p>
-                                </div>
-                                <div className="flex items-center gap-6">
-                                  <div className="text-center">
-                                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Qtd</p>
-                                    <p className="text-sm font-black text-gray-900">{comp.qtd_separada}</p>
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <button
-                                      onClick={() => handleToggleIndivComp(item.codigo, comp.op, 'ok_conf', !comp.ok_conf)}
-                                      className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all flex items-center justify-center border ${comp.ok_conf ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white text-gray-400 border-gray-200 hover:bg-emerald-50'}`}
-                                    >C1</button>
-                                    <button
-                                      onClick={() => handleToggleIndivComp(item.codigo, comp.op, 'ok2_conf', !comp.ok2_conf)}
-                                      className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase transition-all flex items-center justify-center border ${comp.ok2_conf ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white text-gray-400 border-gray-200 hover:bg-emerald-50'}`}
-                                    >C2</button>
-                                  </div>
-                                </div>
+            {/* Content Area */}
+            <div className="p-0 overflow-y-auto max-h-[60vh] custom-scrollbar">
+              {!showTransferList ? (
+                <table className="w-full text-left">
+                  <thead className="sticky top-0 bg-white z-20 border-b border-gray-100">
+                    <tr className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                      <th className="px-8 py-4">OBS 🗨️</th>
+                      <th className="px-6 py-4">PRODUTO / OP</th>
+                      <th className="px-6 py-4 text-center">SOLICITADO</th>
+                      <th className="px-6 py-4 text-center">SEPARADO</th>
+                      <th className="px-8 py-4 text-right">AÇÕES</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {selectedItem.itens
+                      .filter((item: any) => !selectedOpForDetail || item.composicao?.some((c: any) => c.op === selectedOpForDetail))
+                      .map((item: any, idx: number) => {
+                        const comps = (item.composicao || []).filter((c: any) => !selectedOpForDetail || c.op === selectedOpForDetail);
+
+                        return comps.map((comp: any, cidx: number) => (
+                          <tr key={`${idx}-${cidx}`} className="hover:bg-gray-50/50 transition-all group">
+                            <td className="px-8 py-4">
+                              <button
+                                onClick={() => { setObsItem({ ...item, currentOp: comp.op }); setShowObsModal(true); }}
+                                className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all ${comp.obs_conf ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-200 group-hover:text-blue-200'}`}
+                              >🗨️</button>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="space-y-0.5">
+                                <p className="text-xs font-black text-gray-900 tracking-tight">{item.codigo}</p>
+                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter truncate max-w-[200px]">{item.descricao}</p>
+                                <p className="text-[8px] font-black text-blue-500 font-mono italic">OP {comp.op}</p>
                               </div>
-                            ))}
-                        </div>
-                        <button onClick={() => handleDivergencia(item)} className={`w-12 h-12 rounded-2xl flex items-center justify-center text-sm transition-all border ${item.div_conferencia ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-200 border-gray-100 hover:bg-orange-50 hover:text-orange-500'}`}>⚠️</button>
-                      </div>
-                    );
-                  })}
-              </div>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <p className="text-xs font-black text-gray-400 font-mono">{(comp.quantidade_original || comp.qtd_separada)}</p>
+                            </td>
+                            <td className="px-6 py-4 text-center">
+                              <p className="text-sm font-black text-gray-900 font-mono">{comp.qtd_separada}</p>
+                            </td>
+                            <td className="px-8 py-4 text-right">
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  onClick={() => handleToggleIndivComp(item.codigo, comp.op, 'ok_conf', !comp.ok_conf)}
+                                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border ${comp.ok_conf ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-emerald-200 group-hover:bg-emerald-50'}`}
+                                >OK</button>
+                                <button
+                                  onClick={() => handleToggleIndivComp(item.codigo, comp.op, 'tr_conf', !comp.tr_conf)}
+                                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border ${comp.tr_conf ? 'bg-blue-600 text-white border-blue-600 shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-blue-200 group-hover:bg-blue-50'}`}
+                                >TR</button>
+                                <button
+                                  onClick={() => handleDivergencia(item)}
+                                  className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm transition-all border ${item.div_conferencia ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-200 border-gray-100 hover:border-orange-200 group-hover:bg-orange-50'}`}
+                                >⚠️</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ));
+                      })}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="p-0 animate-fadeIn">
+                  {/* Transfer List Logic */}
+                  <table className="w-full text-left">
+                    <thead className="bg-gray-50 border-b border-gray-100">
+                      <tr className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                        <th className="px-8 py-4">OK</th>
+                        <th className="px-6 py-4">CÓDIGO</th>
+                        <th className="px-6 py-4">DESCRIÇÃO</th>
+                        <th className="px-6 py-4 text-center">QTD SOLIC.</th>
+                        <th className="px-8 py-4 text-center">QTD SEPAR.</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {Object.values(
+                        selectedItem.itens.reduce((acc: any, curr: any) => {
+                          if (!acc[curr.codigo]) {
+                            acc[curr.codigo] = { ...curr, totalSolic: 0, totalSepar: 0, isOk: true };
+                          }
+                          acc[curr.codigo].totalSolic += (curr.composicao || []).reduce((a: number, c: any) => a + (c.quantidade_original || c.qtd_separada), 0);
+                          acc[curr.codigo].totalSepar += (curr.quantidade || 0);
+                          acc[curr.codigo].isOk = acc[curr.codigo].isOk && (curr.composicao || []).every((c: any) => c.ok_conf);
+                          return acc;
+                        }, {})
+                      ).map((row: any, ridx: number) => (
+                        <tr key={ridx} className="hover:bg-gray-50/50 transition-all">
+                          <td className="px-8 py-4">
+                            <div className={`w-5 h-5 rounded flex items-center justify-center border ${row.isOk ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-gray-200'}`}>
+                              {row.isOk && '✓'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-xs font-black text-gray-900">{row.codigo}</td>
+                          <td className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase truncate max-w-[300px]">{row.descricao}</td>
+                          <td className="px-6 py-4 text-center text-xs font-black text-gray-400 font-mono">{row.totalSolic}</td>
+                          <td className="px-8 py-4 text-center text-sm font-black text-gray-900 font-mono">{row.totalSepar}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
-            <div className="p-10 bg-gray-50/80 border-t border-gray-100 flex justify-between items-center">
-              <div className="flex items-center gap-4 text-xs font-black text-gray-400 uppercase tracking-widest">
-                <p>Itens {selectedItem.itens.length}</p>
+            {/* Floating Actions Footer */}
+            <div className="p-8 bg-gray-50/80 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
+              <div className="flex items-center gap-6">
+                <div className="bg-white px-6 py-3 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
+                  <span className="text-xs font-black text-gray-300 uppercase">Resumo da Conferência</span>
+                  <div className="flex gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-gray-400">🔢 Itens:</span>
+                      <span className="text-xs font-black text-blue-600">{itensCompletosCount} / {selectedItem.itens.length} ITENS</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-gray-400">Verificados:</span>
+                      <span className="text-xs font-black text-emerald-600">{totalConferidoQtd} / {totalSeparado} ⏳</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="flex gap-4">
-                <button onClick={handleSavePendency} disabled={isSaving} className="px-8 py-4 bg-white border-2 border-gray-100 text-gray-500 rounded-3xl text-[10px] font-black uppercase tracking-widest shadow-xl hover:bg-gray-50 transition-all">Salvar Pendência</button>
-                <button onClick={handleFinalize} disabled={isSaving || isReverting} className="px-10 py-4 bg-blue-600 text-white rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] shadow-2xl hover:bg-blue-700 transition-all">Finalizar Conferência</button>
+
+              <div className="flex gap-3">
+                <button
+                  disabled={isReverting}
+                  onClick={handleRevert}
+                  className="px-6 py-4 bg-white border-2 border-orange-50 text-orange-400 rounded-3xl text-[10px] font-black uppercase tracking-widest hover:border-orange-200 transition-all"
+                >{isReverting ? 'Revertendo...' : '↩️ Reverter p/ Separação'}</button>
+                <button onClick={handleSavePendency} disabled={isSaving} className="px-8 py-4 bg-white border-2 border-gray-100 text-gray-400 rounded-3xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">Salvar como Pendente</button>
+                <button onClick={handleFinalize} disabled={isSaving || isReverting} className="px-10 py-4 bg-blue-600 text-white rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-blue-700 transition-all active:scale-95">Finalizar Lote</button>
               </div>
             </div>
           </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {items.map((item, index) => {
+          {items.filter(item => {
+            const search = searchText.toLowerCase();
+            return item.nome?.toLowerCase().includes(search) || item.documento?.toLowerCase().includes(search) || item.armazem?.toLowerCase().includes(search);
+          }).map((item, index) => {
             const isEmUso = item.responsavel_conferencia && item.responsavel_conferencia !== user.nome;
             const borderClass = isEmUso || item.status === 'Em Conferência' ? 'border-blue-500' : 'border-gray-100';
+            const opDisplay = getOPDisplayRange(item.ordens || []);
 
             return (
-              <div key={item.id} className={`bg-white rounded-3xl border-2 ${borderClass} shadow-sm p-8 space-y-6 flex flex-col justify-between hover:shadow-xl transition-all group relative overflow-hidden ${isEmUso ? 'bg-gray-50' : ''}`}>
+              <div key={item.id} className={`bg-white rounded-3xl border-2 ${borderClass} p-8 space-y-6 flex flex-col justify-between hover:shadow-xl transition-all group relative overflow-hidden ${isEmUso ? 'bg-gray-50' : ''}`}>
                 {/* In-Use Bar */}
                 {isEmUso && (
                   <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500 animate-pulse z-30"></div>
@@ -409,8 +474,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
                 <div className="flex justify-between items-center relative z-10">
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-black text-gray-300 uppercase tracking-widest">ID {(index + 1).toString().padStart(2, '0')}</span>
-                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${item.status === 'Em Conferência' ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-400'
-                      }`}>
+                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${item.status === 'Finalizado' ? 'bg-emerald-50 text-emerald-600' : item.status === 'Em Conferência' ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-400'}`}>
                       {item.status || 'AGUARDANDO'}
                     </span>
                   </div>
@@ -424,38 +488,44 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
                         }
                       }}
                       className="w-8 h-8 rounded-lg bg-gray-50 text-gray-300 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-all"
-                    >
-                      ✕
-                    </button>
+                    >✕</button>
                   )}
                 </div>
 
                 {/* OP Section */}
                 <div className="space-y-4 relative z-10">
-                  <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter">Lote: {item.nome || item.documento}</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter leading-tight">OP Lote-{opDisplay}</h3>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight flex items-center gap-2">
+                    <span>📍 Armazém: {item.armazem}</span>
+                    <span className="opacity-30">|</span>
+                    <span>📋 DOC: {item.itens?.[0]?.doc_transferencia || item.documento}</span>
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-4 pt-2">
                     <div className="space-y-1">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">📍 Armazém</p>
-                      <p className="text-xs font-black text-gray-900 truncate">{item.armazem}</p>
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</p>
+                      <p className="text-xs font-black text-gray-900">{item.status || 'Pendente'}</p>
                     </div>
-                    <div className="space-y-1">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">📋 Itens</p>
-                      <p className="text-xs font-black text-gray-900">{item.itens?.length || 0}</p>
+                    <div className="space-y-1 text-right">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">🔢 Itens</p>
+                      <p className="text-xs font-black text-gray-900">
+                        {item.itens?.filter((i: any) => (i.composicao || []).every((c: any) => c.ok_conf)).length || 0}/{item.itens?.length || 0} ITENS
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Footer and Button */}
-                <div className="space-y-4 pt-4 relative z-10 border-t border-gray-50">
+                {/* Fixed Footer Button */}
+                <div className="pt-4 relative z-10 border-t border-gray-50">
                   <button
                     onClick={() => handleStart(item)}
                     disabled={isEmUso}
                     className={`w-full py-4 rounded-[1.25rem] text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg active:scale-95 ${isEmUso
-                      ? 'bg-gray-50 text-gray-300 cursor-not-allowed shadow-none'
+                      ? 'bg-gray-50 text-gray-300 cursor-not-allowed'
                       : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'
                       }`}
                   >
-                    {isEmUso ? 'Em Uso' : 'Conferir Lote'}
+                    {isEmUso ? `Em uso: ${item.responsavel_conferencia}` : 'Abrir Conferência'}
                   </button>
                 </div>
               </div>
@@ -464,41 +534,53 @@ const Conferencia: React.FC<{ user: User, blacklist: any[] }> = ({ user, blackli
         </div>
       )}
 
+      {/* Divergence Modal (More or Less) */}
       {showDivModal && divItem && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center animate-fadeIn">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowDivModal(false)}></div>
-          <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 space-y-8 animate-slideInUp">
-            <h3 className="text-xl font-black text-gray-900 uppercase">Divergência / Falta</h3>
-            <textarea
-              className="w-full h-32 bg-gray-50 border border-gray-100 rounded-2xl p-4 text-xs font-bold text-gray-800 outline-none focus:ring-4 focus:ring-orange-50 transition-all resize-none"
-              placeholder="Descreva o motivo da divergência..."
-              value={divReason}
-              onChange={(e) => setDivReason(e.target.value)}
-            />
-            <button onClick={handleConfirmDivergencia} className="w-full py-5 bg-orange-500 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-orange-600 transition-all">Salvar Divergência</button>
+        <div className="fixed inset-0 z-[120] flex items-center justify-center animate-fadeIn p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowDivModal(false)}></div>
+          <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 space-y-8 animate-slideInUp overflow-hidden">
+            <div className="bg-orange-500 -m-10 p-10 mb-8 border-b border-orange-600 flex justify-between items-center text-white">
+              <div>
+                <h3 className="text-xl font-black uppercase italic">Divergência Crítica</h3>
+                <p className="text-[10px] font-bold opacity-80 uppercase">SKU: {divItem.codigo}</p>
+              </div>
+              <span className="text-4xl">🚨</span>
+            </div>
+            <div className="space-y-4">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Justificativa da Divergência (Mais ou Menos):</p>
+              <textarea
+                className="w-full h-32 bg-gray-50 border border-gray-100 rounded-2xl p-4 text-xs font-bold text-gray-800 outline-none focus:ring-4 focus:ring-orange-50 transition-all resize-none shadow-inner"
+                placeholder="Descreva o motivo (Ex: Falta física, Sobra no lote, Erro de etiqueta...)"
+                value={divReason}
+                onChange={(e) => setDivReason(e.target.value)}
+              />
+            </div>
+            <button onClick={handleConfirmDivergencia} className="w-full py-5 bg-orange-500 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-orange-600 transition-all active:scale-95 border-b-4 border-orange-700">Notificar Alerta e Salvar</button>
           </div>
         </div>
       )}
 
+      {/* Observations Modal */}
       {showObsModal && obsItem && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center animate-fadeIn">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center animate-fadeIn p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowObsModal(false)}></div>
-          <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 space-y-8 animate-slideInUp">
-            <h3 className="text-xl font-black text-gray-900 uppercase">Observações</h3>
-            <div className="max-h-96 overflow-y-auto space-y-6 pr-2 custom-scrollbar">
-              {(obsItem.composicao || []).map((comp: any, i: number) => (
-                <div key={i} className="space-y-3 p-6 bg-gray-50 rounded-3xl border border-gray-100">
-                  <p className="text-[9px] font-black text-gray-400 uppercase">OP: {comp.op}</p>
-                  <textarea
-                    className="w-full h-24 bg-white border border-gray-100 rounded-2xl p-4 text-xs font-bold text-gray-800 outline-none focus:ring-4 focus:ring-blue-50 transition-all resize-none"
-                    placeholder="Observação da conferência..."
-                    defaultValue={comp.obs_conf || ''}
-                    onBlur={(e) => handleSaveObs(obsItem.codigo, comp.op, e.target.value)}
-                  />
-                </div>
-              ))}
+          <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 animate-slideInUp">
+            <div className="flex justify-between items-center mb-8">
+              <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Anotações 🗨️</h3>
+              <button onClick={() => setShowObsModal(false)} className="text-gray-300 hover:text-gray-900 transition-colors">✕</button>
             </div>
-            <button onClick={() => setShowObsModal(false)} className="w-full py-5 bg-gray-900 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all">Confirmar e Fechar</button>
+            <div className="space-y-6">
+              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 italic text-[10px] font-bold text-gray-400">
+                Editando observação da OP: {obsItem.currentOp}
+              </div>
+              <textarea
+                className="w-full h-40 bg-white border border-gray-200 rounded-2xl p-6 text-sm font-bold text-gray-800 outline-none focus:ring-4 focus:ring-blue-50 transition-all resize-none"
+                placeholder="Observação da conferência..."
+                defaultValue={(obsItem.composicao || []).find((c: any) => c.op === obsItem.currentOp)?.obs_conf || ''}
+                onBlur={(e) => handleSaveObs(obsItem.codigo, obsItem.currentOp, e.target.value)}
+              />
+              <button onClick={() => setShowObsModal(false)} className="w-full py-5 bg-gray-900 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all">Confirmar e Fechar</button>
+            </div>
           </div>
         </div>
       )}
