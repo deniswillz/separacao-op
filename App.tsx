@@ -82,12 +82,26 @@ const App: React.FC = () => {
         return;
       }
 
+      let permissions: string[] = ['all'];
+      if (data.permissions) {
+        if (Array.isArray(data.permissions)) {
+          permissions = data.permissions;
+        } else if (typeof data.permissions === 'string') {
+          try {
+            const parsed = JSON.parse(data.permissions);
+            permissions = Array.isArray(parsed) ? parsed : Object.keys(parsed).filter(k => parsed[k] === true);
+          } catch (e) {
+            permissions = ['all'];
+          }
+        }
+      }
+
       const loggedUser: User = {
         id: data.id,
         username: data.username,
         nome: data.nome,
         role: data.role as any,
-        permissions: data.permissions ? JSON.parse(data.permissions) : ['all']
+        permissions: permissions
       };
 
       setUser(loggedUser);

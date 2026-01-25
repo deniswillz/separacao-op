@@ -49,23 +49,26 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
   const [backups, setBackups] = useState<any[]>([]);
 
   const fetchBackups = async () => {
-    // Try both naming conventions to be safe, starting with standard created_at
-    const { data, error } = await supabase.from('backups').select('*').order('created_at', { ascending: false });
+    // Try to fetch without specific ordering first to see what columns exist if it fails
+    const { data, error } = await supabase.from('backups').select('*').limit(5);
+
     if (error) {
-      // Fallback for custom 'data' column if it was created that way
-      const { data: altData } = await supabase.from('backups').select('*').order('data', { ascending: false });
-      if (altData) setBackups(altData);
-    } else if (data) {
+      console.error('Erro ao buscar backups:', error);
+      return;
+    }
+
+    if (data && data.length > 0) {
       setBackups(data);
+      // Diagnostic: help the user/agent see the structure
+      console.log('Colunas detectadas em backups:', Object.keys(data[0]));
     }
   };
 
   const handlePruneBackups = async () => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    // Delete older than 7 days
+    // Generic delete without column filter for now or try common ones
     await supabase.from('backups').delete().lt('created_at', sevenDaysAgo.toISOString());
-    await supabase.from('backups').delete().lt('data', sevenDaysAgo.toISOString());
   };
 
   const runAutoBackup = async () => {
@@ -88,10 +91,25 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
     setIsSyncing(true);
     const { data, error } = await supabase.from('usuarios').select('*');
     if (data) {
-      setUsers(data.map((u: any) => ({
-        ...u,
-        permissions: typeof u.permissions === 'string' ? JSON.parse(u.permissions) : (u.permissions || {})
-      })));
+      setUsers(data.map((u: any) => {
+        let perms = u.permissions;
+        if (typeof perms === 'string') {
+          try { perms = JSON.parse(perms); } catch (e) { perms = ['all']; }
+        }
+        // If it's an array, convert to our standard object for the UI to work
+        const permsObj = { ...initialUserState.permissions };
+        if (Array.isArray(perms)) {
+          if (perms.includes('Todos')) { // Assuming 'Todos' means all permissions
+            Object.keys(permsObj).forEach(k => (permsObj as any)[k] = true);
+          } else {
+            perms.forEach(k => { if ((permsObj as any)[k] !== undefined) (permsObj as any)[k] = true; });
+          }
+        } else if (typeof perms === 'object' && perms !== null) {
+          Object.assign(permsObj, perms);
+        }
+
+        return { ...u, permissions: permsObj };
+      }));
     }
     setIsSyncing(false);
   };
@@ -153,12 +171,16 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
       return;
     }
 
-    // Prepare data. Send as object (for JSONB). If table expects string, the update might fail with 400.
+    // Prepare data. Convert permission object to array for Postgres text[]
+    const activePermissions = Object.entries(newUser.permissions)
+      .filter(([_, value]) => value === true)
+      .map(([key, _]) => key);
+
     const userData: any = {
       username: newUser.username,
       nome: newUser.nome,
       role: newUser.role,
-      permissions: newUser.permissions // Send as object for JSONB
+      permissions: activePermissions // Send as array
     };
 
     if (newUser.senha) {
@@ -169,17 +191,9 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
       ? await supabase.from('usuarios').update(userData).eq('username', editingUser)
       : await supabase.from('usuarios').insert([userData]);
 
-    if (result.error && result.error.message.includes('JSON')) {
-      // Fallback: Try stringified permissions if 400 occurs (maybe TEXT column)
-      userData.permissions = JSON.stringify(newUser.permissions);
-      result = editingUser
-        ? await supabase.from('usuarios').update(userData).eq('username', editingUser)
-        : await supabase.from('usuarios').insert([userData]);
-    }
-
     if (result.error) {
       console.error('Erro detalhado:', result.error);
-      showAlert(`Erro: ${result.error.message}. Verifique o esquema da tabela "usuarios".`, 'error');
+      showAlert(`Erro: ${result.error.message}. Detalhe: ${result.error.details}`, 'error');
     } else {
       showAlert(editingUser ? 'Usuário atualizado!' : 'Usuário criado!', 'success');
       setIsModalOpen(false);
@@ -224,27 +238,36 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
         backupData[table] = data || [];
       }
 
-      // Try inserting with created_at (auto) or explicit data if table requires it
-      const { error } = await supabase.from('backups').insert([{
-        backup_json: JSON.stringify(backupData),
-        responsavel: silent ? 'Sistema (Auto)' : (user.username || 'admin')
-      }]);
+      const payload = JSON.stringify(backupData);
+      const responsavel = silent ? 'Sistema (Auto)' : (user.username || 'admin');
 
-      if (error) {
-        // Fallback for explicit 'data' column
+      // Attempt fallbacks for the JSON column name
+      let success = false;
+      const columnTries = ['backup', 'dados', 'backup_json'];
+
+      for (const col of columnTries) {
+        const { error } = await supabase.from('backups').insert([{
+          [col]: payload,
+          responsavel: responsavel
+        }]);
+        if (!error) { success = true; break; }
+
+        // Try with 'data' if it failed (some old schemas require explicit date)
         const { error: err2 } = await supabase.from('backups').insert([{
           data: new Date().toISOString(),
-          backup_json: JSON.stringify(backupData),
-          responsavel: silent ? 'Sistema (Auto)' : (user.username || 'admin')
+          [col]: payload,
+          responsavel: responsavel
         }]);
-        if (err2) throw err2;
+        if (!err2) { success = true; break; }
       }
+
+      if (!success) throw new Error('Falha ao inserir em todas as variações de coluna.');
 
       if (!silent) showAlert('Backup manual salvo no Supabase!', 'success');
       fetchBackups();
     } catch (e: any) {
       console.error('Erro no Backup Supabase:', e);
-      if (!silent) showAlert('Aviso: Tabela "backups" não encontrada ou erro de esquema.', 'warning');
+      if (!silent) showAlert('Erro no backup: ' + e.message, 'warning');
     } finally {
       if (!silent) setIsSyncing(false);
     }
