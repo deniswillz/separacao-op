@@ -66,7 +66,6 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
     }
     setViewMode('list');
     setSelectedItem(null);
-    setActiveTab('dashboard');
   };
 
   const updateItemConf = async (itemCodigo: string, field: string, value: any) => {
@@ -317,7 +316,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                 </div>
                 <div className="space-y-1 bg-white p-4 rounded-2xl border border-gray-50 shadow-sm">
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">✅ Itens OK</p>
-                  <p className="text-xl font-black text-gray-900">{itensCompletosCount}<span className="text-xs text-gray-300 ml-1">/ {selectedItem.itens.length}</span></p>
+                  <p className="text-xl font-black text-gray-900">{itensCompletosCount}<span className="text-xs text-gray-300 ml-1">/ {totalOkItemsCount}</span></p>
                 </div>
                 <div className="space-y-1 bg-white p-4 rounded-2xl border border-gray-50 shadow-sm">
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">🚨 Divergências</p>
