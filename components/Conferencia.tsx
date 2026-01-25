@@ -282,15 +282,21 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
 
     setIsLoading(true);
     try {
-      // 1. Prepare history data for the batch
+      // 1. Prepare history data with minimal columns (Pillar 4)
       const batchHistoryData = {
         documento: selectedItem.documento,
-        nome: selectedItem.nome,
+        nome: selectedItem.nome || selectedItem.documento,
         armazem: selectedItem.armazem,
-        itens: selectedItem.itens,
-        conferente: user.nome,
-        data_finalizacao: new Date().toISOString(),
-        status_atual: 'Finalizado'
+        itens: selectedItem.itens.map((item: any, idx: number) => ({
+          ...item,
+          // Embed metadata in each item or first item for the detailed modal
+          metadata: idx === 0 ? {
+            conferente: user.nome,
+            data_finalizacao: new Date().toISOString(),
+            total_itens: selectedItem.itens.length,
+            op_range: getOPDisplayRange(selectedItem.ordens)
+          } : undefined
+        }))
       };
 
       // 2. Insert into historico table
