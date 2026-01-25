@@ -4,6 +4,8 @@ import { UrgencyLevel, User } from '../types';
 import { BlacklistItem } from '../App';
 import { supabase } from '../services/supabaseClient';
 import Loading from './Loading';
+import { useAlert } from './AlertContext';
+
 
 
 interface OPMock {
@@ -23,7 +25,9 @@ interface OPMock {
 }
 
 const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab: (tab: string) => void }> = ({ blacklist, user, setActiveTab }) => {
+  const { showAlert } = useAlert();
   const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
+
   const [isSyncing, setIsSyncing] = useState(true);
   const [ops, setOps] = useState<OPMock[]>([]);
   const [selectedOP, setSelectedOP] = useState<OPMock | null>(null);
@@ -123,6 +127,90 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
     setViewMode('list'); setSelectedOP(null);
   };
 
+  const updateLupaQuantity = async (itemCodigo: string, op: string, newQty: number) => {
+    if (!selectedOP) return;
+
+    const newItens = selectedOP.rawItens.map(item => {
+      if (item.codigo === itemCodigo) {
+        const newComp = (item.composicao || []).map((c: any) => {
+          if (c.op === op) {
+            const requested = c.quantidade_original || c.quantidade || 0;
+            return {
+              ...c,
+              qtd_separada: newQty,
+              concluido: newQty >= requested && requested > 0
+            };
+          }
+          return c;
+        });
+
+        const newTotalSeparated = newComp.reduce((sum: number, c: any) => sum + (Number(c.qtd_separada) || 0), 0);
+
+        return {
+          ...item,
+          composicao: newComp,
+          qtd_separada: newTotalSeparated
+        };
+      }
+      return item;
+    });
+
+    setIsFinalizing(true);
+    const { error } = await supabase.from('separacao').update({ itens: newItens }).eq('id', selectedOP.id);
+    setIsFinalizing(false);
+
+    if (!error) {
+      const updatedOP = { ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) };
+      setSelectedOP(updatedOP);
+      const updatedLupaItem = newItens.find(i => i.codigo === itemCodigo);
+      if (updatedLupaItem) setLupaItem(updatedLupaItem);
+    } else {
+      showAlert('Erro ao atualizar quantidade: ' + error.message, 'error');
+    }
+  };
+
+  const updateLupaStatus = async (itemCodigo: string, op: string, isFinalize: boolean) => {
+    if (!selectedOP) return;
+
+    const newItens = selectedOP.rawItens.map(item => {
+      if (item.codigo === itemCodigo) {
+        const newComp = (item.composicao || []).map((c: any) => {
+          if (c.op === op) {
+            const requested = c.quantidade_original || c.quantidade || 0;
+            return {
+              ...c,
+              concluido: isFinalize,
+              qtd_separada: isFinalize ? requested : 0
+            };
+          }
+          return c;
+        });
+
+        const newTotalSeparated = newComp.reduce((sum: number, c: any) => sum + (Number(c.qtd_separada) || 0), 0);
+
+        return {
+          ...item,
+          composicao: newComp,
+          qtd_separada: newTotalSeparated
+        };
+      }
+      return item;
+    });
+
+    setIsFinalizing(true);
+    const { error } = await supabase.from('separacao').update({ itens: newItens }).eq('id', selectedOP.id);
+    setIsFinalizing(false);
+
+    if (!error) {
+      const updatedOP = { ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) };
+      setSelectedOP(updatedOP);
+      const updatedLupaItem = newItens.find(i => i.codigo === itemCodigo);
+      if (updatedLupaItem) setLupaItem(updatedLupaItem);
+    } else {
+      showAlert('Erro ao atualizar status: ' + error.message, 'error');
+    }
+  };
+
   const updateItem = async (itemCodigo: string, field: string, value: any) => {
     if (!selectedOP) return;
     const newItens = selectedOP.rawItens.map(i => i.codigo === itemCodigo ? { ...i, [field]: value } : i);
@@ -136,6 +224,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
       setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
     } else {
       console.error('Erro ao auto-salvar item:', error);
+      showAlert('Erro ao auto-salvar item: ' + error.message, 'error');
     }
   };
 
@@ -646,63 +735,69 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
                     Listagem por Ordem de Produção
                   </p>
-                  <div className="space-y-3">
-                    {(lupaItem.composicao || []).map((comp: any, cidx: number) => (
-                      <div key={cidx} className="group p-5 bg-white border border-gray-100 rounded-2xl hover:border-emerald-200 transition-all hover:shadow-md">
-                        <div className="flex justify-between items-center">
-                          <div className="space-y-1">
-                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">OP {comp.op}</p>
-                            <div className="flex items-center gap-3">
-                              <span className="text-sm font-black text-gray-900">{comp.qtd_separada || 0}</span>
-                              <span className="text-gray-200">/</span>
-                              <span className="text-[10px] font-bold text-gray-400">{comp.quantidade_original} UN</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {comp.concluido ? (
-                              <div className="w-8 h-8 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center text-xs font-black">OK</div>
-                            ) : (
-                              <button
-                                onClick={() => {
-                                  if (!selectedOP) return;
-                                  const newItens = selectedOP.rawItens.map(i => {
-                                    if (i.codigo === lupaItem.codigo) {
-                                      const newComp = (i.composicao || []).map((c: any) => c.op === comp.op ? { ...c, concluido: true, qtd_separada: c.quantidade_original } : c);
-                                      return { ...i, composicao: newComp };
-                                    }
-                                    return i;
-                                  });
-                                  setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
-                                  setLupaItem({ ...lupaItem, composicao: (lupaItem.composicao || []).map((c: any) => c.op === comp.op ? { ...c, concluido: true, qtd_separada: c.quantidade_original } : c) });
-                                }}
-                                className="px-3 py-2 bg-gray-900 text-white rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-black transition-all"
-                              >Finalizar</button>
-                            )}
-                            <button
-                              onClick={() => {
-                                if (!selectedOP) return;
-                                const newItens = selectedOP.rawItens.map(i => {
-                                  if (i.codigo === lupaItem.codigo) {
-                                    const newComp = (i.composicao || []).map((c: any) => c.op === comp.op ? { ...c, concluido: false, qtd_separada: 0 } : c);
-                                    return { ...i, composicao: newComp };
-                                  }
-                                  return i;
-                                });
-                                setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
-                                setLupaItem({ ...lupaItem, composicao: (lupaItem.composicao || []).map((c: any) => c.op === comp.op ? { ...c, concluido: false, qtd_separada: 0 } : c) });
-                              }}
-                              className="w-8 h-8 bg-gray-50 text-gray-300 rounded-lg flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-all"
-                            >✕</button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="bg-white border border-gray-100 rounded-3xl overflow-hidden shadow-sm">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-gray-50/80 border-b border-gray-100">
+                        <tr className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">
+                          <th className="px-4 py-3 text-left">OP</th>
+                          <th className="px-3 py-3">QTD SOL.</th>
+                          <th className="px-3 py-3">QTD SEP.</th>
+                          <th className="px-3 py-3">AÇÃO</th>
+                          <th className="px-3 py-3">OBS</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {(lupaItem.composicao || []).map((comp: any, cidx: number) => {
+                          const requested = comp.quantidade_original || comp.quantidade || 0;
+                          return (
+                            <tr key={cidx} className="hover:bg-gray-50/50 transition-colors">
+                              <td className="px-4 py-4">
+                                <span className={`text-[11px] font-black uppercase tracking-tight ${comp.concluido ? 'text-emerald-600' : 'text-gray-900'}`}>{comp.op}</span>
+                              </td>
+                              <td className="px-3 py-4 text-center">
+                                <span className="text-[11px] font-bold text-gray-400">{requested}</span>
+                              </td>
+                              <td className="px-3 py-4 text-center">
+                                <input
+                                  type="number"
+                                  className="w-14 px-1 py-1 bg-gray-50 border border-gray-100 rounded-lg text-center font-black text-xs focus:ring-2 focus:ring-emerald-50 outline-none transition-all"
+                                  value={comp.qtd_separada || 0}
+                                  onChange={(e) => updateLupaQuantity(lupaItem.codigo, comp.op, Number(e.target.value))}
+                                />
+                              </td>
+                              <td className="px-3 py-4 text-center">
+                                <button
+                                  onClick={() => updateLupaStatus(lupaItem.codigo, comp.op, !comp.concluido)}
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black transition-all shadow-sm ${comp.concluido ? 'bg-emerald-600 text-white shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50'}`}
+                                >
+                                  OK
+                                </button>
+                              </td>
+                              <td className="px-3 py-4 text-center">
+                                <button
+                                  onClick={() => { setObsItem({ ...lupaItem, currentOp: comp.op }); setShowObsModal(true); }}
+                                  className={`text-sm hover:scale-125 transition-transform ${comp.observacao ? 'text-blue-500' : 'text-gray-300'}`}
+                                >
+                                  🗨️
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
+
               </div>
 
               <div className="p-8 bg-gray-50/50 border-t border-gray-100">
-                <button onClick={() => { setShowLupaModal(false); setLupaItem(null); }} className="w-full py-5 bg-gray-900 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all">Fechar Distribuição</button>
+                <button
+                  onClick={() => { setShowLupaModal(false); setLupaItem(null); }}
+                  className={`w-full py-5 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl transition-all ${lupaItem.composicao?.every((c: any) => c.concluido) ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'bg-gray-900 text-white hover:bg-black'}`}
+                >
+                  Fechar Distribuição
+                </button>
               </div>
             </div>
           </div>

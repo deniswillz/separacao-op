@@ -396,13 +396,13 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                         const itemIsComplete = (item.ok === true || item.ok === 'true') && (item.composicao || []).every((c: any) => c.ok_conf && c.tr_conf);
                         const itemHasDivergence = (item.composicao || []).some((c: any) => c.falta_conf);
 
-                        const rowClass = itemHasDivergence ? 'bg-red-50 border-l-4 border-red-500' :
-                          itemIsComplete ? 'bg-emerald-50/80 border-l-4 border-emerald-500' :
-                            'border-l-4 border-transparent';
+                        const rowClass = itemHasDivergence ? 'bg-red-50' :
+                          itemIsComplete ? 'bg-emerald-50/80' :
+                            '';
 
                         return comps.map((comp: any, cidx: number) => (
                           <tr key={`${idx}-${cidx}`} className={`group ${rowClass} transition-all border-b border-gray-100 hover:bg-gray-50/30`}>
-                            <td className="px-8 py-4">
+                            <td className={`px-8 py-4 border-l-4 ${itemHasDivergence ? 'border-red-500' : itemIsComplete ? 'border-emerald-500' : 'border-transparent'}`}>
                               <button
                                 onClick={() => { setObsItem({ ...item, currentOp: comp.op }); setShowObsModal(true); }}
                                 className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all ${comp.observacao ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-200 group-hover:text-blue-200'}`}
