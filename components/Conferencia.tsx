@@ -284,15 +284,13 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
     try {
       // 1. Prepare history data for the batch
       const batchHistoryData = {
-        op_range: getOPDisplayRange(selectedItem.ordens),
-        armazem: selectedItem.armazem,
         documento: selectedItem.documento,
-        ordens: selectedItem.ordens.join(', '),
-        separador: selectedItem.itens[0]?.usuario_atual || 'N/A',
+        nome: selectedItem.nome,
+        armazem: selectedItem.armazem,
+        itens: selectedItem.itens,
         conferente: user.nome,
         data_finalizacao: new Date().toISOString(),
-        total_itens: selectedItem.itens.length,
-        itens: selectedItem.itens
+        status_atual: 'Finalizado'
       };
 
       // 2. Insert into historico table

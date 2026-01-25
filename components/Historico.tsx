@@ -79,6 +79,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
             return (
               item.documento?.toLowerCase().includes(search) ||
               item.op_range?.toLowerCase().includes(search) ||
+              item.nome?.toLowerCase().includes(search) ||
               item.armazem?.toLowerCase().includes(search) ||
               item.separador?.toLowerCase().includes(search) ||
               item.conferente?.toLowerCase().includes(search) ||
@@ -86,18 +87,34 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
             );
           })
           .map((item) => (
-            <div key={item.id} className="bg-white rounded-[3rem] border border-gray-50 p-10 space-y-8 flex flex-col justify-between hover:shadow-2xl hover:translate-y-[-8px] transition-all duration-500 group relative overflow-hidden h-[30rem]">
-              <div className="space-y-8 relative z-10">
+            <div key={item.id} className="bg-white rounded-[2.5rem] border border-gray-50 p-8 space-y-6 flex flex-col justify-between hover:shadow-2xl hover:translate-y-[-4px] transition-all duration-500 group relative overflow-hidden h-[24rem]">
+              <div className="space-y-6 relative z-10">
                 <div className="flex justify-between items-start">
-                  <div className="w-16 h-16 bg-gray-50 rounded-2xl flex items-center justify-center text-3xl shadow-sm group-hover:bg-emerald-50 transition-colors">📋</div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">FINALIZADO</p>
-                    <p className="text-[11px] font-mono font-black text-gray-300 uppercase">{item.documento}</p>
+                  <div className="w-12 h-12 bg-gray-50 rounded-xl flex items-center justify-center text-2xl shadow-sm group-hover:bg-emerald-50 transition-colors">📋</div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mb-0.5">FINALIZADO</p>
+                      <p className="text-[10px] font-mono font-black text-gray-300 uppercase">{item.documento}</p>
+                    </div>
+                    {user.role === 'admin' && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (confirm(`Excluir histórico: ${item.documento}?`)) {
+                            await supabase.from('historico').delete().eq('id', item.id);
+                            fetchHistory();
+                          }
+                        }}
+                        className="w-8 h-8 rounded-lg bg-gray-50 text-gray-300 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-all"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  <h4 className="text-lg font-black text-[#111827] uppercase leading-tight tracking-tight">OP {item.op_range}</h4>
+                <div className="space-y-4">
+                  <h4 className="text-base font-black text-[#111827] uppercase leading-tight tracking-tight">OP {item.op_range || item.nome || item.documento}</h4>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
@@ -106,20 +123,22 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                     </div>
                     <div className="space-y-1">
                       <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Total Itens</p>
-                      <p className="text-xs font-black text-emerald-600 uppercase">{item.total_itens} UN</p>
+                      <p className="text-xs font-black text-emerald-600 uppercase">
+                        {item.total_itens || (Array.isArray(item.itens) ? item.itens.length : 0)} UN
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="relative z-10 flex justify-between items-end border-t border-gray-50 pt-8">
+              <div className="relative z-10 flex justify-between items-end border-t border-gray-50 pt-6">
                 <div className="space-y-1">
                   <p className="text-[8px] font-black text-gray-300 uppercase tracking-widest">Data Fechamento</p>
-                  <p className="text-[10px] font-black text-gray-400 font-mono italic">{new Date(item.data_finalizacao).toLocaleDateString('pt-BR')}</p>
+                  <p className="text-[10px] font-black text-gray-400 font-mono italic">{new Date(item.data_final_izacao || item.data_finalizacao || item.updated_at || new Date()).toLocaleDateString('pt-BR')}</p>
                 </div>
                 <button
                   onClick={() => setSelectedItem(item)}
-                  className="w-14 h-14 bg-[#111827] text-white rounded-[1.5rem] flex items-center justify-center text-2xl font-black shadow-xl shadow-gray-200 hover:rotate-90 transition-all active:scale-95"
+                  className="w-12 h-12 bg-[#111827] text-white rounded-xl flex items-center justify-center text-xl font-black shadow-xl shadow-gray-200 hover:rotate-90 transition-all active:scale-95"
                 >
                   +
                 </button>
