@@ -182,20 +182,20 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   );
 
   return (
-    <div className="space-y-8 animate-fadeIn pb-20 bg-gray-50 -m-8 p-8 min-h-screen">
+    <div className="space-y-8 animate-fadeIn pb-20 bg-[var(--bg-main)] -m-8 p-8 min-h-screen">
       {/* Header Container */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm text-gray-900">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-[var(--bg-secondary)] p-8 rounded-[2.5rem] border border-[var(--border-light)] shadow-sm text-[var(--text-primary)]">
         <div className="flex gap-6 items-center">
           <div className="w-16 h-16 bg-[#F0F9FF] rounded-[1.5rem] flex items-center justify-center text-3xl shadow-inner">
             🏢
           </div>
           <div className="space-y-1">
-            <h1 className="text-2xl font-black text-[#111827] uppercase tracking-tight">TEA - Receber Matriz</h1>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">Gestão de Transferências entre Armazéns</p>
+            <h1 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tight">TEA - Receber Matriz</h1>
+            <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest leading-none">Gestão de Transferências entre Armazéns</p>
             <div className="mt-4">
               <button
                 onClick={() => setShowHistoryModal(true)}
-                className="px-6 py-2.5 bg-gray-900 text-white rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 shadow-lg shadow-gray-200 hover:bg-black transition-all flex items-center gap-2"
+                className="px-6 py-2.5 bg-[var(--text-primary)] text-[var(--bg-secondary)] rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 shadow-lg shadow-gray-200/10 hover:opacity-90 transition-all flex items-center gap-2"
               >
                 📜 Histórico TEA
               </button>
@@ -210,7 +210,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               placeholder="BUSCAR OP, PRODUTO OU DESCRIÇÃO..."
-              className="w-full pl-14 pr-6 py-5 bg-gray-50 border-none rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-blue-500/10 outline-none transition-all"
+              className="w-full pl-14 pr-6 py-5 bg-[var(--bg-inner)] border-none rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-blue-500/10 outline-none transition-all text-[var(--text-primary)]"
             />
           </div>
         </div>
@@ -222,31 +222,31 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
           <div className="col-span-full py-20"><Loading message="Sincronizando Fluxo TEA..." /></div>
         ) : filteredHistory.length === 0 ? (
           <div className="col-span-full py-20 text-center space-y-4 opacity-30">
-            <div className="text-6xl text-gray-900">📥</div>
-            <p className="text-xs font-black uppercase tracking-[0.4em] text-gray-900">Nenhum registro ativo</p>
+            <div className="text-6xl text-[var(--text-primary)]">📥</div>
+            <p className="text-xs font-black uppercase tracking-[0.4em] text-[var(--text-primary)]">Nenhum registro ativo</p>
           </div>
         ) : (
           filteredHistory.map((item) => {
             const statusInfo = getStatusDisplay(item.itens[item.itens.length - 1]?.status);
 
             return (
-              <div key={item.id} className="bg-white rounded-[2.5rem] border border-gray-100 p-8 flex flex-col justify-between shadow-sm hover:shadow-xl transition-all duration-300 group text-gray-900">
+              <div key={item.id} className="bg-[var(--bg-secondary)] rounded-[2.5rem] border border-[var(--border-light)] p-8 flex flex-col justify-between shadow-sm hover:shadow-xl transition-all duration-300 group text-[var(--text-primary)]">
                 <div className="space-y-6">
                   {/* Card Header */}
                   <div className="flex justify-between items-start">
                     <div className="space-y-2">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">OP: {item.documento}</p>
+                      <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">OP: {item.documento}</p>
                       <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[9px] font-black uppercase shadow-sm ${statusInfo.color}`}>
                         <span>{statusInfo.icon}</span> {statusInfo.label}
                       </div>
                     </div>
-                    <button onClick={() => deleteItem(item.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-200 hover:text-red-500 hover:bg-red-50 transition-all font-bold">✕</button>
+                    <button onClick={() => deleteItem(item.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 transition-all font-bold">✕</button>
                   </div>
 
                   {/* Product Info */}
                   <div className="space-y-1">
                     <p className="text-[11px] font-bold text-[#2563EB] font-mono tracking-tighter uppercase">{item.produto}</p>
-                    <h3 className="text-[14px] font-black text-[#111827] uppercase leading-tight line-clamp-2 h-10 tracking-tight">
+                    <h3 className="text-[14px] font-black text-[var(--text-primary)] uppercase leading-tight line-clamp-2 h-10 tracking-tight">
                       {item.descricao}
                     </h3>
                   </div>
@@ -255,17 +255,17 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                   <div className="bg-[#F8FAFC] rounded-2xl p-5 grid grid-cols-2 gap-4 border border-gray-50 shadow-inner">
                     <div className="text-center space-y-1 text-gray-900">
                       <p className="text-xl font-black text-gray-900 leading-none">{item.quantidade}</p>
-                      <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Qtd Sol.</p>
+                      <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest">Qtd Sol.</p>
                     </div>
                     <div className="text-center space-y-1 border-l border-gray-200 pl-4 flex flex-col justify-center">
-                      <p className="text-[10px] font-black text-gray-900 leading-none truncate uppercase">{item.destino}</p>
+                      <p className="text-[10px] font-black text-[var(--text-primary)] leading-none truncate uppercase">{item.destino}</p>
                       <p className="text-[8px] font-black text-[#2563EB] uppercase tracking-widest">Destino</p>
                     </div>
                   </div>
 
                   {/* Footer Timeline Info */}
                   <div className="space-y-3 pt-2">
-                    <div className="flex items-center gap-2 text-[9px] font-bold text-gray-300 uppercase tracking-tighter">
+                    <div className="flex items-center gap-2 text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-tighter">
                       <span className="text-blue-500">🔄</span>
                       <span>Última atualização: {new Date(item.ultima_atualizacao!).toLocaleString('pt-BR')}</span>
                     </div>
@@ -281,8 +281,8 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                     className={`w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all ${statusInfo.label === 'CONCLUÍDO'
                       ? 'bg-[#F0FDF4] text-[#166534] border border-[#DCFCE7] cursor-default'
                       : !statusInfo.next
-                        ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
-                        : 'bg-[#111827] text-white hover:bg-black active:scale-[0.98] shadow-lg shadow-gray-200'
+                        ? 'bg-[var(--bg-inner)] text-[var(--text-muted)] cursor-not-allowed'
+                        : 'bg-[var(--text-primary)] text-[var(--bg-secondary)] hover:opacity-90 active:scale-[0.98] shadow-lg shadow-gray-200/10'
                       }`}
                   >
                     {statusInfo.nextLabel}
@@ -297,11 +297,11 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
       {showHistoryModal && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center animate-fadeIn p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowHistoryModal(false)}></div>
-          <div className="relative bg-white w-full max-w-5xl max-h-[85vh] rounded-[2.5rem] shadow-2xl p-10 space-y-8 animate-slideInUp flex flex-col overflow-hidden">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-50 pb-6 shrink-0 gap-6">
+          <div className="relative bg-[var(--bg-secondary)] w-full max-w-5xl max-h-[85vh] rounded-[2.5rem] shadow-2xl p-10 space-y-8 animate-slideInUp flex flex-col overflow-hidden text-[var(--text-primary)]">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-[var(--border-light)] pb-6 shrink-0 gap-6">
               <div className="space-y-1">
-                <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">Histórico de TEA Finalizados</h3>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Apenas transferências com status CONCLUÍDO</p>
+                <h3 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter">Histórico de TEA Finalizados</h3>
+                <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Apenas transferências com status CONCLUÍDO</p>
               </div>
 
               <div className="flex items-center gap-4 w-full md:w-auto">
@@ -310,19 +310,19 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                   <input
                     type="text"
                     placeholder="Filtrar por OP ou Produto..."
-                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border-none rounded-xl text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-blue-500/10 outline-none"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[var(--bg-inner)] border-none rounded-xl text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-blue-500/10 outline-none text-[var(--text-primary)]"
                     value={historySearchTerm}
                     onChange={(e) => setHistorySearchTerm(e.target.value)}
                   />
                 </div>
-                <button onClick={() => setShowHistoryModal(false)} className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-all font-bold">✕</button>
+                <button onClick={() => setShowHistoryModal(false)} className="w-10 h-10 bg-[var(--bg-inner)] rounded-xl flex items-center justify-center text-[var(--text-muted)] hover:text-red-500 transition-all font-bold">✕</button>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
               <table className="w-full text-left">
-                <thead className="sticky top-0 bg-white z-10">
-                  <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                <thead className="sticky top-0 bg-[var(--bg-secondary)] z-10">
+                  <tr className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border-light)]">
                     <th className="py-4">OP</th>
                     <th className="py-4">PRODUTO</th>
                     <th className="py-4 text-center">QUANTIDADE</th>
@@ -330,7 +330,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                     <th className="py-4 text-right">CONCLUÍDO EM</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-[var(--border-light)]">
                   {history
                     .filter(h => h.status_atual === 'CONCLUÍDO')
                     .filter(h =>
@@ -338,22 +338,22 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                       h.produto?.toLowerCase().includes(historySearchTerm.toLowerCase())
                     )
                     .map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50/50 transition-colors">
+                      <tr key={item.id} className="hover:bg-[var(--bg-inner)]/30 transition-colors">
                         <td className="py-4 font-black text-xs">{item.documento}</td>
                         <td className="py-4">
                           <p className="text-[11px] font-bold text-blue-600 font-mono">{item.produto}</p>
-                          <p className="text-[9px] font-medium text-gray-400 truncate max-w-[200px] uppercase">{item.descricao}</p>
+                          <p className="text-[9px] font-medium text-[var(--text-muted)] truncate max-w-[200px] uppercase">{item.descricao}</p>
                         </td>
                         <td className="py-4 text-center font-black text-xs">{item.quantidade}</td>
                         <td className="py-4 font-black text-[10px] text-purple-600 uppercase">{item.destino}</td>
-                        <td className="py-4 text-right text-[10px] font-bold text-gray-400">
+                        <td className="py-4 text-right text-[10px] font-bold text-[var(--text-muted)]">
                           {new Date(item.ultima_atualizacao!).toLocaleString('pt-BR')}
                         </td>
                       </tr>
                     ))}
                   {history.filter(h => h.status_atual === 'CONCLUÍDO').length === 0 && (
                     <tr>
-                      <td colSpan={5} className="py-10 text-center text-xs font-black text-gray-300 uppercase tracking-widest">Nenhum registro finalizado</td>
+                      <td colSpan={5} className="py-10 text-center text-xs font-black text-[var(--text-muted)] uppercase tracking-widest">Nenhum registro finalizado</td>
                     </tr>
                   )}
                 </tbody>

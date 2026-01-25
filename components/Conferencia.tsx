@@ -317,14 +317,14 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
 
   return (
     <div className="space-y-8 animate-fadeIn pb-20">
-      <div className="flex justify-between items-center bg-white p-4 rounded-xl border-l-4 border-blue-600 shadow-sm">
+      <div className="flex justify-between items-center bg-[var(--bg-secondary)] p-4 rounded-xl border-l-4 border-blue-600 shadow-[var(--shadow-sm)]">
         <h1 className="text-sm font-black text-blue-600 uppercase tracking-widest">Conferência</h1>
         <div className="relative w-full md:w-96 group">
           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none transition-colors group-focus-within:text-blue-500">🔍</span>
           <input
             type="text"
             placeholder="BUSCAR POR OP, DOC OU ARMAZÉM..."
-            className="w-full bg-gray-50 border-none rounded-2xl py-3 pl-12 pr-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-blue-500/20 transition-all"
+            className="w-full bg-[var(--bg-inner)] border-none rounded-2xl py-3 pl-12 pr-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-blue-500/20 transition-all text-[var(--text-primary)]"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
           />
@@ -334,22 +334,22 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
       {viewMode === 'detail' && selectedItem ? (
         <div className="space-y-6 animate-fadeIn">
           {/* Header Resumo */}
-          <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
-            <div className="bg-gray-50/50 p-8 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start gap-8">
+          <div className="bg-[var(--bg-secondary)] rounded-[2rem] border border-[var(--border-light)] shadow-[var(--shadow-sm)] overflow-hidden">
+            <div className="bg-[var(--bg-inner)]/50 p-8 border-b border-[var(--border-light)] flex flex-col md:flex-row justify-between items-start gap-8">
               <div className="flex items-center gap-6">
-                <button onClick={handleBack} className="w-12 h-12 bg-white border border-gray-200 rounded-2xl flex items-center justify-center text-lg hover:bg-gray-50 transition-all shadow-sm">←</button>
+                <button onClick={handleBack} className="w-12 h-12 bg-[var(--bg-secondary)] border border-[var(--border-light)] rounded-2xl flex items-center justify-center text-lg hover:bg-[var(--bg-inner)] transition-all shadow-sm">←</button>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-black text-blue-600 uppercase tracking-widest">Conferindo Lote</span>
                     <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[8px] font-black uppercase">LIVE</span>
                   </div>
-                  <h2 className="text-2xl font-black tracking-tighter uppercase">{selectedItem.itens[0]?.doc_transferencia || selectedItem.documento}</h2>
+                  <h2 className="text-2xl font-black tracking-tighter uppercase text-[var(--text-primary)]">{selectedItem.itens[0]?.doc_transferencia || selectedItem.documento}</h2>
                 </div>
               </div>
 
               <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-6 w-full md:w-auto">
-                <div className="space-y-1 bg-white p-4 rounded-2xl border border-gray-50 shadow-sm">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">👤 Responsável</p>
+                <div className="space-y-1 bg-[var(--bg-secondary)] p-4 rounded-2xl border border-[var(--border-light)] shadow-sm">
+                  <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest leading-none mb-2">👤 Responsável</p>
                   <input
                     type="text"
                     value={manualConferente}
@@ -366,27 +366,27 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                     </div>
                   </div>
                 </div>
-                <div className="space-y-1 bg-white p-4 rounded-2xl border border-gray-50 shadow-sm">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">✅ Itens OK</p>
-                  <p className="text-xl font-black text-gray-900">{totalConferidoQtd}<span className="text-xs text-gray-300 ml-1">/ {totalSeparado}</span></p>
+                <div className="space-y-1 bg-[var(--bg-secondary)] p-4 rounded-2xl border border-[var(--border-light)] shadow-sm">
+                  <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest leading-none mb-2">✅ Itens OK</p>
+                  <p className="text-xl font-black text-[var(--text-primary)]">{totalConferidoQtd}<span className="text-xs text-[var(--text-muted)] ml-1">/ {totalSeparado}</span></p>
                 </div>
-                <div className="space-y-1 bg-white p-4 rounded-2xl border border-gray-50 shadow-sm">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-2">🚨 Divergências</p>
-                  <p className={`text-xl font-black ${divergenciasCount > 0 ? 'text-red-500' : 'text-gray-900'}`}>{divergenciasCount}</p>
+                <div className="space-y-1 bg-[var(--bg-secondary)] p-4 rounded-2xl border border-[var(--border-light)] shadow-sm">
+                  <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest leading-none mb-2">🚨 Divergências</p>
+                  <p className={`text-xl font-black ${divergenciasCount > 0 ? 'text-red-500' : 'text-[var(--text-primary)]'}`}>{divergenciasCount}</p>
                 </div>
               </div>
             </div>
 
             {/* Abas e Filtros */}
-            <div className="px-10 py-6 border-b border-gray-50 flex flex-wrap gap-4 items-center justify-between">
+            <div className="px-10 py-6 border-b border-[var(--border-light)] flex flex-wrap gap-4 items-center justify-between">
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowTransferList(false)}
-                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${!showTransferList ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${!showTransferList ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/10' : 'bg-[var(--bg-inner)] text-[var(--text-muted)] hover:bg-[var(--bg-inner)]/80'}`}
                 >Lista de Itens</button>
                 <button
                   onClick={() => setShowTransferList(true)}
-                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showTransferList ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-gray-50 text-gray-400 hover:bg-gray-100'}`}
+                  className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${showTransferList ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/10' : 'bg-[var(--bg-inner)] text-[var(--text-muted)] hover:bg-[var(--bg-inner)]/80'}`}
                 >Lista de Transferência</button>
               </div>
 
@@ -401,7 +401,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                     setSelectedItem({ ...selectedItem, itens: newItens });
                     supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
                   }}
-                  className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-emerald-100 transition-all"
+                  className="px-4 py-2 bg-emerald-500/10 text-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
                 >Marcar Todos TR</button>
               )}
 
@@ -409,13 +409,13 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                 <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scroll-hide">
                   <button
                     onClick={() => setSelectedOpForDetail(null)}
-                    className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase border transition-all ${!selectedOpForDetail ? 'bg-gray-900 text-white' : 'bg-white text-gray-400 border-gray-100 hover:bg-gray-50'}`}
+                    className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase border transition-all ${!selectedOpForDetail ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)]' : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-light)] hover:bg-[var(--bg-inner)]'}`}
                   >Todas OPs</button>
                   {[...new Set(selectedItem.itens.flatMap((i: any) => (i.composicao || []).map((c: any) => c.op)))].map((opCode: any) => (
                     <button
                       key={opCode}
                       onClick={() => setSelectedOpForDetail(selectedOpForDetail === opCode ? null : (opCode as string))}
-                      className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase border transition-all ${selectedOpForDetail === opCode ? 'bg-blue-600 text-white' : 'bg-white text-gray-400 border-gray-100 hover:bg-gray-50'}`}
+                      className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase border transition-all ${selectedOpForDetail === opCode ? 'bg-blue-600 text-white' : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-light)] hover:bg-[var(--bg-inner)]'}`}
                     >OP {(opCode as string).replace(/^00/, '').replace(/01001$/, '')}</button>
                   ))}
                 </div>
@@ -426,8 +426,8 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
             <div className="p-0 overflow-y-auto max-h-[60vh] custom-scrollbar">
               {!showTransferList ? (
                 <table className="w-full text-left">
-                  <thead className="sticky top-0 bg-white z-20 border-b border-gray-100">
-                    <tr className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                  <thead className="sticky top-0 bg-[var(--bg-secondary)] z-20 border-b border-[var(--border-light)]">
+                    <tr className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest">
                       <th className="px-8 py-4">OBS 🗨️</th>
                       <th className="px-6 py-4">PRODUTO / OP</th>
                       <th className="px-6 py-4 text-center">SOLICITADO</th>
@@ -448,16 +448,16 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                           const isCompComplete = comp.ok_conf && comp.tr_conf;
                           const hasCompDivergence = !!comp.falta_conf;
 
-                          const rowClass = hasCompDivergence ? 'bg-red-50' :
-                            isCompComplete ? 'bg-emerald-50/80' :
+                          const rowClass = hasCompDivergence ? 'bg-red-500/10' :
+                            isCompComplete ? 'bg-emerald-500/10' :
                               '';
 
                           return (
-                            <tr key={`${idx}-${cidx}`} className={`group ${rowClass} transition-all border-b border-gray-100 hover:bg-gray-50/30`}>
+                            <tr key={`${idx}-${cidx}`} className={`group ${rowClass} transition-all border-b border-[var(--border-light)] hover:bg-[var(--bg-inner)]/30`}>
                               <td className={`px-8 py-4 border-l-4 ${hasCompDivergence ? 'border-red-500' : isCompComplete ? 'border-emerald-500' : 'border-transparent'}`}>
                                 <button
                                   onClick={() => { setObsItem({ ...item, currentOp: comp.op }); setShowObsModal(true); }}
-                                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all ${comp.observacao ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-200 group-hover:text-blue-200'}`}
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-all ${comp.observacao ? 'bg-blue-500/10 text-blue-500' : 'bg-[var(--bg-inner)] text-[var(--text-muted)] group-hover:text-blue-200'}`}
                                 >🗨️</button>
                               </td>
                               <td className="px-6 py-4">
@@ -468,17 +468,17 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                                 </div>
                               </td>
                               <td className="px-6 py-4 text-center">
-                                <p className="text-xs font-black text-gray-400 font-mono">{(comp.quantidade_original || comp.quantidade || comp.qtd_separada)}</p>
+                                <p className="text-xs font-black text-[var(--text-muted)] font-mono">{(comp.quantidade_original || comp.quantidade || comp.qtd_separada)}</p>
                               </td>
                               <td className="px-6 py-4 text-center">
-                                <p className="text-sm font-black text-gray-900 font-mono">{comp.qtd_separada}</p>
+                                <p className="text-sm font-black text-[var(--text-primary)] font-mono">{comp.qtd_separada}</p>
                               </td>
                               <td className="px-8 py-4 text-right">
                                 <div className="flex justify-end gap-2">
                                   <button
                                     disabled={!!comp.falta_conf}
                                     onClick={() => handleToggleIndivComp(item.codigo, comp.op, 'ok_conf', !comp.ok_conf)}
-                                    className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border ${comp.ok_conf ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg' : 'bg-white text-gray-400 border-gray-100 hover:border-emerald-200 group-hover:bg-emerald-50'} ${comp.falta_conf ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                    className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border ${comp.ok_conf ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-500/10' : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-light)] hover:border-emerald-200 group-hover:bg-emerald-500/10'} ${comp.falta_conf ? 'opacity-50 cursor-not-allowed' : ''}`}
                                   >OK</button>
                                   <button
                                     disabled={!!comp.falta_conf}
@@ -487,7 +487,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                                   >TR</button>
                                   <button
                                     onClick={() => handleDivergencia(item, comp)}
-                                    className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm transition-all border ${comp.falta_conf ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-200 border-gray-100 hover:border-orange-200 group-hover:bg-orange-50'}`}
+                                    className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm transition-all border ${comp.falta_conf ? 'bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/10' : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-light)] hover:border-orange-200 group-hover:bg-orange-500/10'}`}
                                   >⚠️</button>
                                 </div>
                               </td>
@@ -500,8 +500,8 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
               ) : (
                 <div className="p-0 animate-fadeIn">
                   <table className="w-full text-left">
-                    <thead className="bg-gray-50 border-b border-gray-100">
-                      <tr className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+                    <thead className="bg-[var(--bg-inner)]/50 border-b border-[var(--border-light)]">
+                      <tr className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest">
                         <th className="px-8 py-4">OK</th>
                         <th className="px-6 py-4">CÓDIGO</th>
                         <th className="px-6 py-4">DESCRIÇÃO</th>
@@ -509,7 +509,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                         <th className="px-8 py-4 text-center">QTD SEPAR.</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-50">
+                    <tbody className="divide-y divide-[var(--border-light)]">
                       {Object.values(
                         selectedItem.itens
                           .filter((i: any) => i.ok === true || i.ok === 'true')
@@ -523,19 +523,19 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                             return acc;
                           }, {})
                       ).map((row: any, ridx: number) => (
-                        <tr key={ridx} className="hover:bg-gray-50/50 transition-all">
+                        <tr key={ridx} className="hover:bg-[var(--bg-inner)]/50 transition-all">
                           <td className="px-8 py-4">
                             <button
                               onClick={() => handleToggleAllTR(row.codigo, !row.isOk)}
-                              className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-all ${row.isOk ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg' : 'bg-white border-gray-200 text-transparent hover:border-emerald-300 group-hover:bg-emerald-50'}`}
+                              className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-all ${row.isOk ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg shadow-emerald-500/10' : 'bg-[var(--bg-secondary)] border-[var(--border-light)] text-transparent hover:border-emerald-300 group-hover:bg-emerald-500/10'}`}
                             >
                               ✓
                             </button>
                           </td>
-                          <td className="px-6 py-4 text-xs font-black text-gray-900">{row.codigo}</td>
-                          <td className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase truncate max-w-[300px]">{row.descricao}</td>
-                          <td className="px-6 py-4 text-center text-xs font-black text-gray-400 font-mono">{row.totalSolic}</td>
-                          <td className="px-8 py-4 text-center text-sm font-black text-gray-900 font-mono">{row.totalSepar}</td>
+                          <td className="px-6 py-4 text-xs font-black text-[var(--text-primary)]">{row.codigo}</td>
+                          <td className="px-6 py-4 text-[10px] font-bold text-[var(--text-muted)] uppercase truncate max-w-[300px]">{row.descricao}</td>
+                          <td className="px-6 py-4 text-center text-xs font-black text-[var(--text-muted)] font-mono">{row.totalSolic}</td>
+                          <td className="px-8 py-4 text-center text-sm font-black text-[var(--text-primary)] font-mono">{row.totalSepar}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -545,17 +545,17 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
             </div>
 
             {/* Floating Actions Footer */}
-            <div className="p-8 bg-gray-50/80 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div className="p-8 bg-[var(--bg-inner)]/80 border-t border-[var(--border-light)] flex flex-col md:flex-row justify-between items-center gap-6">
               <div className="flex items-center gap-6">
-                <div className="bg-white px-6 py-3 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4">
-                  <span className="text-xs font-black text-gray-300 uppercase">Resumo da Conferência</span>
+                <div className="bg-[var(--bg-secondary)] px-6 py-3 rounded-2xl border border-[var(--border-light)] shadow-sm flex items-center gap-4">
+                  <span className="text-xs font-black text-[var(--text-muted)] uppercase">Resumo da Conferência</span>
                   <div className="flex gap-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black text-gray-400">✅ Itens OK:</span>
+                      <span className="text-[10px] font-black text-[var(--text-muted)]">✅ Itens OK:</span>
                       <span className="text-xs font-black text-blue-600 font-mono">{itensCompletosCount} / {totalOkItemsCount}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black text-gray-400">Verificados:</span>
+                      <span className="text-[10px] font-black text-[var(--text-muted)]">Verificados:</span>
                       <span className="text-xs font-black text-emerald-600 font-mono tracking-tighter">{totalConferidoQtd} / {totalSeparado} ⏳</span>
                     </div>
                   </div>
@@ -566,10 +566,10 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                 <button
                   disabled={isReverting}
                   onClick={handleRevert}
-                  className="px-6 py-4 bg-white border-2 border-orange-50 text-orange-400 rounded-3xl text-[10px] font-black uppercase tracking-widest hover:border-orange-200 transition-all"
+                  className="px-6 py-4 bg-[var(--bg-secondary)] border-2 border-orange-500/10 text-orange-400 rounded-3xl text-[10px] font-black uppercase tracking-widest hover:border-orange-500/20 transition-all"
                 >{isReverting ? 'Revertendo...' : '↩️ Reverter p/ Separação'}</button>
-                <button onClick={handleSavePendency} disabled={isSaving} className="px-8 py-4 bg-white border-2 border-gray-100 text-gray-400 rounded-3xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">Salvar como Pendente</button>
-                <button onClick={handleFinalize} disabled={isSaving || isReverting} className="px-10 py-4 bg-blue-600 text-white rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-blue-700 transition-all active:scale-95">Finalizar Lote</button>
+                <button onClick={handleSavePendency} disabled={isSaving} className="px-8 py-4 bg-[var(--bg-secondary)] border-2 border-[var(--border-light)] text-[var(--text-muted)] rounded-3xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--bg-inner)] transition-all">Salvar como Pendente</button>
+                <button onClick={handleFinalize} disabled={isSaving || isReverting} className="px-10 py-4 bg-blue-600 text-white rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-blue-500/20 hover:bg-blue-700 transition-all active:scale-95">Finalizar Lote</button>
               </div>
             </div>
           </div>
@@ -581,11 +581,11 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
             return item.nome?.toLowerCase().includes(search) || item.documento?.toLowerCase().includes(search) || item.armazem?.toLowerCase().includes(search);
           }).map((item, index) => {
             const isEmUso = item.responsavel_conferencia && item.responsavel_conferencia !== user.nome;
-            const borderClass = isEmUso || item.status === 'Em Conferência' ? 'border-blue-500' : 'border-gray-100';
+            const borderClass = isEmUso || item.status === 'Em Conferência' ? 'border-blue-500' : 'border-[var(--border-light)]';
             const opDisplay = getOPDisplayRange(item.ordens || []);
 
             return (
-              <div key={item.id} className={`bg-white rounded-3xl border-2 ${borderClass} p-8 space-y-6 flex flex-col justify-between hover:shadow-xl transition-all group relative overflow-hidden ${isEmUso ? 'bg-gray-50' : ''}`}>
+              <div key={item.id} className={`bg-[var(--bg-secondary)] rounded-3xl border-2 ${borderClass} p-8 space-y-6 flex flex-col justify-between hover:shadow-xl transition-all group relative overflow-hidden ${isEmUso ? 'bg-[var(--bg-inner)]/50' : ''}`}>
                 {/* In-Use Bar */}
                 {isEmUso && (
                   <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500 animate-pulse z-30"></div>
@@ -594,8 +594,8 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                 {/* Top Row: ID, Status, X */}
                 <div className="flex justify-between items-center relative z-10">
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-black text-gray-300 uppercase tracking-widest">ID {(index + 1).toString().padStart(2, '0')}</span>
-                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${item.status === 'Finalizado' ? 'bg-emerald-50 text-emerald-600' : item.status === 'Em Conferência' ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-gray-400'}`}>
+                    <span className="text-xs font-black text-[var(--text-muted)] uppercase tracking-widest">ID {(index + 1).toString().padStart(2, '0')}</span>
+                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${item.status === 'Finalizado' ? 'bg-emerald-500/10 text-emerald-600' : item.status === 'Em Conferência' ? 'bg-blue-500/10 text-blue-600' : 'bg-[var(--bg-inner)] text-[var(--text-muted)]'}`}>
                       {item.status || 'AGUARDANDO'}
                     </span>
                   </div>
@@ -604,19 +604,31 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                       onClick={async (e) => {
                         e.stopPropagation();
                         if (confirm(`Excluir Lote: ${item.documento}?`)) {
-                          await supabase.from('conferencia').delete().eq('id', item.id);
-                          fetchItems();
+                          const performDelete = async () => {
+                            // Delete from conferencia
+                            await supabase.from('conferencia').delete().eq('id', item.id);
+
+                            // Cascading delete: Remove TEA records related to these OPs
+                            if (item.ordens && item.ordens.length > 0) {
+                              await supabase.from('historico')
+                                .delete()
+                                .eq('armazem', 'TEA')
+                                .in('documento', item.ordens);
+                            }
+                            fetchItems();
+                          };
+                          performDelete();
                         }
                       }}
-                      className="w-8 h-8 rounded-lg bg-gray-50 text-gray-300 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-all"
+                      className="w-8 h-8 rounded-lg bg-[var(--bg-inner)] text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 flex items-center justify-center transition-all"
                     >✕</button>
                   )}
                 </div>
 
                 {/* OP Section */}
                 <div className="space-y-4 relative z-10">
-                  <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter leading-tight">OP Lote-{opDisplay}</h3>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tight flex items-center gap-2">
+                  <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter leading-tight">OP Lote-{opDisplay}</h3>
+                  <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-tight flex items-center gap-2">
                     <span>📍 Armazém: {item.armazem}</span>
                     <span className="opacity-30">|</span>
                     <span>📋 DOC: {item.itens?.[0]?.doc_transferencia || item.documento}</span>
@@ -624,12 +636,12 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
 
                   <div className="grid grid-cols-2 gap-4 pt-2">
                     <div className="space-y-1">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</p>
-                      <p className="text-xs font-black text-gray-900">{item.status || 'Pendente'}</p>
+                      <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Status</p>
+                      <p className="text-xs font-black text-[var(--text-primary)]">{item.status || 'Pendente'}</p>
                     </div>
                     <div className="space-y-1 text-right">
-                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">🔢 Itens</p>
-                      <p className="text-xs font-black text-gray-900">
+                      <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">🔢 Itens</p>
+                      <p className="text-xs font-black text-[var(--text-primary)]">
                         {item.itens?.reduce((acc: number, i: any) => acc + (i.composicao || []).reduce((cAcc: number, c: any) => c.ok_conf ? cAcc + (c.qtd_separada || 0) : cAcc, 0), 0)}/{item.itens?.reduce((acc: number, i: any) => acc + (i.quantidade || 0), 0)}
                       </p>
                     </div>
@@ -637,13 +649,13 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                 </div>
 
                 {/* Fixed Footer Button */}
-                <div className="pt-4 relative z-10 border-t border-gray-50">
+                <div className="pt-4 relative z-10 border-t border-[var(--border-light)]">
                   <button
                     onClick={() => handleStart(item)}
                     disabled={isEmUso}
                     className={`w-full py-4 rounded-[1.25rem] text-[11px] font-black uppercase tracking-[0.2em] transition-all shadow-lg active:scale-95 ${isEmUso
-                      ? 'bg-gray-50 text-gray-300 cursor-not-allowed'
-                      : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-100'
+                      ? 'bg-[var(--bg-inner)] text-[var(--text-muted)] cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/10'
                       }`}
                   >
                     {isEmUso ? `Em uso: ${item.responsavel_conferencia}` : 'Abrir Conferência'}
@@ -659,7 +671,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
       {showDivModal && divItem && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center animate-fadeIn p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowDivModal(false)}></div>
-          <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 space-y-8 animate-slideInUp overflow-hidden">
+          <div className="relative bg-[var(--bg-secondary)] w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 space-y-8 animate-slideInUp overflow-hidden">
             <div className="bg-orange-500 -m-10 p-10 mb-8 border-b border-orange-600 flex justify-between items-center text-white relative">
               <div className="absolute top-0 left-0 w-full h-1 bg-white/20 animate-pulse"></div>
               <div>
@@ -671,9 +683,9 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
               </div>
             </div>
             <div className="space-y-4">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Justificativa da Divergência (Mais ou Menos):</p>
+              <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Justificativa da Divergência (Mais ou Menos):</p>
               <textarea
-                className="w-full h-32 bg-gray-50 border border-gray-100 rounded-2xl p-4 text-xs font-bold text-gray-800 outline-none focus:ring-4 focus:ring-orange-50 transition-all resize-none shadow-inner"
+                className="w-full h-32 bg-[var(--bg-inner)] border border-[var(--border-light)] rounded-2xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:ring-4 focus:ring-orange-500/10 transition-all resize-none shadow-inner"
                 placeholder="Descreva o motivo (Ex: Falta física, Sobra no lote, Erro de etiqueta...)"
                 value={divReason}
                 onChange={(e) => setDivReason(e.target.value)}
@@ -688,22 +700,22 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
       {showObsModal && obsItem && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center animate-fadeIn p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowObsModal(false)}></div>
-          <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 animate-slideInUp">
-            <div className="flex justify-between items-center mb-8">
-              <h3 className="text-xl font-black text-gray-900 uppercase tracking-tighter">Anotações 🗨️</h3>
-              <button onClick={() => setShowObsModal(false)} className="text-gray-300 hover:text-gray-900 transition-colors">✕</button>
+          <div className="relative bg-[var(--bg-secondary)] w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 animate-slideInUp">
+            <div className="flex justify-between items-center mb-8 border-b border-[var(--border-light)] pb-4">
+              <h3 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tighter">Anotações 🗨️</h3>
+              <button onClick={() => setShowObsModal(false)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">✕</button>
             </div>
             <div className="space-y-6">
-              <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 italic text-[10px] font-bold text-gray-400">
+              <div className="p-4 bg-[var(--bg-inner)]/50 rounded-2xl border border-[var(--border-light)] italic text-[10px] font-bold text-[var(--text-muted)]">
                 Editando observação da OP: {obsItem.currentOp}
               </div>
               <textarea
-                className="w-full h-40 bg-white border border-gray-200 rounded-2xl p-6 text-sm font-bold text-gray-800 outline-none focus:ring-4 focus:ring-blue-50 transition-all resize-none"
+                className="w-full h-40 bg-[var(--bg-inner)] border border-[var(--border-light)] rounded-2xl p-6 text-sm font-bold text-[var(--text-primary)] outline-none focus:ring-4 focus:ring-blue-500/10 transition-all resize-none"
                 placeholder="Observação da conferência..."
                 defaultValue={(obsItem.composicao || []).find((c: any) => c.op === obsItem.currentOp)?.observacao || ''}
                 onBlur={(e) => handleSaveObs(obsItem.codigo, obsItem.currentOp, e.target.value)}
               />
-              <button onClick={() => setShowObsModal(false)} className="w-full py-5 bg-gray-900 text-white rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:bg-black transition-all">Confirmar e Fechar</button>
+              <button onClick={() => setShowObsModal(false)} className="w-full py-5 bg-[var(--text-primary)] text-[var(--bg-secondary)] rounded-[2rem] text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:opacity-90 transition-all">Confirmar e Fechar</button>
             </div>
           </div>
         </div>

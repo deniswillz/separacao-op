@@ -152,8 +152,8 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
     <div className="space-y-8 animate-fadeIn">
       {/* Cabeçalho do Título */}
       <div className="mb-10">
-        <h1 className="text-3xl font-black text-gray-900 tracking-tight uppercase">Endereços de Estoque</h1>
-        <p className="text-gray-400 font-bold uppercase tracking-widest text-sm mt-1">Localização dos produtos no armazém</p>
+        <h1 className="text-3xl font-black text-[var(--text-primary)] tracking-tight uppercase">Endereços de Estoque</h1>
+        <p className="text-[var(--text-muted)] font-bold uppercase tracking-widest text-sm mt-1">Localização dos produtos no armazém</p>
       </div>
 
       {/* Barra de Ferramentas */}
@@ -165,9 +165,9 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
               placeholder="Buscar endereço ou produto..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-14 pr-6 py-4 bg-gray-50 border border-transparent rounded-[1.5rem] focus:ring-4 focus:ring-emerald-50 outline-none transition-all text-sm font-bold shadow-inner"
+              className="w-full pl-14 pr-6 py-4 bg-[var(--bg-inner)] border border-transparent rounded-[1.5rem] focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all text-sm font-bold shadow-inner text-[var(--text-primary)]"
             />
-            <span className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-300 text-xl">🔍</span>
+            <span className="absolute left-6 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-xl">🔍</span>
           </div>
           <div className="bg-[#006B47] text-white px-6 py-3 rounded-2xl font-black text-xs flex items-center justify-center min-w-[120px]">
             {items.length.toLocaleString('pt-BR')} itens
@@ -185,14 +185,14 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isImporting}
-            className={`flex items-center gap-3 px-8 py-4 bg-[#006B47] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-[#004D33] transition-all shadow-xl shadow-emerald-100 ${isImporting ? 'opacity-50 cursor-wait' : ''}`}
+            className={`flex items-center gap-3 px-8 py-4 bg-[#006B47] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-[#004D33] transition-all shadow-xl shadow-emerald-500/10 ${isImporting ? 'opacity-50 cursor-wait' : ''}`}
           >
             <span className="text-lg">{isImporting ? '⏳' : '📥'}</span>
             {isImporting ? 'Processando...' : 'Importar Excel'}
           </button>
           <button
             onClick={handleClearAll}
-            className="flex items-center gap-3 px-8 py-4 bg-[#EF4444] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-[#DC2626] transition-all shadow-xl shadow-red-100"
+            className="flex items-center gap-3 px-8 py-4 bg-[#EF4444] text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-[#DC2626] transition-all shadow-xl shadow-red-500/10"
           >
             <span className="text-lg">🗑️</span> Limpar Tudo
           </button>
@@ -200,11 +200,11 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
       </div>
 
       {/* Tabela de Endereços */}
-      <div className="bg-white rounded-[3rem] border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-[var(--bg-secondary)] rounded-[3rem] border border-[var(--border-light)] shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-white border-b border-gray-100 text-[10px] font-black text-gray-300 uppercase tracking-widest">
+              <tr className="bg-[var(--bg-secondary)] border-b border-[var(--border-light)] text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">
                 <th className="px-10 py-8">CÓDIGO</th>
                 <th className="px-6 py-8">DESCRIÇÃO</th>
                 <th className="px-6 py-8 text-center">ENDEREÇO</th>
@@ -212,7 +212,7 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
                 <th className="px-10 py-8 text-right">AÇÕES</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-[var(--border-light)]">
               {isLoading ? (
                 <tr>
                   <td colSpan={5} className="px-10 py-20 text-center">
@@ -222,7 +222,7 @@ const Enderecos: React.FC<{ user: User }> = ({ user }) => {
               ) : filteredItems.length === 0 ? (
 
                 <tr>
-                  <td colSpan={5} className="px-10 py-20 text-center text-gray-400 font-black uppercase tracking-widest text-xs">
+                  <td colSpan={5} className="px-10 py-20 text-center text-[var(--text-muted)] font-black uppercase tracking-widest text-xs">
                     Nenhum produto encontrado na base de endereços
                   </td>
                 </tr>

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { UrgencyLevel } from '../types';
 import * as XLSX from 'xlsx';
@@ -10,6 +9,7 @@ interface PendingOP {
   id: string;
   data: string;
   itens: { codigo: string; descricao: string; quantidade: number; unidade: string; observacao?: string }[];
+  teaItem?: { produto: string; descricao: string; quantidade: number };
   prioridade: UrgencyLevel;
 }
 
@@ -54,12 +54,21 @@ const Empenhos: React.FC = () => {
             };
           }
           opsMap[opId].itens.push({
-            codigo: String(row[1] || '').trim(), // Coluna B (Produto)
-            descricao: String(row[2] || '').trim(), // Coluna C (Descricao)
-            quantidade: Number(row[7]) || 0, // Coluna H (Qtde. a Prod.)
+            codigo: String(row[20] || '').trim(), // Coluna U (Código)
+            descricao: String(row[21] || '').trim(), // Coluna V (Descrição)
+            quantidade: Number(row[22]) || 0, // Coluna W (Quantidade)
             unidade: 'UN',
-            observacao: String(row[23] || '').trim() // Keeping Column X for observations
+            observacao: String(row[23] || '').trim() // Coluna X (Observação)
           });
+
+          // Capture TEA-specific info only once per OP
+          if (!opsMap[opId].teaItem) {
+            opsMap[opId].teaItem = {
+              produto: String(row[1] || '').trim(), // Coluna B (Produto TEA)
+              descricao: String(row[2] || '').trim(), // Coluna C (Descrição TEA)
+              quantidade: Number(row[7]) || 0 // Coluna H (Quantidade TEA)
+            };
+          }
         });
         const importedOps = Object.values(opsMap);
         setOps(prev => [...prev, ...importedOps]);
@@ -157,11 +166,11 @@ const Empenhos: React.FC = () => {
           status: 'Separação',
           icon: '📦',
           data: new Date().toLocaleDateString('pt-BR'),
-          produto: op.itens[0]?.codigo || 'DIVERSOS',
-          descricao: op.itens[0]?.descricao || 'INÍCIO LOGÍSTICA',
-          quantidade: op.itens.reduce((sum, i) => sum + i.quantidade, 0),
+          produto: op.teaItem?.produto || 'DIVERSOS',
+          descricao: op.teaItem?.descricao || 'INÍCIO LOGÍSTICA',
+          quantidade: op.teaItem?.quantidade || 0,
           observacao: op.itens[0]?.observacao || '',
-          destino: destinoTea // Storing destination inside the item metadata
+          destino: destinoTea
         }]
       }));
 
@@ -189,25 +198,25 @@ const Empenhos: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-fadeIn pb-20">
-      <div className="flex justify-between items-center bg-white p-4 rounded-xl border-l-4 border-[#006B47]">
+      <div className="flex justify-between items-center bg-[var(--bg-secondary)] p-4 rounded-xl border-l-4 border-[#006B47] shadow-[var(--shadow-sm)]">
         <h1 className="text-sm font-black text-[#006B47] uppercase tracking-widest">Empenhos</h1>
-        <div className="text-[10px] font-bold text-gray-400 uppercase">
+        <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">
           Data do Sistema: <span className="text-[#006B47]">{new Date().toLocaleDateString('pt-BR')}</span>
         </div>
       </div>
 
-      <div className="bg-white p-10 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-8">
+      <div className="bg-[var(--bg-secondary)] p-10 rounded-[2.5rem] border border-[var(--border-light)] shadow-sm space-y-8">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
           <h2 className="text-xs font-black text-gray-600 uppercase tracking-widest">Selecione as Ordens de Produção</h2>
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => { }} className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl text-[9px] font-black uppercase text-gray-500 flex items-center gap-2 hover:bg-gray-50 transition-all">
+            <button onClick={() => { }} className="px-5 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-light)] rounded-xl text-[9px] font-black uppercase text-[var(--text-primary)] flex items-center gap-2 hover:bg-[var(--bg-inner)] transition-all">
               📄 Baixar Modelo Excel
             </button>
             <input type="file" ref={fileInputRef} className="hidden" onChange={handleImportExcel} />
             <button onClick={() => fileInputRef.current?.click()} disabled={isImporting} className="px-5 py-2.5 bg-[#004D33] text-white rounded-xl text-[9px] font-black uppercase flex items-center gap-2 hover:opacity-90 active:scale-95 transition-all">
               🕹️ {isImporting ? 'Importando...' : 'Importar Ordens (Excel)'}
             </button>
-            <button onClick={handleGenerateList} disabled={selectedIds.length === 0 || !globalWarehouse || isGenerating} className="px-5 py-2.5 bg-white border border-gray-200 rounded-xl text-[9px] font-black uppercase text-gray-400 flex items-center gap-2 hover:bg-gray-50 disabled:opacity-50">
+            <button onClick={handleGenerateList} disabled={selectedIds.length === 0 || !globalWarehouse || isGenerating} className="px-5 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border-light)] rounded-xl text-[9px] font-black uppercase text-[var(--text-muted)] flex items-center gap-2 hover:bg-[var(--bg-inner)] disabled:opacity-50">
               ✅ {isGenerating ? 'Processando...' : 'Gerar Lista de Separação'}
             </button>
             <button onClick={() => { setOps([]); setSelectedIds([]); }} className="px-5 py-2.5 bg-[#EF4444] text-white rounded-xl text-[9px] font-black uppercase flex items-center gap-2 hover:opacity-90 transition-all">
@@ -216,15 +225,15 @@ const Empenhos: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-gray-50/50 p-4 rounded-[2rem] border border-gray-100">
+        <div className="bg-[var(--bg-inner)]/50 p-4 rounded-[2rem] border border-[var(--border-light)]">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
             {ops.map((op) => (
               <button
                 key={op.id}
                 onClick={() => toggleSelect(op.id)}
                 className={`px-4 py-3 rounded-xl border-2 text-[10px] font-black transition-all ${selectedIds.includes(op.id)
-                  ? 'bg-white border-[#10B981] text-[#10B981] shadow-lg shadow-emerald-50'
-                  : 'bg-white border-gray-100 text-gray-300'
+                  ? 'bg-[var(--bg-secondary)] border-[#10B981] text-[#10B981] shadow-lg shadow-emerald-500/10'
+                  : 'bg-[var(--bg-secondary)] border-[var(--border-light)] text-[var(--text-muted)]'
                   }`}
               >
                 {op.id}
@@ -243,12 +252,12 @@ const Empenhos: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <div className="space-y-6">
-          <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
-            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Armazém (Destino)</h3>
+          <div className="bg-[var(--bg-secondary)] p-8 rounded-[2.5rem] border border-[var(--border-light)] shadow-sm space-y-6">
+            <h3 className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Armazém (Destino)</h3>
             <select
               value={globalWarehouse}
               onChange={(e) => setGlobalWarehouse(e.target.value)}
-              className="w-full bg-gray-50 border-none rounded-2xl py-4 px-6 text-xs font-black text-gray-600 outline-none focus:ring-2 focus:ring-emerald-50 transition-all mb-4"
+              className="w-full bg-[var(--bg-inner)] border-none rounded-2xl py-4 px-6 text-xs font-black text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all mb-4"
             >
               <option value="">Selecione...</option>
               <option value="CHICOTE">CHICOTE</option>
@@ -256,11 +265,11 @@ const Empenhos: React.FC = () => {
               <option value="ELETRONICA">ELETRÔNICA</option>
             </select>
 
-            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Destino TEA</h3>
+            <h3 className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Destino TEA</h3>
             <select
               value={destinoTea}
               onChange={(e) => setDestinoTea(e.target.value)}
-              className="w-full bg-gray-50 border-none rounded-2xl py-4 px-6 text-xs font-black text-gray-600 outline-none focus:ring-2 focus:ring-emerald-50 transition-all"
+              className="w-full bg-[var(--bg-inner)] border-none rounded-2xl py-4 px-6 text-xs font-black text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all"
             >
               <option value="Armazém 04">Armazém 04</option>
               <option value="Armazém 08">Armazém 08</option>
@@ -276,24 +285,24 @@ const Empenhos: React.FC = () => {
           </div>
         </div>
 
-        <div className="lg:col-span-3 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+        <div className="lg:col-span-3 bg-[var(--bg-secondary)] rounded-[2.5rem] border border-[var(--border-light)] shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-gray-50/50 text-[10px] font-black text-gray-300 uppercase tracking-widest border-b border-gray-100">
+                <tr className="bg-[var(--bg-inner)]/50 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest border-b border-[var(--border-light)]">
                   <th className="px-8 py-6 flex items-center gap-2">📋 ORDEM DE PRODUÇÃO</th>
                   <th className="px-6 py-6 text-center">DATA</th>
                   <th className="px-6 py-6 text-center">PRIORIDADE (EDITÁVEL)</th>
                   <th className="px-8 py-6 text-right">AÇÕES</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-[var(--border-light)]">
                 {ops.filter(o => selectedIds.includes(o.id)).map((op) => (
-                  <tr key={op.id} className="group hover:bg-gray-50/50 transition-colors">
-                    <td className="px-8 py-6 font-black text-[#111827] text-xs">
+                  <tr key={op.id} className="group hover:bg-[var(--bg-inner)]/50 transition-colors">
+                    <td className="px-8 py-6 font-black text-[var(--text-primary)] text-xs">
                       {op.id}
                     </td>
-                    <td className="px-6 py-6 text-center text-[10px] font-bold text-gray-400">
+                    <td className="px-6 py-6 text-center text-[10px] font-bold text-[var(--text-muted)]">
                       {op.data}
                     </td>
                     <td className="px-6 py-6 text-center">
@@ -322,7 +331,7 @@ const Empenhos: React.FC = () => {
                 ))}
                 {selectedIds.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-8 py-16 text-center text-[10px] font-black text-gray-300 uppercase tracking-[0.3em]">
+                    <td colSpan={4} className="px-8 py-16 text-center text-[10px] font-black text-[var(--text-muted)] uppercase tracking-[0.3em]">
                       Nenhuma OP selecionada para listagem
                     </td>
                   </tr>

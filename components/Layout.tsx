@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { User } from '../types';
 
 interface LayoutProps {
@@ -12,6 +12,14 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, setActiveTab }) => {
   const isAdmin = user.role === 'admin';
+  const [theme, setTheme] = useState(() => localStorage.getItem('nano-theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('nano-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
 
   const menuItems = [
     { id: 'dashboard', name: 'Dashboard', icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg> },
@@ -31,7 +39,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, se
   });
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden transition-colors duration-300">
       {/* Top Header Branding (Topo) */}
       <header className="h-16 bg-[#004D33] text-white flex items-center justify-between px-6 z-30 shadow-lg">
         <div className="flex items-center gap-3">
@@ -40,9 +48,16 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, se
         </div>
 
         <div className="flex items-center gap-6">
+          <button
+            onClick={toggleTheme}
+            className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 transition-all flex items-center justify-center"
+            title="Alternar Tema"
+          >
+            {theme === 'light' ? '🌙' : '☀️'}
+          </button>
           <div className="flex flex-col items-end">
-            <span className="text-[10px] font-black opacity-60 uppercase tracking-widest">Usuário Nano</span>
-            <span className="text-sm font-bold tracking-tight">{user.nome}</span>
+            <span className="text-[10px] font-black opacity-60 uppercase tracking-widest text-white/60">Usuário Nano</span>
+            <span className="text-sm font-bold tracking-tight text-white">{user.nome}</span>
           </div>
           <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center font-black shadow-inner">
             {user.nome.charAt(0).toUpperCase()}
@@ -61,10 +76,10 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, se
 
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar Refatorada */}
-        <aside className="w-64 bg-white border-r border-gray-200 flex flex-col z-20 transition-all duration-300 ease-in-out md:translate-x-0 -translate-x-full fixed md:relative h-full">
-          <div className="p-6 border-b border-gray-50 bg-gray-50/30 flex items-center gap-3">
+        <aside className="w-64 bg-[var(--bg-secondary)] border-r border-[var(--border-light)] flex flex-col z-20 transition-all duration-300 ease-in-out md:translate-x-0 -translate-x-full fixed md:relative h-full">
+          <div className="p-6 border-b border-[var(--border-light)] bg-[var(--bg-primary)]/30 flex items-center gap-3">
             <div className="w-1.5 h-6 bg-emerald-600 rounded-full"></div>
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Navegação Principal</span>
+            <span className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Navegação Principal</span>
           </div>
 
           <nav className="flex-1 overflow-y-auto py-6 px-4 space-y-1.5 custom-scrollbar">
@@ -73,11 +88,11 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, se
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-xs font-bold transition-all relative group ${activeTab === item.id
-                  ? 'bg-emerald-50 text-emerald-800'
-                  : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600'
+                  ? 'bg-emerald-600/10 text-emerald-600'
+                  : 'text-[var(--text-muted)] hover:bg-[var(--bg-inner)] hover:text-[var(--text-primary)]'
                   }`}
               >
-                <div className={`${activeTab === item.id ? 'text-emerald-600' : 'text-gray-300 group-hover:text-gray-400'} transition-colors`}>
+                <div className={`${activeTab === item.id ? 'text-emerald-600' : 'text-[var(--text-muted)] group-hover:text-[var(--text-secondary)]'} transition-colors`}>
                   {item.icon}
                 </div>
                 <span className="uppercase tracking-wider">{item.name}</span>
@@ -88,31 +103,31 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, se
             ))}
           </nav>
 
-          <div className="p-6 border-t border-gray-100 bg-white">
+          <div className="p-6 border-t border-[var(--border-light)] bg-[var(--bg-secondary)]">
             <div className="text-right">
-              <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Versão 1.0.4</p>
-              <p className="text-[8px] font-bold text-emerald-800">Sincronizado via Supabase</p>
+              <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest">Versão 1.0.4</p>
+              <p className="text-[8px] font-bold text-emerald-600">Sincronizado via Supabase</p>
             </div>
           </div>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <header className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-10 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.01)] shrink-0">
+        <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[var(--bg-primary)]">
+          <header className="h-14 bg-[var(--bg-secondary)] border-b border-[var(--border-light)] flex items-center justify-between px-10 z-10 shadow-[var(--shadow-sm)] shrink-0">
             <div className="flex items-center gap-4">
-              <h2 className="text-sm font-black text-gray-800 uppercase tracking-widest">
+              <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-widest">
                 {menuItems.find(m => m.id === activeTab)?.name || 'Dashboard'}
               </h2>
             </div>
             <div className="flex items-center gap-8">
               <div className="text-right hidden sm:block">
-                <p className="text-[9px] font-black text-gray-300 uppercase tracking-widest">Data do Sistema</p>
-                <p className="text-xs font-black text-emerald-800">{new Date().toLocaleDateString('pt-BR')}</p>
+                <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest">Data do Sistema</p>
+                <p className="text-xs font-black text-emerald-600">{new Date().toLocaleDateString('pt-BR')}</p>
               </div>
             </div>
           </header>
 
-          <div className="flex-1 overflow-y-auto p-10 focus:outline-none custom-scrollbar bg-gray-50/50">
+          <div className="flex-1 overflow-y-auto p-10 focus:outline-none custom-scrollbar">
             {children}
           </div>
         </main>

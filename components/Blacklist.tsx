@@ -108,12 +108,12 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
       <div className="mb-2">
-        <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase">BlackList</h1>
-        <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest mt-1">Gestão de Restrições e Exceções</p>
+        <h1 className="text-2xl font-black text-[var(--text-primary)] tracking-tight uppercase">BlackList</h1>
+        <p className="text-[var(--text-muted)] font-bold text-[10px] uppercase tracking-widest mt-1">Gestão de Restrições e Exceções</p>
       </div>
 
       {/* Toolbar Ajustada */}
-      <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col lg:flex-row items-center gap-6">
+      <div className="bg-[var(--bg-secondary)] p-6 rounded-[2rem] shadow-sm border border-gray-100 flex flex-col lg:flex-row items-center gap-6">
         <div className="flex items-center gap-3 w-full lg:w-auto flex-1">
           <input
             type="text"
@@ -121,7 +121,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
             value={newCode}
             onChange={(e) => setNewCode(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
-            className="w-full px-6 py-4 bg-gray-50 border border-transparent rounded-2xl outline-none focus:ring-2 focus:ring-red-500 focus:bg-white font-bold text-sm transition-all shadow-inner uppercase placeholder-gray-300"
+            className="w-full px-6 py-4 bg-[var(--bg-inner)] border border-transparent rounded-2xl outline-none focus:ring-2 focus:ring-red-500 focus:bg-[var(--bg-secondary)] font-bold text-sm transition-all shadow-inner uppercase placeholder-[var(--text-muted)]"
           />
           <button
             onClick={handleAdd}
@@ -131,12 +131,12 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
           </button>
         </div>
 
-        <div className="h-10 w-px bg-gray-100 hidden lg:block"></div>
+        <div className="h-10 w-px bg-[var(--border-light)] hidden lg:block"></div>
 
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={downloadModelo}
-            className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-100 text-gray-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all">
+            className="flex items-center gap-2 px-5 py-3 bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-muted)] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-[var(--bg-inner)] transition-all">
             MODELO
           </button>
           <input
@@ -191,7 +191,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
           </button>
           <button
             onClick={handleClearAll}
-            className="flex items-center gap-2 px-5 py-3 bg-gray-50 border border-gray-100 text-gray-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-600 hover:border-red-100 transition-all"
+            className="flex items-center gap-2 px-5 py-3 bg-[var(--bg-inner)] border border-[var(--border-light)] text-[var(--text-muted)] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500/10 hover:text-red-600 hover:border-red-500/20 transition-all font-bold"
           >
             LIMPAR
           </button>
@@ -203,18 +203,18 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
             placeholder="PESQUISAR..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-12 pr-6 py-4 bg-gray-100 border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-gray-200 outline-none text-[11px] font-bold shadow-inner uppercase tracking-wider"
+            className="w-full pl-12 pr-6 py-4 bg-[var(--bg-inner)] border-transparent rounded-2xl focus:bg-[var(--bg-secondary)] focus:ring-2 focus:ring-[var(--border-light)] outline-none text-[11px] font-bold shadow-inner uppercase tracking-wider text-[var(--text-primary)]"
           />
-          <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 text-xl">🔍</span>
+          <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] text-xl">🔍</span>
         </div>
       </div>
 
       {/* Tabela Ajustada para padrão do projeto */}
-      <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-[var(--bg-secondary)] rounded-[2.5rem] border border-[var(--border-light)] shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-white border-b border-gray-100 text-[10px] font-black text-gray-300 uppercase tracking-widest">
+              <tr className="bg-[var(--bg-secondary)] border-b border-[var(--border-light)] text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">
                 <th className="px-10 py-8 w-[35%]">CÓDIGO</th>
                 <th className="px-6 py-8 text-center">
                   <div className="flex flex-col items-center gap-3">
@@ -254,8 +254,8 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
                 <tr>
                   <td colSpan={5} className="px-10 py-20 text-center">
                     <div className="flex flex-col items-center gap-4 opacity-10">
-                      <span className="text-6xl">🚫</span>
-                      <p className="text-gray-900 font-black uppercase tracking-widest text-[10px]">Lista Vazia</p>
+                      <span className="text-6xl text-[var(--text-primary)]">🚫</span>
+                      <p className="text-[var(--text-primary)] font-black uppercase tracking-widest text-[10px]">Lista Vazia</p>
                     </div>
                   </td>
                 </tr>
@@ -265,7 +265,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
                     <td className="px-10 py-6">
                       <div className="flex items-center gap-4">
                         <div className={`w-2 h-2 rounded-full shadow-sm ${item.talvez ? 'bg-amber-400' : 'bg-red-500'}`}></div>
-                        <span className="font-mono text-sm font-bold text-gray-700 tracking-tight uppercase">{item.codigo}</span>
+                        <span className="font-mono text-sm font-bold text-[var(--text-primary)] tracking-tight uppercase">{item.codigo}</span>
                       </div>
                     </td>
                     <td className="px-6 py-6 text-center">
@@ -273,7 +273,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
                         type="checkbox"
                         checked={item.nao_sep}
                         onChange={() => toggleStatus(item.id, 'nao_sep')}
-                        className="w-8 h-8 rounded-lg border-2 border-gray-200 text-red-600 focus:ring-red-500 cursor-pointer transition-all hover:scale-110"
+                        className="w-8 h-8 rounded-lg border-2 border-[var(--border-light)] bg-[var(--bg-inner)] text-red-600 focus:ring-red-500 cursor-pointer transition-all hover:scale-110"
                       />
                     </td>
                     <td className="px-6 py-6 text-center">
@@ -281,11 +281,11 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
                         type="checkbox"
                         checked={item.talvez}
                         onChange={() => toggleStatus(item.id, 'talvez')}
-                        className="w-8 h-8 rounded-lg border-2 border-gray-200 text-blue-600 focus:ring-blue-500 cursor-pointer transition-all hover:scale-110"
+                        className="w-8 h-8 rounded-lg border-2 border-[var(--border-light)] bg-[var(--bg-inner)] text-blue-600 focus:ring-blue-500 cursor-pointer transition-all hover:scale-110"
                       />
                     </td>
                     <td className="px-6 py-6 text-center">
-                      <span className="text-[10px] font-bold text-gray-400 font-mono tracking-widest bg-gray-50 px-4 py-2 rounded-xl border border-gray-100">{item.data_inclusao}</span>
+                      <span className="text-[10px] font-bold text-[var(--text-muted)] font-mono tracking-widest bg-[var(--bg-inner)] px-4 py-2 rounded-xl border border-[var(--border-light)]">{item.data_inclusao}</span>
                     </td>
                     <td className="px-10 py-6 text-right">
                       {user.role === 'admin' && (

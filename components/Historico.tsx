@@ -65,7 +65,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
 
   return (
     <div className="space-y-6 pb-20 animate-fadeIn">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-secondary)] p-6 rounded-[2rem] border border-[var(--border-light)] shadow-[var(--shadow-sm)]">
         <div className="space-y-1">
           <h2 className="text-xl font-black text-[#111827] uppercase tracking-tight">Histórico de Auditoria</h2>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Registros de conferências finalizadas</p>
@@ -75,7 +75,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
           <input
             type="text"
             placeholder="BUSCAR POR OP, DOC OU ARMAZÉM..."
-            className="w-full bg-gray-50 border-none rounded-2xl py-3 pl-12 pr-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-emerald-500/20 transition-all"
+            className="w-full bg-[var(--bg-inner)] border-none rounded-2xl py-3 pl-12 pr-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-emerald-500/20 transition-all text-[var(--text-primary)]"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
           />
@@ -94,7 +94,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
             );
           })
           .map((item) => (
-            <div key={item.id} className="bg-white rounded-2xl border-2 border-emerald-500/10 p-4 flex flex-col justify-between hover:shadow-xl transition-all duration-300 group relative">
+            <div key={item.id} className="bg-[var(--bg-secondary)] rounded-2xl border-2 border-emerald-500/10 p-4 flex flex-col justify-between hover:shadow-xl transition-all duration-300 group relative">
               <div className="space-y-3">
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-2">
@@ -110,7 +110,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                           fetchHistory();
                         }
                       }}
-                      className="text-gray-300 hover:text-red-500 transition-colors font-bold text-base px-1"
+                      className="text-[var(--text-muted)] hover:text-red-500 transition-colors font-bold text-base px-1"
                     >
                       ✕
                     </button>
@@ -118,19 +118,19 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                 </div>
 
                 <div className="space-y-1">
-                  <h4 className="text-[13px] font-black text-[#111827] uppercase leading-tight line-clamp-2 min-h-[32px]">
+                  <h4 className="text-[13px] font-black text-[var(--text-primary)] uppercase leading-tight line-clamp-2 min-h-[32px]">
                     DOC - {item.documento.replace(/^DOC-/, '')}
                   </h4>
-                  <p className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">{item.nome}</p>
+                  <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest">{item.nome}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-y-2 gap-x-2 border-t border-gray-50 pt-3">
+                <div className="grid grid-cols-2 gap-y-2 gap-x-2 border-t border-[var(--border-light)] pt-3">
                   <div>
-                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none">Armazém</p>
-                    <p className="text-[10px] font-black text-gray-700 uppercase truncate">{item.armazem}</p>
+                    <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest leading-none">Armazém</p>
+                    <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase truncate">{item.armazem}</p>
                   </div>
                   <div>
-                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none">Total Itens</p>
+                    <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest leading-none">Total Itens</p>
                     <p className="text-[10px] font-black text-emerald-600 uppercase">{item.total_itens} UN</p>
                   </div>
                 </div>
@@ -138,13 +138,13 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
 
               <div className="flex justify-between items-end mt-4">
                 <div className="space-y-1">
-                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none">Data Fechamento</p>
-                  <p className="text-[10px] font-black text-gray-400 italic">{new Date(item.data_finalizacao).toLocaleDateString('pt-BR')}</p>
+                  <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest leading-none">Data Fechamento</p>
+                  <p className="text-[10px] font-black text-[var(--text-muted)] italic">{new Date(item.data_finalizacao).toLocaleDateString('pt-BR')}</p>
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => { setSelectedItem(item); setSelectedOpFilter(null); }}
-                    className="w-10 h-10 bg-[#111827] text-white rounded-lg flex items-center justify-center text-lg font-black shadow-lg hover:bg-emerald-700 transition-all"
+                    className="w-10 h-10 bg-[var(--text-primary)] text-[var(--bg-secondary)] rounded-lg flex items-center justify-center text-lg font-black shadow-lg hover:bg-emerald-700 transition-all"
                   >
                     +
                   </button>
@@ -156,7 +156,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
         {history.length === 0 && (
           <div className="col-span-full py-20 text-center space-y-4">
             <div className="text-6xl opacity-10">📋</div>
-            <p className="text-xs font-black text-gray-200 uppercase tracking-[0.4em]">Nenhum registro auditado</p>
+            <p className="text-xs font-black text-[var(--text-muted)] uppercase tracking-[0.4em]">Nenhum registro auditado</p>
           </div>
         )}
       </div>
@@ -164,7 +164,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
       {selectedItem && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-fadeIn">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setSelectedItem(null)}></div>
-          <div className="relative bg-[#F8FAFC] w-full max-w-5xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-slideInUp max-h-[90vh] flex flex-col">
+          <div className="relative bg-[var(--bg-inner)] w-full max-w-5xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-slideInUp max-h-[90vh] flex flex-col">
             <div className="bg-[#006B47] px-10 py-6 flex justify-between items-center text-white shrink-0">
               <h2 className="text-xl font-black uppercase tracking-tight">Detalhamento Logístico</h2>
               <button
@@ -177,18 +177,18 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
 
             <div className="p-10 space-y-8 overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-3">
-                  <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Armazém e Doc</p>
+                <div className="bg-[var(--bg-secondary)] p-6 rounded-3xl border border-[var(--border-light)] shadow-sm space-y-3">
+                  <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Armazém e Doc</p>
                   <div className="space-y-1">
-                    <p className="text-xl font-black text-gray-900 uppercase leading-none">{selectedItem.armazem}</p>
+                    <p className="text-xl font-black text-[var(--text-primary)] uppercase leading-none">{selectedItem.armazem}</p>
                     <p className="text-xs font-bold text-emerald-600 font-mono italic break-all leading-tight">{selectedItem.documento}</p>
                   </div>
-                  <div className="pt-2 border-t border-gray-50">
+                  <div className="pt-2 border-t border-[var(--border-light)]">
                     <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mb-2">Filtrar por OP</p>
                     <div className="flex flex-wrap gap-1.5">
                       <button
                         onClick={() => setSelectedOpFilter(null)}
-                        className={`text-[9px] px-2.5 py-1 rounded-lg font-black border transition-all ${!selectedOpFilter ? 'bg-gray-900 text-white border-gray-900 shadow-lg scale-105' : 'bg-gray-50 text-gray-400 border-gray-100 hover:bg-gray-100'}`}
+                        className={`text-[9px] px-2.5 py-1 rounded-lg font-black border transition-all ${!selectedOpFilter ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)] border-[var(--text-primary)] shadow-lg scale-105' : 'bg-[var(--bg-inner)] text-[var(--text-muted)] border-[var(--border-light)] hover:bg-[var(--bg-inner)]/80'}`}
                       >
                         TODAS OP
                       </button>
@@ -199,7 +199,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                           <button
                             key={op}
                             onClick={() => setSelectedOpFilter(isActive ? null : op)}
-                            className={`text-[9px] px-2.5 py-1 rounded-lg font-black border transition-all ${isActive ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg scale-105' : 'bg-gray-50 text-emerald-700 border-gray-100 hover:bg-emerald-50'}`}
+                            className={`text-[9px] px-2.5 py-1 rounded-lg font-black border transition-all ${isActive ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg scale-105' : 'bg-[var(--bg-inner)] text-emerald-700 border-[var(--border-light)] hover:bg-emerald-500/10'}`}
                           >
                             {simpleOP}
                           </button>
@@ -209,52 +209,52 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-2">
-                  <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Equipe Responsável</p>
+                <div className="bg-[var(--bg-secondary)] p-6 rounded-3xl border border-[var(--border-light)] shadow-sm space-y-2">
+                  <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Equipe Responsável</p>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center text-xs">👤</div>
+                      <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center text-xs">👤</div>
                       <div>
-                        <p className="text-[8px] font-black text-gray-400 uppercase">Separador</p>
-                        <p className="text-[10px] font-black text-gray-900 uppercase">{selectedItem.separador || 'N/A'}</p>
+                        <p className="text-[8px] font-black text-[var(--text-muted)] uppercase">Separador</p>
+                        <p className="text-[10px] font-black text-[var(--text-primary)] uppercase">{selectedItem.separador || 'N/A'}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-purple-50 rounded-lg flex items-center justify-center text-xs">🛡️</div>
+                      <div className="w-8 h-8 bg-purple-500/10 rounded-lg flex items-center justify-center text-xs">🛡️</div>
                       <div>
-                        <p className="text-[8px] font-black text-gray-400 uppercase">Conferente</p>
-                        <p className="text-[10px] font-black text-gray-900 uppercase">{selectedItem.conferente || 'N/A'}</p>
+                        <p className="text-[8px] font-black text-[var(--text-muted)] uppercase">Conferente</p>
+                        <p className="text-[10px] font-black text-[var(--text-primary)] uppercase">{selectedItem.conferente || 'N/A'}</p>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="bg-[#003D29] p-6 rounded-3xl shadow-lg shadow-emerald-950/20 space-y-2 text-white">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Status Auditoria</p>
+                  <p className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Status Auditoria</p>
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <p className="text-lg font-black uppercase italic">Finalizado</p>
                       <span className="text-emerald-400">✅</span>
                     </div>
-                    <p className="text-[10px] font-medium text-gray-400 font-mono italic opacity-60">
+                    <p className="text-[10px] font-medium text-[var(--text-muted)] font-mono italic opacity-60">
                       {new Date(selectedItem.data_finalizacao).toLocaleString('pt-BR')}
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
-                <table className="w-full text-left bg-white">
-                  <thead className="bg-[#FFFFFF] border-b border-gray-50">
+              <div className="bg-[var(--bg-secondary)] rounded-[2rem] border border-[var(--border-light)] shadow-sm overflow-hidden">
+                <table className="w-full text-left bg-[var(--bg-secondary)]">
+                  <thead className="bg-[var(--bg-secondary)] border-b border-[var(--border-light)]">
                     <tr>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-300 uppercase tracking-widest">Código</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-300 uppercase tracking-widest">Descrição</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-300 uppercase tracking-widest text-center">Qtd Sol.</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-300 uppercase tracking-widest text-center">Qtd Sep.</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-gray-300 uppercase tracking-widest text-center">OBS 🗨️</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Código</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Descrição</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest text-center">Qtd Sol.</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest text-center">Qtd Sep.</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest text-center">OBS 🗨️</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-[var(--border-light)]">
                     {selectedItem.itens
                       .filter((item: any) => {
                         const hasQtd = (item.quantidade || 0) > 0;
@@ -285,13 +285,13 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                         }
 
                         return (
-                          <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                          <tr key={idx} className="hover:bg-[var(--bg-inner)]/30 transition-colors">
                             <td className="px-8 py-6 font-black text-emerald-600 text-[11px] font-mono tracking-tighter w-1/4">{item.codigo}</td>
-                            <td className="px-8 py-6 text-[10px] font-black text-gray-500 uppercase tracking-tight">{item.descricao}</td>
-                            <td className="px-8 py-6 text-center text-[11px] font-black text-gray-300 font-mono italic">
+                            <td className="px-8 py-6 text-[10px] font-black text-[var(--text-primary)] uppercase tracking-tight">{item.descricao}</td>
+                            <td className="px-8 py-6 text-center text-[11px] font-black text-[var(--text-muted)] font-mono italic">
                               {solQty}
                             </td>
-                            <td className="px-8 py-6 text-center text-sm font-black text-gray-900 font-mono">
+                            <td className="px-8 py-6 text-center text-sm font-black text-[var(--text-primary)] font-mono">
                               {sepQty}
                             </td>
                             <td className="px-8 py-6 text-center">
@@ -313,14 +313,14 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
               </div>
             </div>
 
-            <div className="p-10 bg-white border-t border-gray-100 flex justify-end gap-4 shrink-0">
+            <div className="p-10 bg-[var(--bg-secondary)] border-t border-[var(--border-light)] flex justify-end gap-4 shrink-0">
               <button
                 onClick={() => setSelectedItem(null)}
-                className="px-10 py-4 bg-white border-2 border-gray-100 text-gray-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-50 transition-all active:scale-95"
+                className="px-10 py-4 bg-[var(--bg-secondary)] border-2 border-[var(--border-light)] text-[var(--text-muted)] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--bg-inner)] transition-all active:scale-95"
               >
                 Sair
               </button>
-              <button className="px-10 py-4 bg-[#006B47] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-100 flex items-center gap-3 hover:bg-[#005538] transition-all active:scale-95">
+              <button className="px-10 py-4 bg-[#006B47] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-emerald-500/10 flex items-center gap-3 hover:bg-[#005538] transition-all active:scale-95">
                 <span>📥</span> Exportar Relatório
               </button>
             </div>
@@ -348,7 +348,7 @@ const ObservationsModal: React.FC<{
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 animate-fadeIn">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}></div>
-      <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-slideInUp flex flex-col max-h-[80vh]">
+      <div className="relative bg-[var(--bg-secondary)] w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-slideInUp flex flex-col max-h-[80vh]">
         <div className="bg-[#111827] px-8 py-5 flex justify-between items-center text-white shrink-0">
           <div className="space-y-0.5">
             <h3 className="text-[11px] font-black uppercase tracking-widest text-emerald-400">Log de Observações</h3>
@@ -356,29 +356,29 @@ const ObservationsModal: React.FC<{
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center hover:bg-white/20">✕</button>
         </div>
-        <div className="p-8 space-y-4 overflow-y-auto custom-scrollbar bg-gray-50/50">
+        <div className="p-8 space-y-4 overflow-y-auto custom-scrollbar bg-[var(--bg-inner)]/30">
           {data.observations.length === 0 ? (
             <div className="py-20 text-center space-y-3 opacity-20">
               <span className="text-4xl">🗨️</span>
-              <p className="text-[10px] font-black uppercase tracking-widest">Nenhuma nota para este item</p>
+              <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-muted)]">Nenhuma nota para este item</p>
             </div>
           ) : (
             data.observations.map((obs, idx) => {
               const isLatest = idx === data.observations.length - 1;
               return (
-                <div key={idx} className={`bg-white p-5 rounded-2xl border shadow-sm space-y-2 transition-all ${isLatest ? 'border-emerald-500 bg-emerald-50/10 ring-1 ring-emerald-500/20' : 'border-gray-100'}`}>
+                <div key={idx} className={`bg-[var(--bg-secondary)] p-5 rounded-2xl border shadow-sm space-y-2 transition-all ${isLatest ? 'border-emerald-500 bg-emerald-500/5 ring-1 ring-emerald-500/20' : 'border-[var(--border-light)]'}`}>
                   <div className="flex justify-between items-center">
                     <p className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">OP {obs.op}</p>
                     {isLatest && <span className="text-[8px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded-full">MAIS RECENTE</span>}
                   </div>
-                  <p className="text-xs font-bold text-gray-700 leading-relaxed italic">"{obs.text}"</p>
+                  <p className="text-xs font-bold text-[var(--text-primary)] leading-relaxed italic">"{obs.text}"</p>
                 </div>
               );
             })
           )}
         </div>
-        <div className="p-6 bg-white border-t border-gray-100 flex justify-center shrink-0">
-          <button onClick={onClose} className="px-10 py-3 bg-gray-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">Fechar</button>
+        <div className="p-6 bg-[var(--bg-secondary)] border-t border-[var(--border-light)] flex justify-center shrink-0">
+          <button onClick={onClose} className="px-10 py-3 bg-[var(--text-primary)] text-[var(--bg-secondary)] rounded-xl text-[10px] font-black uppercase tracking-widest">Fechar</button>
         </div>
       </div>
     </div>

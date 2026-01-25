@@ -145,26 +145,26 @@ const Dashboard: React.FC = () => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {kpis.map((kpi, idx) => (
-          <div key={idx} className={`bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between ${idx === 3 && kpiData.totalDivergencias > 0 ? 'ring-2 ring-red-500 animate-pulse' : ''}`}>
+          <div key={idx} className={`bg-[var(--bg-secondary)] p-6 rounded-2xl shadow-[var(--shadow-sm)] border border-[var(--border-light)] flex items-center justify-between ${idx === 3 && kpiData.totalDivergencias > 0 ? 'ring-2 ring-red-500 animate-pulse' : ''}`}>
             <div>
-              <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">{kpi.label}</p>
-              <p className="text-3xl font-extrabold text-gray-900 mt-1">{idx === 3 ? kpiData.totalDivergencias.toString().padStart(2, '0') : kpi.value}</p>
+              <p className="text-sm font-semibold text-[var(--text-secondary)] uppercase tracking-wider">{kpi.label}</p>
+              <p className="text-3xl font-extrabold text-[var(--text-primary)] mt-1">{idx === 3 ? kpiData.totalDivergencias.toString().padStart(2, '0') : kpi.value}</p>
             </div>
-            <div className={`w-12 h-12 ${kpi.color} rounded-xl flex items-center justify-center text-xl shadow-lg shadow-gray-200`}>{kpi.icon}</div>
+            <div className={`w-12 h-12 ${kpi.color} rounded-xl flex items-center justify-center text-xl shadow-lg shadow-black/5`}>{kpi.icon}</div>
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-          <h3 className="text-lg font-bold text-gray-800 mb-8">Volume de Separação Semanal</h3>
+        <div className="lg:col-span-2 bg-[var(--bg-secondary)] p-8 rounded-2xl shadow-[var(--shadow-sm)] border border-[var(--border-light)]">
+          <h3 className="text-lg font-bold text-[var(--text-primary)] mb-8">Volume de Separação Semanal</h3>
           <div className="h-[300px] min-h-[300px] w-full overflow-hidden">
             <ResponsiveContainer width="99%" height={300}>
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <Tooltip cursor={{ fill: '#f8fafc' }} contentStyle={{ borderRadius: '12px', border: 'none' }} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-light)" opacity={0.2} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />
+                <Tooltip cursor={{ fill: 'var(--bg-inner)' }} contentStyle={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border-light)', borderRadius: '12px', border: 'none', color: 'var(--text-primary)' }} />
                 <Bar dataKey="valor" radius={[6, 6, 0, 0]} barSize={40}>
                   {chartData.map((_, index) => <Cell key={`cell-${index}`} fill={index === 3 ? '#059669' : '#10b981'} />)}
                 </Bar>
@@ -173,8 +173,8 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
-          <h3 className="text-lg font-black text-gray-900 uppercase tracking-tighter">🚨 Divergências em Aberto</h3>
+        <div className="bg-[var(--bg-secondary)] p-8 rounded-2xl shadow-[var(--shadow-sm)] border border-[var(--border-light)] space-y-6">
+          <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter">🚨 Divergências em Aberto</h3>
           <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
             {divergencias.length > 0 ? divergencias.map((div, i) => (
               <div key={i} className="p-4 bg-red-50 border border-red-100 rounded-xl relative overflow-hidden group">
@@ -182,7 +182,7 @@ const Dashboard: React.FC = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-[10px] font-black text-red-600 uppercase">OP: {div.op}</p>
-                    <p className="text-xs font-bold text-gray-800 mt-1">{div.produto}</p>
+                    <p className="text-xs font-bold text-[var(--text-primary)] mt-1">{div.produto}</p>
                     <p className="text-[9px] font-bold text-red-400 mt-1 uppercase italic italic tracking-tighter">MOTIVO: {div.motivo}</p>
                     <p className="text-[9px] font-bold text-gray-400 mt-2">Conferente: {div.responsavel}</p>
                   </div>
@@ -211,9 +211,9 @@ const Dashboard: React.FC = () => {
               type="date"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="bg-white border border-gray-200 rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none focus:ring-2 focus:ring-emerald-500"
+              className="bg-[var(--bg-secondary)] border border-[var(--border-light)] rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none focus:ring-2 focus:ring-emerald-500 text-[var(--text-primary)]"
             />
-            <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full uppercase tracking-tighter">Live Sync</span>
+            <span className="text-[10px] font-black text-emerald-600 bg-emerald-500/10 px-3 py-1 rounded-full uppercase tracking-tighter">Live Sync</span>
           </div>
         </div>
 
@@ -222,19 +222,19 @@ const Dashboard: React.FC = () => {
             .filter(op => (op as any).data?.startsWith(dateFilter))
             .map((op, idx) => {
               const borderClass = op.status === 'Finalizado' ? 'border-emerald-500' :
-                op.usuario ? 'border-blue-500' : 'border-gray-100';
+                op.usuario ? 'border-blue-500' : 'border-[var(--border-light)]';
               return (
-                <div key={`${op.id}-${idx}`} className={`bg-white border-2 ${borderClass} p-4 rounded-2xl shadow-sm hover:shadow-md transition-shadow`}>
+                <div key={`${op.id}-${idx}`} className={`bg-[var(--bg-secondary)] border-2 ${borderClass} p-4 rounded-2xl shadow-[var(--shadow-sm)] hover:shadow-md transition-shadow`}>
                   <div className="flex justify-between items-start mb-3">
                     <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase ${op.type === 'Separação' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
                       {op.type}
                     </span>
                     <span className="text-[10px] font-black text-gray-300">#{op.id.toString().slice(-4)}</span>
                   </div>
-                  <p className="text-xs font-black text-gray-900 mb-1 truncate">OP {op.id.toString().slice(0, 6)}</p>
+                  <p className="text-xs font-black text-[var(--text-primary)] mb-1 truncate">OP {op.id.toString().slice(0, 6)}</p>
                   <div className="flex items-center gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-full ${op.status === 'Finalizado' ? 'bg-emerald-500' : 'bg-orange-500 animation-pulse'}`}></div>
-                    <p className="text-[10px] font-bold text-gray-500 uppercase">{op.status}</p>
+                    <div className={`w-1.5 h-1.5 rounded-full ${op.status === 'Finalizado' ? 'bg-emerald-500' : 'bg-orange-500 animate-pulse'}`}></div>
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">{op.status}</p>
                   </div>
                   {op.usuario && (
                     <div className="mt-2 pt-2 border-t border-gray-50 flex items-center gap-2">

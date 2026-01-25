@@ -28,6 +28,11 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
+  const [theme] = useState(() => localStorage.getItem('nano-theme') || 'light');
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   // Estado global da BlackList para compartilhamento entre módulos
   const [blacklist, setBlacklist] = useState<BlacklistItem[]>([]);
@@ -113,7 +118,7 @@ const App: React.FC = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#004D33] p-6 relative overflow-hidden text-gray-900">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[var(--bg-inner)] p-6 relative overflow-hidden text-[var(--text-primary)] transition-colors duration-300">
         <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
           <div className="absolute -top-24 -left-24 w-96 h-96 bg-white rounded-full blur-3xl"></div>
           <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-white rounded-full blur-3xl"></div>
@@ -124,10 +129,10 @@ const App: React.FC = () => {
             <img src="/logo.png" alt="Nano Pro Icon" className="w-24 h-24 object-contain brightness-0 invert" />
             <img src="/logo_text.png" alt="Nano Pro Text" className="h-10 object-contain brightness-0 invert" />
           </div>
-          <p className="text-white text-sm font-black tracking-[0.3em] uppercase opacity-90 mt-2">Logística Industrial Inteligente</p>
+          <p className="text-[var(--text-primary)] text-sm font-black tracking-[0.3em] uppercase opacity-90 mt-2">Logística Industrial Inteligente</p>
         </div>
 
-        <div className="w-full max-w-[420px] bg-white rounded-[2.5rem] shadow-2xl overflow-hidden relative z-10 animate-scaleIn p-10">
+        <div className="w-full max-w-[420px] bg-[var(--bg-secondary)] rounded-[2.5rem] shadow-2xl overflow-hidden relative z-10 animate-scaleIn p-10 border border-[var(--border-light)]">
           <form onSubmit={handleLogin} className="space-y-8">
             {error && <div className="bg-red-50 text-red-600 text-xs font-bold p-4 rounded-xl border border-red-100 text-center">{error}</div>}
 
@@ -146,7 +151,7 @@ const App: React.FC = () => {
                   autoComplete="username"
                   name="username"
                   id="username"
-                  className="w-full px-6 py-5 bg-[#F0F4F8] border-none rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#006B47]/20 focus:bg-white transition-all text-sm font-bold text-gray-700 placeholder-[#8E9EAD]"
+                  className="w-full px-6 py-5 bg-[var(--bg-inner)] border-none rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#006B47]/20 focus:bg-[var(--bg-secondary)] transition-all text-sm font-bold text-[var(--text-primary)] placeholder-[var(--text-muted)]"
                 />
               </div>
 
@@ -164,7 +169,7 @@ const App: React.FC = () => {
                   autoComplete="current-password"
                   name="password"
                   id="password"
-                  className="w-full px-6 py-5 bg-[#F0F4F8] border-none rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#006B47]/20 focus:bg-white transition-all text-sm font-bold text-gray-700 placeholder-[#8E9EAD]"
+                  className="w-full px-6 py-5 bg-[var(--bg-inner)] border-none rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#006B47]/20 focus:bg-[var(--bg-secondary)] transition-all text-sm font-bold text-[var(--text-primary)] placeholder-[var(--text-muted)]"
                 />
               </div>
             </div>
@@ -186,7 +191,7 @@ const App: React.FC = () => {
         </div>
 
         <footer className="mt-20 relative z-10 animate-fadeIn text-center">
-          <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">
+          <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-[0.2em]">
             Nano Pro © 2026 - Gestão Industrial de Alta Performance
           </p>
         </footer>
@@ -202,7 +207,7 @@ const App: React.FC = () => {
 
     if (isVisitor && !visitorModules.includes(activeTab)) {
       return (
-        <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-white rounded-3xl shadow-sm border border-gray-100 italic font-medium text-gray-400">
+        <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-[var(--bg-secondary)] rounded-3xl shadow-sm border border-[var(--border-light)] italic font-medium text-[var(--text-muted)]">
           Acesso restrito ao Modo Consulta.
         </div>
       );
@@ -219,11 +224,11 @@ const App: React.FC = () => {
       case 'historico': return <Historico user={user!} />;
       case 'configuracoes': return user?.role === 'admin' ? <Configuracoes /> : <Dashboard />;
       default: return (
-        <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-white rounded-3xl shadow-sm border border-gray-100">
+        <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-[var(--bg-secondary)] rounded-3xl shadow-sm border border-[var(--border-light)]">
           <div className="text-6xl">🚧</div>
           <div>
-            <h3 className="text-xl font-bold text-gray-800">Em Desenvolvimento</h3>
-            <p className="text-gray-500 text-sm">O módulo de <strong>{activeTab}</strong> está sendo migrado.</p>
+            <h3 className="text-xl font-bold text-[var(--text-primary)]">Em Desenvolvimento</h3>
+            <p className="text-[var(--text-muted)] text-sm">O módulo de <strong>{activeTab}</strong> está sendo migrado.</p>
           </div>
           <button onClick={() => setActiveTab('dashboard')} className="px-6 py-2 bg-emerald-700 text-white rounded-full text-sm font-bold">Voltar ao Dashboard</button>
         </div>
