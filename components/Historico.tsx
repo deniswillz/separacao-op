@@ -296,9 +296,14 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                                   setObsData({ item, observations });
                                   setShowObsModal(true);
                                 }}
-                                className={`w-10 h-10 rounded-xl flex items-center justify-center text-base transition-all ${observations.length > 0 ? 'bg-blue-50 text-blue-600 border border-blue-100 shadow-sm' : 'bg-gray-50 text-gray-200'}`}
+                                className={`w-full h-10 px-4 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black transition-all ${observations.length > 0 ? 'bg-blue-50 text-blue-600 border border-blue-100 shadow-sm' : 'bg-gray-50 text-gray-200'}`}
                               >
-                                🗨️
+                                <span className="text-base text-blue-400">🗨️</span>
+                                {observations.length > 0 && (
+                                  <span className="truncate max-w-[120px] opacity-70 italic font-medium">
+                                    {observations[observations.length - 1].text}
+                                  </span>
+                                )}
                               </button>
                             </td>
                           </tr>
@@ -323,6 +328,13 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
           </div>
         </div>
       )}
+
+      {/* FIXED: Rendering the Modal */}
+      <ObservationsModal
+        isOpen={showObsModal}
+        onClose={() => setShowObsModal(false)}
+        data={obsData}
+      />
     </div>
   );
 };
@@ -352,12 +364,18 @@ const ObservationsModal: React.FC<{
               <p className="text-[10px] font-black uppercase tracking-widest">Nenhuma nota para este item</p>
             </div>
           ) : (
-            data.observations.map((obs, idx) => (
-              <div key={idx} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-2">
-                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">OP {obs.op}</p>
-                <p className="text-xs font-bold text-gray-700 leading-relaxed italic">"{obs.text}"</p>
-              </div>
-            ))
+            data.observations.map((obs, idx) => {
+              const isLatest = idx === data.observations.length - 1;
+              return (
+                <div key={idx} className={`bg-white p-5 rounded-2xl border shadow-sm space-y-2 transition-all ${isLatest ? 'border-emerald-500 bg-emerald-50/10 ring-1 ring-emerald-500/20' : 'border-gray-100'}`}>
+                  <div className="flex justify-between items-center">
+                    <p className="text-[9px] font-black text-emerald-600 uppercase tracking-tighter">OP {obs.op}</p>
+                    {isLatest && <span className="text-[8px] font-black bg-emerald-500 text-white px-2 py-0.5 rounded-full">MAIS RECENTE</span>}
+                  </div>
+                  <p className="text-xs font-bold text-gray-700 leading-relaxed italic">"{obs.text}"</p>
+                </div>
+              );
+            })
           )}
         </div>
         <div className="p-6 bg-white border-t border-gray-100 flex justify-center shrink-0">

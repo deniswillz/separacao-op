@@ -6,28 +6,28 @@ import Loading from './Loading';
 import * as XLSX from 'xlsx';
 import { useAlert } from './AlertContext';
 
-
-
 interface TEAItem {
   id: string;
-  documento: string; // Ordem Produção
+  documento: string;
   armazem?: string;
   produto?: string;
   descricao?: string;
   quantidade?: number;
-  prioridade?: string;
+  destino?: string;
   status_atual?: string;
   ultima_atualizacao?: string;
-  itens: any[]; // Fluxo de status
+  itens: any[];
 }
+
+const ARMAZENS = ['Armazém 04', 'Armazém 08', 'Armazém 11', 'Armazém 21', 'Filial Sul', 'Filial Norte'];
 
 const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   const { showAlert } = useAlert();
   const [isImporting, setIsImporting] = useState(false);
-
   const [isLoading, setIsLoading] = useState(true);
   const [history, setHistory] = useState<TEAItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedDestino, setSelectedDestino] = useState('Armazém 04');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchHistory = async () => {
@@ -35,6 +35,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
     const { data, error } = await supabase
       .from('historico')
       .select('*')
+      .eq('armazem', 'TEA') // Filtering specifically for TEA records
       .order('id', { ascending: false });
 
     if (error) {
@@ -43,27 +44,26 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
       const formattedData = data.map((item: any) => {
         const itensArr = Array.isArray(item.itens) ? item.itens : [];
         const firstItem = itensArr[0] || {};
+        const lastItem = itensArr[itensArr.length - 1] || {};
         return {
           ...item,
           produto: firstItem.produto || item.produto || 'PA00000000000',
           descricao: firstItem.descricao || item.descricao || 'DESCRIÇÃO NÃO CADASTRADA',
           quantidade: firstItem.quantidade || item.quantidade || 0,
-          prioridade: firstItem.prioridade || item.prioridade || 'Média',
-          status_atual: firstItem.status_atual || item.status_atual || 'Aguardando',
-          ultima_atualizacao: item.updated_at || item.data_finalizacao || item.data_conferencia || new Date().toISOString(),
+          destino: item.destino || 'Não Definido',
+          status_atual: lastItem.status || item.status_atual || 'Separação',
+          ultima_atualizacao: item.updated_at || item.data_finalizacao || new Date().toISOString(),
           itens: itensArr
         };
-      }).sort((a: any, b: any) => a.documento.localeCompare(b.documento));
+      }).sort((a: any, b: any) => b.ultima_atualizacao.localeCompare(a.ultima_atualizacao));
       setHistory(formattedData);
     }
-
-
     setIsLoading(false);
   };
 
   useEffect(() => {
     fetchHistory();
-    const channel = supabase.channel('historico-live')
+    const channel = supabase.channel('tea-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'historico' }, fetchHistory)
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -82,24 +82,25 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
         const ws = wb.Sheets[wb.SheetNames[0]];
         const data = XLSX.utils.sheet_to_json(ws, { header: 1 }) as any[][];
 
-        // Mapeamento: A=OP, B=Produto, C=Descricao, H=Qtd
+        // Mapping: A=OP(0), B=Produto(1), C=Descricao(2), H=Qtd(7)
+        // Skip header (Assuming it's on Line 2, so data starts at index 2)
         const teaData = data.slice(2).filter(row => row[0]).map(row => ({
           documento: String(row[0]).trim(),
           nome: String(row[0]).trim(),
-          armazem: 'MATRIZ',
+          armazem: 'TEA',
+          destino: selectedDestino,
           itens: [{
-            status: 'Matriz',
-            icon: '🏢',
+            status: 'Separação',
+            icon: '📦',
             data: new Date().toLocaleDateString('pt-BR'),
             produto: String(row[1] || '').trim(),
             descricao: String(row[2] || '').trim(),
             quantidade: Number(row[7]) || 0,
-            prioridade: 'Média'
           }]
         }));
 
         await upsertBatched('historico', teaData, 900);
-        showAlert(`${teaData.length} OPs importadas individualmente para TEA!`, 'success');
+        showAlert(`${teaData.length} OPs importadas para TEA com destino ${selectedDestino}!`, 'success');
         fetchHistory();
       } catch (error: any) {
         showAlert('Erro ao importar Excel: ' + error.message, 'error');
@@ -112,16 +113,24 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const deleteItem = async (id: string) => {
-    if (!confirm('Deseja excluir este rastreio?')) return;
+    if (!confirm('Deseja excluir este registro de TEA?')) return;
     const { error } = await supabase.from('historico').delete().eq('id', id);
     if (error) showAlert(error.message, 'error');
     else fetchHistory();
   };
 
-  const updateStatus = async (item: TEAItem, nextStep: string, icon: string, label: string) => {
+  const updateStatus = async (item: TEAItem, nextStep: string) => {
+    const statusMap: any = {
+      'Separação': { icon: '📦', next: 'Conferência', label: 'EM SEPARAÇÃO' },
+      'Conferência': { icon: '🔍', next: 'Transito', label: 'EM CONFERÊNCIA' },
+      'Transito': { icon: '🚚', next: 'Finalizado', label: 'EM TRÂNSITO' },
+      'Finalizado': { icon: '✅', next: null, label: 'CONCLUÍDO' }
+    };
+
+    const current = statusMap[nextStep];
     const newFluxo = [...item.itens, {
       status: nextStep,
-      icon,
+      icon: current.icon,
       data: new Date().toLocaleDateString('pt-BR')
     }];
 
@@ -129,7 +138,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
       .from('historico')
       .update({
         itens: newFluxo,
-        status_atual: label,
+        status_atual: current.label,
         data_finalizacao: nextStep === 'Finalizado' ? new Date().toISOString() : null
       })
       .eq('id', item.id);
@@ -138,139 +147,135 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
     else fetchHistory();
   };
 
-  const getStatusBadge = (fluxo: any[]) => {
-    const last = fluxo[fluxo.length - 1]?.status;
-    if (last === 'Qualidade') return { label: 'Em Qualidade', color: 'bg-amber-100 text-amber-800', icon: '🔍', next: 'Endereçar', nextIcon: '📍', labelNext: 'Endereçar' };
-    if (last === 'Endereçar') return { label: 'Endereçando', color: 'bg-blue-100 text-blue-800', icon: '📍', next: 'Transito', nextIcon: '🚚', labelNext: 'Em Trânsito' };
-    if (last === 'Transito') return { label: 'Em Trânsito', color: 'bg-indigo-100 text-indigo-800', icon: '🚚', next: 'Finalizado', nextIcon: '✅', labelNext: 'Finalizar' };
-    if (last === 'Finalizado') return { label: 'Concluído', color: 'bg-emerald-100 text-emerald-800', icon: '✅', next: null };
-    return { label: 'Em Separação', color: 'bg-gray-100 text-gray-800', icon: '📦', next: null };
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case 'Separação': return { label: 'EM SEPARAÇÃO', color: 'bg-[#EFF6FF] text-[#1E40AF]', icon: '📦', next: 'Conferência', nextLabel: 'INICIAR CONFERÊNCIA', footer: 'AGUARDANDO SEPARAÇÃO...' };
+      case 'Conferência': return { label: 'EM CONFERÊNCIA', color: 'bg-[#EFF6FF] text-[#1E40AF]', icon: '🔍', next: 'Transito', nextLabel: 'DESPACHAR CARGA', footer: 'EM AUDITORIA...' };
+      case 'Transito': return { label: 'EM TRÂNSITO', color: 'bg-[#EFF6FF] text-[#1E40AF]', icon: '🚚', next: 'Finalizado', nextLabel: 'CONFIRMAR ENTREGA', footer: 'VEÍCULO EM ROTA...' };
+      case 'Finalizado': return { label: 'CONCLUÍDO', color: 'bg-[#F0FDF4] text-[#166534]', icon: '✅', next: null, nextLabel: 'FINALIZADO', footer: 'ENTREGA REALIZADA ✅' };
+      default: return { label: 'AGUARDANDO', color: 'bg-gray-100 text-gray-500', icon: '🕒', next: 'Separação', nextLabel: 'INICIAR', footer: 'AGUARDANDO...' };
+    }
   };
 
   const filteredHistory = history.filter(h =>
     h.documento.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    h.produto?.toLowerCase().includes(searchTerm.toLowerCase())
+    h.produto?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    h.descricao?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="space-y-8 animate-fadeIn pb-20 bg-gray-50 -m-8 p-8 min-h-screen">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-6 bg-white p-8 rounded-[2rem] border shadow-sm">
-        <div className="flex gap-8 items-center">
-          <div className="p-4 bg-blue-50 rounded-2xl">
-            <span className="text-2xl">🏢</span>
+      {/* Header Container */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+        <div className="flex gap-6 items-center">
+          <div className="w-16 h-16 bg-[#F0F9FF] rounded-[1.5rem] flex items-center justify-center text-3xl shadow-inner">
+            🏢
           </div>
-          <div>
-            <h1 className="text-xl font-black text-gray-900 uppercase">Receber Matriz</h1>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Importar novas OPs via TEA</p>
+          <div className="space-y-1">
+            <h1 className="text-2xl font-black text-[#111827] uppercase tracking-tight">TEA - Receber Matriz</h1>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">Gestão de Transferências entre Armazéns</p>
+            <div className="flex items-center gap-3 mt-3">
+              <select
+                value={selectedDestino}
+                onChange={(e) => setSelectedDestino(e.target.value)}
+                className="bg-gray-50 border-none rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-blue-500/10 cursor-pointer"
+              >
+                {ARMAZENS.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="px-6 py-2.5 bg-[#2563EB] text-white rounded-xl font-black uppercase text-[10px] tracking-widest active:scale-95 shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all flex items-center gap-2"
+              >
+                {isImporting ? 'PROCESSANDO...' : 'Gerar Lista de Separação'} <span>✅</span>
+              </button>
+            </div>
             <input type="file" ref={fileInputRef} className="hidden" onChange={handleImportExcel} />
-            <button onClick={() => fileInputRef.current?.click()} className="mt-2 px-6 py-2 bg-blue-600 text-white rounded-xl font-black uppercase text-[9px] tracking-widest active:scale-95 shadow-lg shadow-blue-100">
-              {isImporting ? 'IMPORTANDO...' : 'Carregar Excel TEA'}
-            </button>
           </div>
         </div>
 
-        <div className="flex gap-8 items-center border-l pl-8">
-          <div className="p-4 bg-gray-50 rounded-2xl">
-            <span className="text-2xl">🕒</span>
-          </div>
-          <div>
-            <h1 className="text-xl font-black text-gray-900 uppercase">Rastreio Fluxo</h1>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Histórico completo TEA</p>
-            <button onClick={() => { }} className="mt-2 px-6 py-2 bg-gray-900 text-white rounded-xl font-black uppercase text-[9px] tracking-widest active:scale-95">Ver Fluxo</button>
-          </div>
-        </div>
-
-        <div className="flex-1 max-w-sm">
-          <div className="relative">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30 text-xs">🔍</span>
-            <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="BUSCAR OP, PRODUTO OU DESCRIÇÃO..." className="w-full pl-10 pr-4 py-4 bg-white border border-gray-100 rounded-2xl text-[9px] font-black uppercase focus:ring-2 focus:ring-blue-50 outline-none transition-all shadow-sm" />
+        <div className="flex-1 max-w-md w-full">
+          <div className="relative group">
+            <span className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none group-focus-within:text-blue-500 transition-colors">🔍</span>
+            <input
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="BUSCAR OP, PRODUTO OU DESCRIÇÃO..."
+              className="w-full pl-14 pr-6 py-5 bg-gray-50 border-none rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-blue-500/10 outline-none transition-all"
+            />
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {isLoading ? (
-          <div className="col-span-full">
-            <Loading message="Sincronizando Matriz x Filial..." />
-          </div>
+          <div className="col-span-full py-20"><Loading message="Sincronizando Fluxo TEA..." /></div>
         ) : filteredHistory.length === 0 ? (
-          <div className="col-span-full py-20 text-center space-y-4">
-            <p className="text-xs font-black text-gray-200 uppercase tracking-[0.4em]">Nenhum registro encontrado</p>
+          <div className="col-span-full py-20 text-center space-y-4 opacity-30">
+            <div className="text-6xl">📥</div>
+            <p className="text-xs font-black uppercase tracking-[0.4em]">Nenhum registro ativo</p>
           </div>
         ) : (
-          filteredHistory.map((item, index) => {
-            const badge = getStatusBadge(item.itens);
-            const isCompleted = item.status_atual === 'CONCLUÍDO' || badge.label === 'Concluído';
-            const isEmUso = item.responsavel && item.responsavel !== user.nome;
-            const borderClass = isCompleted ? 'border-emerald-500' :
-              isEmUso ? 'border-blue-500' : 'border-gray-100';
+          filteredHistory.map((item) => {
+            const statusInfo = getStatusDisplay(item.itens[item.itens.length - 1]?.status);
 
             return (
-              <div key={item.id} className={`bg-white rounded-[2rem] border-2 ${borderClass} p-6 flex flex-col justify-between h-[28rem] shadow-sm hover:shadow-md transition-all relative group overflow-hidden ${isEmUso ? 'bg-gray-50' : ''}`}>
-                {/* In-Use Overlay */}
-                {isEmUso && (
-                  <div className="absolute inset-0 bg-gray-100/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center text-center p-4">
-                    <div className="bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-200">
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Em uso por</p>
-                      <p className="text-xs font-black text-gray-900">{item.responsavel}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-4 relative z-10">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-black text-gray-400">ID {(index + 1).toString().padStart(2, '0')}</span>
-                      <div className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${badge.color}`}>
-                        <span>{badge.icon}</span> {badge.label}
+              <div key={item.id} className="bg-white rounded-[2.5rem] border border-gray-100 p-8 flex flex-col justify-between shadow-sm hover:shadow-xl transition-all duration-300 group">
+                <div className="space-y-6">
+                  {/* Card Header */}
+                  <div className="flex justify-between items-start">
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">OP: {item.documento}</p>
+                      <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[9px] font-black uppercase shadow-sm ${statusInfo.color}`}>
+                        <span>{statusInfo.icon}</span> {statusInfo.label}
                       </div>
                     </div>
-                    <button onClick={() => deleteItem(item.id)} className="text-gray-300 hover:text-red-500 font-black text-xs transition-colors">✕</button>
+                    <button onClick={() => deleteItem(item.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-200 hover:text-red-500 hover:bg-red-50 transition-all font-bold">✕</button>
                   </div>
 
+                  {/* Product Info */}
                   <div className="space-y-1">
-                    <p className="text-[11px] font-black text-gray-900">OP: {item.documento}</p>
-                    <p className="text-[10px] font-black text-blue-600 font-mono tracking-tighter truncate">{item.produto}</p>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase leading-snug line-clamp-2 h-8">{item.descricao}</p>
+                    <p className="text-[11px] font-bold text-[#2563EB] font-mono tracking-tighter uppercase">{item.produto}</p>
+                    <h3 className="text-[14px] font-black text-[#111827] uppercase leading-tight line-clamp-2 h-10 tracking-tight">
+                      {item.descricao}
+                    </h3>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 border-y py-3">
-                    <div className="space-y-1">
-                      <p className="text-[8px] font-black text-gray-300 uppercase">Qtd Sol.</p>
-                      <p className="text-xs font-black text-gray-800">{item.quantidade}</p>
+                  {/* Quantity and Destination Grid */}
+                  <div className="bg-[#F8FAFC] rounded-2xl p-5 grid grid-cols-2 gap-4 border border-gray-50 shadow-inner">
+                    <div className="text-center space-y-1">
+                      <p className="text-xl font-black text-gray-900 leading-none">{item.quantidade}</p>
+                      <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Qtd Sol.</p>
                     </div>
-                    <div className="space-y-1 border-l pl-4">
-                      <p className="text-[8px] font-black text-gray-300 uppercase">Prioridade</p>
-                      <p className="text-xs font-black text-gray-800">{item.prioridade}</p>
+                    <div className="text-center space-y-1 border-l border-gray-200 pl-4 flex flex-col justify-center">
+                      <p className="text-[10px] font-black text-gray-900 leading-none truncate uppercase">{item.destino}</p>
+                      <p className="text-[8px] font-black text-[#2563EB] uppercase tracking-widest">Destino</p>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-[8px] font-bold text-gray-400 uppercase">
-                      <span>🔄</span>
-                      <span>Atualizado: {new Date(item.ultima_atualizacao!).toLocaleString('pt-BR')}</span>
+                  {/* Footer Timeline Info */}
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center gap-2 text-[9px] font-bold text-gray-300 uppercase tracking-tighter">
+                      <span className="text-blue-500">🔄</span>
+                      <span>Última atualização: {new Date(item.ultima_atualizacao!).toLocaleString('pt-BR')}</span>
                     </div>
+                    <p className="text-[11px] font-black text-[#10B981] uppercase tracking-widest italic">{statusInfo.footer}</p>
                   </div>
                 </div>
 
-                <div className="relative z-10 pt-4">
-                  {isCompleted ? (
-                    <div className="w-full py-3 bg-emerald-50 text-emerald-600 rounded-xl font-black text-[9px] uppercase text-center border border-emerald-100">Finalizado ✅</div>
-                  ) : badge.next ? (
+                {/* Main Action Button */}
+                <div className="pt-8">
+                  {statusInfo.next ? (
                     <button
-                      disabled={isEmUso}
-                      onClick={() => updateStatus(item, badge.next!, badge.nextIcon!, badge.labelNext!)}
-                      className="w-full py-3 bg-gray-900 text-white rounded-xl font-black text-[9px] uppercase hover:bg-black active:scale-95 shadow-sm transition-all disabled:opacity-50"
+                      onClick={() => updateStatus(item, statusInfo.next!)}
+                      className="w-full py-4 bg-[#111827] text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-black active:scale-[0.98] shadow-lg shadow-gray-200 transition-all"
                     >
-                      {badge.labelNext}
+                      Ver Detalhes
                     </button>
                   ) : (
-                    <button
-                      disabled
-                      className="w-full py-3 bg-gray-50 text-gray-300 rounded-xl font-black text-[9px] uppercase cursor-not-allowed"
-                    >
-                      Aguardando
-                    </button>
+                    <div className="w-full py-4 bg-[#F0FDF4] text-[#166534] rounded-2xl font-black text-[11px] uppercase tracking-widest text-center border border-[#DCFCE7]">
+                      Fluxo Concluído ✅
+                    </div>
                   )}
                 </div>
               </div>
