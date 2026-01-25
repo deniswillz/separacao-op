@@ -764,7 +764,6 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                               <td className="px-3 py-4 text-center">
                                 <span className="text-[11px] font-bold text-[var(--text-muted)]">{requested}</span>
                               </td>
-                              admissions admissions
                               <td className="px-3 py-4 text-center">
                                 <input
                                   type="number"
@@ -784,9 +783,12 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                               <td className="px-3 py-4 text-center">
                                 <button
                                   onClick={() => { setObsItem({ ...lupaItem, currentOp: comp.op }); setShowObsModal(true); }}
-                                  className={`text-sm hover:scale-125 transition-transform ${comp.observacao ? 'text-blue-500' : 'text-[var(--text-muted)] opacity-30 hover:opacity-100'}`}
+                                  className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${comp.observacao ? 'bg-blue-500/10 text-blue-500 border border-blue-200 shadow-sm' : 'bg-[var(--bg-inner)] text-[var(--text-muted)] hover:bg-blue-500/10 hover:text-blue-500 opacity-60 hover:opacity-100'}`}
+                                  title="Anotações / Observações"
                                 >
-                                  🗨️
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                                  </svg>
                                 </button>
                               </td>
                             </tr>

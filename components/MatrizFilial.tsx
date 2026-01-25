@@ -45,13 +45,18 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
         const itensArr = Array.isArray(item.itens) ? item.itens : [];
         const firstItem = itensArr[0] || {};
         const lastItem = itensArr[itensArr.length - 1] || {};
+
+        // Normalize status for internal tracking (Uppercase, No accents)
+        const rawStatus = lastItem.status || item.status_atual || 'Separação';
+        const normStatus = String(rawStatus).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+
         return {
           ...item,
           produto: firstItem.produto || item.produto || 'PA00000000000',
           descricao: firstItem.descricao || item.descricao || 'DESCRIÇÃO NÃO CADASTRADA',
           quantidade: firstItem.quantidade || item.quantidade || 0,
           destino: firstItem.destino || item.destino || 'Não Definido',
-          status_atual: lastItem.status || item.status_atual || 'Separação',
+          status_atual: normStatus,
           ultima_atualizacao: item.updated_at || item.data_finalizacao || new Date().toISOString(),
           itens: itensArr
         };
@@ -153,20 +158,21 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const getStatusDisplay = (status: string) => {
-    switch (status) {
-      case 'Separação':
+    const s = String(status || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+    switch (s) {
+      case 'SEPARACAO':
         return { label: 'EM SEPARAÇÃO', color: 'bg-[#EFF6FF] text-[#1E40AF]', icon: '📦', next: null, nextLabel: 'AGUARDANDO', footer: 'AGUARDANDO SEPARAÇÃO...' };
-      case 'Conferência':
+      case 'CONFERENCIA':
         return { label: 'EM CONFERÊNCIA', color: 'bg-[#EFF6FF] text-[#1E40AF]', icon: '🔍', next: null, nextLabel: 'AGUARDANDO', footer: 'AGUARDANDO CONFERÊNCIA...' };
-      case 'Qualidade':
+      case 'QUALIDADE':
         return { label: 'QUALIDADE', color: 'bg-[#FEF3C7] text-[#92400E]', icon: '⚖️', next: 'Endereçar', nextLabel: 'PROXIMO', footer: 'AGUARDANDO QUALIDADE...' };
-      case 'Endereçar':
+      case 'ENDERECAR':
         return { label: 'ENDEREÇAMENTO', color: 'bg-[#F5F3FF] text-[#5B21B6]', icon: '📍', next: 'Transito', nextLabel: 'PROXIMO', footer: 'AGUARDANDO ENDEREÇAR...' };
-      case 'Transito':
+      case 'TRANSITO':
         return { label: 'EM TRÂNSITO', color: 'bg-[#DBEAFE] text-[#1E40AF]', icon: '🚚', next: 'Finalizar', nextLabel: 'PROXIMO', footer: 'AGUARDANDO TRANSITO...' };
-      case 'Finalizar':
+      case 'FINALIZAR':
         return { label: 'FINALIZANDO', color: 'bg-[#F1F5F9] text-[#475569]', icon: '🏁', next: 'Concluido', nextLabel: 'FINALIZAR', footer: 'AGUARDANDO FINALIZAR...' };
-      case 'Concluido':
+      case 'CONCLUIDO':
         return { label: 'CONCLUÍDO', color: 'bg-[#F0FDF4] text-[#166534]', icon: '✅', next: null, nextLabel: 'CONCLUÍDO', footer: 'ENTREGA REALIZADA ✅' };
       default:
         return { label: 'AGUARDANDO', color: 'bg-gray-100 text-gray-500', icon: '🕒', next: 'Separação', nextLabel: 'INICIAR', footer: 'AGUARDANDO...' };
@@ -174,7 +180,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   };
 
   const filteredHistory = history.filter(h =>
-    h.status_atual !== 'CONCLUÍDO' &&
+    h.status_atual !== 'CONCLUIDO' && // Changed from 'CONCLUÍDO' to 'CONCLUIDO'
     (h.documento.toLowerCase().includes(searchTerm.toLowerCase()) ||
       h.produto?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       h.descricao?.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -331,7 +337,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                 </thead>
                 <tbody className="divide-y divide-[var(--border-light)]">
                   {history
-                    .filter(h => h.status_atual === 'CONCLUÍDO')
+                    .filter(h => h.status_atual === 'CONCLUIDO')
                     .filter(h =>
                       h.documento.toLowerCase().includes(historySearchTerm.toLowerCase()) ||
                       h.produto?.toLowerCase().includes(historySearchTerm.toLowerCase())
@@ -350,7 +356,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                         </td>
                       </tr>
                     ))}
-                  {history.filter(h => h.status_atual === 'CONCLUÍDO').length === 0 && (
+                  {history.filter(h => h.status_atual === 'CONCLUIDO').length === 0 && (
                     <tr>
                       <td colSpan={5} className="py-10 text-center text-xs font-black text-[var(--text-muted)] uppercase tracking-widest">Nenhum registro finalizado</td>
                     </tr>
