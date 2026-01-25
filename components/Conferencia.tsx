@@ -96,6 +96,21 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
     if (!error) setSelectedItem({ ...selectedItem, itens: newItens });
   };
 
+  const handleToggleAllTR = async (sku: string, value: boolean) => {
+    if (!selectedItem) return;
+    const newItens = selectedItem.itens.map((item: any) => {
+      if (item.codigo === sku) {
+        const newComp = (item.composicao || []).map((c: any) => ({ ...c, tr_conf: value }));
+        return { ...item, composicao: newComp };
+      }
+      return item;
+    });
+    setIsSaving(true);
+    const { error } = await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
+    setIsSaving(false);
+    if (!error) setSelectedItem({ ...selectedItem, itens: newItens });
+  };
+
   const handleSaveObs = async (sku: string, op: string, text: string) => {
     if (!selectedItem) return;
     const newItens = selectedItem.itens.map((item: any) => {
@@ -200,6 +215,11 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
         await supabase.from('historico').update({ ...batchHistoryData, total_itens: totalSeparatedSum }).eq('id', existingRecord.id);
       } else {
         await supabase.from('historico').insert([{ ...batchHistoryData, total_itens: totalSeparatedSum }]);
+      }
+
+      // Cleanup individual OP records that were previously saved
+      if (selectedItem.ordens && selectedItem.ordens.length > 0) {
+        await supabase.from('historico').delete().in('documento', selectedItem.ordens);
       }
 
       await supabase.from('conferencia').delete().eq('id', selectedItem.id);
@@ -477,9 +497,12 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                       ).map((row: any, ridx: number) => (
                         <tr key={ridx} className="hover:bg-gray-50/50 transition-all">
                           <td className="px-8 py-4">
-                            <div className={`w-5 h-5 rounded flex items-center justify-center border ${row.isOk ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-gray-200'}`}>
-                              {row.isOk && '✓'}
-                            </div>
+                            <button
+                              onClick={() => handleToggleAllTR(row.codigo, !row.isOk)}
+                              className={`w-6 h-6 rounded-lg flex items-center justify-center border transition-all ${row.isOk ? 'bg-emerald-600 border-emerald-600 text-white shadow-lg' : 'bg-white border-gray-200 text-transparent hover:border-emerald-300 group-hover:bg-emerald-50'}`}
+                            >
+                              ✓
+                            </button>
                           </td>
                           <td className="px-6 py-4 text-xs font-black text-gray-900">{row.codigo}</td>
                           <td className="px-6 py-4 text-[10px] font-bold text-gray-400 uppercase truncate max-w-[300px]">{row.descricao}</td>

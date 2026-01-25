@@ -606,10 +606,21 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                 </div>
 
                 <div className="space-y-2 relative z-10 flex-1">
-                  <div className="flex flex-col gap-1 items-start">
+                  <div className="flex justify-between items-center">
                     <h3 className="text-sm font-black text-gray-900 uppercase tracking-tighter leading-none">
                       📦 OP - {opRange}
                     </h3>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedOpForList(op);
+                        setShowOpListModal(true);
+                      }}
+                      className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-xs hover:bg-blue-50 hover:text-blue-500 transition-all"
+                      title="Ver lista completa de OPs"
+                    >
+                      🔍
+                    </button>
                   </div>
                 </div>
 
