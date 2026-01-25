@@ -32,6 +32,7 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
   const [selectedOpForDetail, setSelectedOpForDetail] = useState<string | null>(null);
   const [showObsModal, setShowObsModal] = useState(false);
   const [obsItem, setObsItem] = useState<any | null>(null);
+  const [manualConferente, setManualConferente] = useState(user.nome);
 
   const [showDivModal, setShowDivModal] = useState(false);
   const [divItem, setDivItem] = useState<any | null>(null);
@@ -67,7 +68,7 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
     await supabase.from('conferencia').update({ responsavel_conferencia: user.nome, status: 'Em Conferência' }).eq('id', item.id);
     setSelectedItem({ ...item, itens: sortedItens, responsavel_conferencia: user.nome, status: 'Em Conferência' });
     setViewMode('detail');
-
+    setManualConferente(user.nome); // Reset to current user when opening
   };
 
   const handleBack = async () => {
@@ -282,15 +283,18 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
 
     setIsLoading(true);
     try {
-      // 1. Prepare history data with minimal columns (Pillar 4)
+      const docTransf = selectedItem.itens[0]?.doc_transferencia || selectedItem.documento;
+      const currentConferente = manualConferente || user.nome;
+
+      // 1. Consolidate into ONE history record for the batch (Transfer Doc)
       const batchHistoryData = {
-        documento: selectedItem.documento,
+        documento: docTransf,
         nome: selectedItem.nome || selectedItem.documento,
         armazem: selectedItem.armazem,
         itens: selectedItem.itens.map((item: any, idx: number) => ({
           ...item,
           metadata: idx === 0 ? {
-            conferente: user.nome,
+            conferente: currentConferente,
             separador: selectedItem.itens[0]?.usuario_atual || 'N/A',
             data_finalizacao: new Date().toISOString(),
             total_itens: selectedItem.itens.length,
@@ -300,11 +304,14 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
         }))
       };
 
-      // 2. Insert into historico table
-      const { error: histInsErr } = await supabase.from('historico').insert([batchHistoryData]);
-      if (histInsErr) throw histInsErr;
+      // 2. Upsert into historico to avoid duplicates
+      const { error: histInsErr } = await supabase.from('historico').upsert([batchHistoryData], { onConflict: 'documento' });
+      if (histInsErr) {
+        // Fallback to simple insert if upsert fails
+        await supabase.from('historico').insert([batchHistoryData]);
+      }
 
-      // 3. Update individual OP TEA records - ONLY update 'itens' JSON column to avoid 400
+      // 3. Update individual OP TEA records - ONLY update 'itens' JSON column
       const uniqueOps = [...new Set(selectedItem.itens.flatMap(i => i.composicao?.map((c: any) => c.op) || []))];
 
       for (const opCode of uniqueOps) {
@@ -315,7 +322,8 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
             status: 'Qualidade',
             icon: '🔍',
             data: new Date().toLocaleDateString('pt-BR'),
-            conferente: user.nome
+            conferente: currentConferente,
+            lote_conferencia: docTransf
           }];
           await supabase.from('historico').update({
             itens: newFluxo
@@ -323,7 +331,7 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
         }
       }
 
-      // 4. Delete from conferencia table
+      // 4. Delete from conferencia (permanently)
       await supabase.from('conferencia').delete().eq('id', selectedItem.id);
 
       alert('Conferência finalizada e arquivada em Histórico!');
@@ -405,14 +413,19 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                 {isReverting ? 'Revertendo...' : '↩️ Voltar Situação'}
               </button>
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-4 items-center">
               <div className="text-right">
                 <p className="text-[10px] font-black text-gray-400 uppercase">Documento</p>
                 <p className="text-xs font-black text-gray-900">{selectedItem.itens[0]?.doc_transferencia || 'N/A'}</p>
               </div>
-              <div className="text-right">
+              <div className="text-right bg-white p-2 rounded-xl border border-gray-100 shadow-sm">
                 <p className="text-[10px] font-black text-gray-400 uppercase">Responsável</p>
-                <p className="text-xs font-black text-[#006B47]">{user.nome}</p>
+                <input
+                  type="text"
+                  value={manualConferente}
+                  onChange={(e) => setManualConferente(e.target.value.toUpperCase())}
+                  className="text-xs font-black text-[#006B47] text-right bg-transparent border-none p-0 focus:ring-0 uppercase w-32"
+                />
               </div>
             </div>
           </div>
@@ -437,10 +450,11 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
                   <button
                     key={opCode}
                     onClick={() => setSelectedOpForDetail(isSelected ? null : opCode)}
-                    className={`px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 transition-all border ${isSelected ? 'ring-2 ring-blue-500 ring-offset-2' : ''
-                      } ${isDone
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm'
-                        : 'bg-gray-50 border-gray-200 text-gray-500'
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 transition-all border ${isSelected
+                        ? 'border-blue-500 bg-blue-50 text-blue-700 ring-2 ring-blue-200'
+                        : isDone
+                          ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
+                          : 'bg-gray-50 border-gray-200 text-gray-500'
                       }`}
                   >
                     <span>{isDone ? '✅' : '⏳'}</span> OP {opCode}
@@ -630,7 +644,11 @@ const Conferencia: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ bla
             const isEmUso = item.responsavel_conferencia && item.responsavel_conferencia !== user.nome;
 
             return (
-              <div key={item.id} className={`bg-white rounded-[2rem] border border-gray-100 shadow-sm p-8 space-y-6 flex flex-col justify-between hover:shadow-xl transition-all group relative overflow-hidden ${isEmUso ? 'bg-gray-50' : ''}`}>
+              <div
+                key={item.id}
+                className={`bg-white rounded-[2.5rem] border-2 p-8 space-y-6 flex flex-col justify-between hover:shadow-2xl hover:translate-y-[-4px] transition-all duration-500 group relative overflow-hidden h-[24rem] ${item.status === 'Em Conferência' ? 'border-blue-500' : 'border-gray-50'
+                  }`}
+              >
                 {/* In-Use Bar */}
                 {isEmUso && (
                   <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500 animate-pulse z-30"></div>

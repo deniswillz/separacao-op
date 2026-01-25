@@ -38,6 +38,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
   const [selectedOpForList, setSelectedOpForList] = useState<any>(null);
   const [showObsModal, setShowObsModal] = useState(false);
   const [obsItem, setObsItem] = useState<any | null>(null);
+  const [manualSeparador, setManualSeparador] = useState(user.nome);
 
   const fetchOps = async () => {
     setIsSyncing(true);
@@ -113,6 +114,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
     }
     await supabase.from('separacao').update({ usuario_atual: user.nome }).eq('id', op.id);
     setSelectedOP({ ...op, usuarioAtual: user.nome });
+    setManualSeparador(user.nome);
     setViewMode('detail');
   };
 
@@ -188,14 +190,13 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
       ordens: selectedOP.ordens,
       itens: selectedOP.rawItens
         .map((item: any) => {
-          // Calculate actual quantity from composition.
-          // Even if 0, it must go to conference to show the divergence.
           const actualQtd = item.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0) ?? 0;
           return {
             ...item,
             quantidade: actualQtd,
-            original_solicitado: item.quantidade, // Preserve original requested for reference
-            doc_transferencia: docTransferencia
+            original_solicitado: item.quantidade,
+            doc_transferencia: docTransferencia,
+            usuario_atual: manualSeparador || user.nome
           };
         }),
       status: 'Aguardando'
@@ -277,7 +278,16 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
                 <div className="w-12 h-12 bg-gray-900 text-white rounded-2xl flex items-center justify-center text-xl font-black">📦</div>
                 <h2 className="text-2xl font-black tracking-tight uppercase">{selectedOP.opCode}</h2>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-6">
+                <div className="text-right bg-white p-2 px-4 rounded-xl border border-gray-100 shadow-sm">
+                  <p className="text-[10px] font-black text-gray-400 uppercase">Separador</p>
+                  <input
+                    type="text"
+                    value={manualSeparador}
+                    onChange={(e) => setManualSeparador(e.target.value.toUpperCase())}
+                    className="text-xs font-black text-[#006B47] text-right bg-transparent border-none p-0 focus:ring-0 uppercase w-32"
+                  />
+                </div>
                 <input
                   value={docTransferencia}
                   onChange={e => setDocTransferencia(e.target.value.toUpperCase())}
@@ -476,13 +486,14 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User }> = ({ black
             const progress = total > 0 ? Math.round((finalizedCount / total) * 100) : 0;
             const opRange = getOPDisplayRange(op.ordens);
 
-            const isEmUso = op.usuarioAtual && op.usuarioAtual !== user.nome;
+            const borderClass = isEmUso ? 'border-blue-500' :
+              op.status === 'Pendente' ? 'border-amber-500' : 'border-gray-50';
 
             return (
-              <div key={op.id} className={`bg-white rounded-[2rem] border border-gray-100 shadow-sm p-8 space-y-6 flex flex-col justify-between hover:shadow-xl transition-all group relative overflow-hidden ${isEmUso ? 'bg-gray-50' : ''}`}>
+              <div key={op.id} className={`bg-white rounded-[2rem] border-2 shadow-sm p-8 space-y-6 flex flex-col justify-between hover:shadow-xl transition-all group relative overflow-hidden ${isEmUso ? 'bg-gray-50' : ''} ${borderClass}`}>
                 {/* In-Use Bar */}
                 {isEmUso && (
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500 animate-pulse z-30"></div>
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-blue-500 animate-pulse z-30"></div>
                 )}
 
                 {/* Top Row: ID, Priority, X */}

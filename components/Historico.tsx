@@ -75,7 +75,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {history
           .filter(item => {
             const search = searchText.toLowerCase();
@@ -83,16 +83,15 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
               item.documento?.toLowerCase().includes(search) ||
               item.op_range?.toLowerCase().includes(search) ||
               item.armazem?.toLowerCase().includes(search) ||
-              item.nome?.toLowerCase().includes(search) ||
-              item.conferente?.toLowerCase().includes(search)
+              item.nome?.toLowerCase().includes(search)
             );
           })
           .map((item) => (
-            <div key={item.id} className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col justify-between hover:shadow-xl transition-all duration-300 group relative">
+            <div key={item.id} className="bg-white rounded-2xl border-2 border-emerald-500/10 p-4 flex flex-col justify-between hover:shadow-xl transition-all duration-300 group relative">
               <div className="space-y-3">
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">📋</span>
+                    <span className="text-base text-emerald-600">📋</span>
                     <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">FINALIZADO</span>
                   </div>
                   {user.role === 'admin' && (
@@ -112,26 +111,26 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                 </div>
 
                 <div className="space-y-0.5">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter truncate">DOC {item.documento}</p>
-                  <h4 className="text-sm font-black text-[#111827] uppercase truncate">OP {item.op_range}</h4>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-tighter truncate">{item.documento}</p>
+                  <h4 className="text-[13px] font-black text-[#111827] uppercase truncate">OP {item.op_range}</h4>
                 </div>
 
                 <div className="grid grid-cols-2 gap-y-2 gap-x-2 border-t border-gray-50 pt-3">
                   <div>
-                    <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Armazém</p>
-                    <p className="text-[9px] font-black text-gray-700 uppercase truncate">{item.armazem}</p>
+                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none">Armazém</p>
+                    <p className="text-[10px] font-black text-gray-700 uppercase truncate">{item.armazem}</p>
                   </div>
                   <div>
-                    <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Total Itens</p>
-                    <p className="text-[9px] font-black text-emerald-600 uppercase">{item.total_itens} UN</p>
+                    <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none">Total Itens</p>
+                    <p className="text-[10px] font-black text-emerald-600 uppercase">{item.total_itens} UN</p>
                   </div>
                 </div>
               </div>
 
               <div className="flex justify-between items-end mt-4">
                 <div>
-                  <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest">Data</p>
-                  <p className="text-[9px] font-black text-gray-400 italic">{new Date(item.data_finalizacao).toLocaleDateString('pt-BR')}</p>
+                  <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest leading-none">Data Fechamento</p>
+                  <p className="text-[10px] font-black text-gray-400 italic">{new Date(item.data_finalizacao).toLocaleDateString('pt-BR')}</p>
                 </div>
                 <button
                   onClick={() => setSelectedItem(item)}
