@@ -121,10 +121,13 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
 
   const updateStatus = async (item: TEAItem, nextStep: string) => {
     const statusMap: any = {
-      'Separação': { icon: '📦', next: 'Conferência', label: 'EM SEPARAÇÃO' },
-      'Conferência': { icon: '🔍', next: 'Transito', label: 'EM CONFERÊNCIA' },
-      'Transito': { icon: '🚚', next: 'Finalizado', label: 'EM TRÂNSITO' },
-      'Finalizado': { icon: '✅', next: null, label: 'CONCLUÍDO' }
+      'Separação': { icon: '📦', label: 'EM SEPARAÇÃO', next: 'Conferência' },
+      'Conferência': { icon: '🔍', label: 'EM CONFERÊNCIA', next: 'Qualidade' },
+      'Qualidade': { icon: '⚖️', label: 'QUALIDADE', next: 'Endereçar' },
+      'Endereçar': { icon: '📍', label: 'ENDEREÇAMENTO', next: 'Transito' },
+      'Transito': { icon: '🚚', label: 'EM TRÂNSITO', next: 'Finalizar' },
+      'Finalizar': { icon: '🏁', label: 'FINALIZAR', next: 'Concluido' },
+      'Concluido': { icon: '✅', label: 'CONCLUÍDO', next: null }
     };
 
     const current = statusMap[nextStep];
@@ -139,7 +142,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
       .update({
         itens: newFluxo,
         status_atual: current.label,
-        data_finalizacao: nextStep === 'Finalizado' ? new Date().toISOString() : null
+        data_finalizacao: nextStep === 'Concluido' ? new Date().toISOString() : null
       })
       .eq('id', item.id);
 
@@ -149,11 +152,22 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
 
   const getStatusDisplay = (status: string) => {
     switch (status) {
-      case 'Separação': return { label: 'EM SEPARAÇÃO', color: 'bg-[#EFF6FF] text-[#1E40AF]', icon: '📦', next: 'Conferência', nextLabel: 'INICIAR CONFERÊNCIA', footer: 'AGUARDANDO SEPARAÇÃO...' };
-      case 'Conferência': return { label: 'EM CONFERÊNCIA', color: 'bg-[#EFF6FF] text-[#1E40AF]', icon: '🔍', next: 'Transito', nextLabel: 'DESPACHAR CARGA', footer: 'EM AUDITORIA...' };
-      case 'Transito': return { label: 'EM TRÂNSITO', color: 'bg-[#EFF6FF] text-[#1E40AF]', icon: '🚚', next: 'Finalizado', nextLabel: 'CONFIRMAR ENTREGA', footer: 'VEÍCULO EM ROTA...' };
-      case 'Finalizado': return { label: 'CONCLUÍDO', color: 'bg-[#F0FDF4] text-[#166534]', icon: '✅', next: null, nextLabel: 'FINALIZADO', footer: 'ENTREGA REALIZADA ✅' };
-      default: return { label: 'AGUARDANDO', color: 'bg-gray-100 text-gray-500', icon: '🕒', next: 'Separação', nextLabel: 'INICIAR', footer: 'AGUARDANDO...' };
+      case 'Separação':
+        return { label: 'EM SEPARAÇÃO', color: 'bg-[#EFF6FF] text-[#1E40AF]', icon: '📦', next: null, nextLabel: 'AGUARDANDO', footer: 'AGUARDANDO SEPARAÇÃO...' };
+      case 'Conferência':
+        return { label: 'EM CONFERÊNCIA', color: 'bg-[#EFF6FF] text-[#1E40AF]', icon: '🔍', next: null, nextLabel: 'AGUARDANDO', footer: 'AGUARDANDO CONFERÊNCIA...' };
+      case 'Qualidade':
+        return { label: 'QUALIDADE', color: 'bg-[#FEF3C7] text-[#92400E]', icon: '⚖️', next: 'Endereçar', nextLabel: 'PROXIMO', footer: 'AGUARDANDO QUALIDADE...' };
+      case 'Endereçar':
+        return { label: 'ENDEREÇAMENTO', color: 'bg-[#F5F3FF] text-[#5B21B6]', icon: '📍', next: 'Transito', nextLabel: 'PROXIMO', footer: 'AGUARDANDO ENDEREÇAR...' };
+      case 'Transito':
+        return { label: 'EM TRÂNSITO', color: 'bg-[#DBEAFE] text-[#1E40AF]', icon: '🚚', next: 'Finalizar', nextLabel: 'PROXIMO', footer: 'AGUARDANDO TRANSITO...' };
+      case 'Finalizar':
+        return { label: 'FINALIZANDO', color: 'bg-[#F1F5F9] text-[#475569]', icon: '🏁', next: 'Concluido', nextLabel: 'FINALIZAR', footer: 'AGUARDANDO FINALIZAR...' };
+      case 'Concluido':
+        return { label: 'CONCLUÍDO', color: 'bg-[#F0FDF4] text-[#166534]', icon: '✅', next: null, nextLabel: 'CONCLUÍDO', footer: 'ENTREGA REALIZADA ✅' };
+      default:
+        return { label: 'AGUARDANDO', color: 'bg-gray-100 text-gray-500', icon: '🕒', next: 'Separação', nextLabel: 'INICIAR', footer: 'AGUARDANDO...' };
     }
   };
 
@@ -166,7 +180,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
   return (
     <div className="space-y-8 animate-fadeIn pb-20 bg-gray-50 -m-8 p-8 min-h-screen">
       {/* Header Container */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm text-gray-900">
         <div className="flex gap-6 items-center">
           <div className="w-16 h-16 bg-[#F0F9FF] rounded-[1.5rem] flex items-center justify-center text-3xl shadow-inner">
             🏢
@@ -212,15 +226,15 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
           <div className="col-span-full py-20"><Loading message="Sincronizando Fluxo TEA..." /></div>
         ) : filteredHistory.length === 0 ? (
           <div className="col-span-full py-20 text-center space-y-4 opacity-30">
-            <div className="text-6xl">📥</div>
-            <p className="text-xs font-black uppercase tracking-[0.4em]">Nenhum registro ativo</p>
+            <div className="text-6xl text-gray-900">📥</div>
+            <p className="text-xs font-black uppercase tracking-[0.4em] text-gray-900">Nenhum registro ativo</p>
           </div>
         ) : (
           filteredHistory.map((item) => {
             const statusInfo = getStatusDisplay(item.itens[item.itens.length - 1]?.status);
 
             return (
-              <div key={item.id} className="bg-white rounded-[2.5rem] border border-gray-100 p-8 flex flex-col justify-between shadow-sm hover:shadow-xl transition-all duration-300 group">
+              <div key={item.id} className="bg-white rounded-[2.5rem] border border-gray-100 p-8 flex flex-col justify-between shadow-sm hover:shadow-xl transition-all duration-300 group text-gray-900">
                 <div className="space-y-6">
                   {/* Card Header */}
                   <div className="flex justify-between items-start">
@@ -243,7 +257,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
 
                   {/* Quantity and Destination Grid */}
                   <div className="bg-[#F8FAFC] rounded-2xl p-5 grid grid-cols-2 gap-4 border border-gray-50 shadow-inner">
-                    <div className="text-center space-y-1">
+                    <div className="text-center space-y-1 text-gray-900">
                       <p className="text-xl font-black text-gray-900 leading-none">{item.quantidade}</p>
                       <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Qtd Sol.</p>
                     </div>
@@ -265,18 +279,18 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
 
                 {/* Main Action Button */}
                 <div className="pt-8">
-                  {statusInfo.next ? (
-                    <button
-                      onClick={() => updateStatus(item, statusInfo.next!)}
-                      className="w-full py-4 bg-[#111827] text-white rounded-2xl font-black text-[11px] uppercase tracking-widest hover:bg-black active:scale-[0.98] shadow-lg shadow-gray-200 transition-all"
-                    >
-                      Ver Detalhes
-                    </button>
-                  ) : (
-                    <div className="w-full py-4 bg-[#F0FDF4] text-[#166534] rounded-2xl font-black text-[11px] uppercase tracking-widest text-center border border-[#DCFCE7]">
-                      Fluxo Concluído ✅
-                    </div>
-                  )}
+                  <button
+                    disabled={!statusInfo.next && statusInfo.label !== 'CONCLUÍDO'}
+                    onClick={() => statusInfo.next && updateStatus(item, statusInfo.next)}
+                    className={`w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all ${statusInfo.label === 'CONCLUÍDO'
+                      ? 'bg-[#F0FDF4] text-[#166534] border border-[#DCFCE7] cursor-default'
+                      : !statusInfo.next
+                        ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
+                        : 'bg-[#111827] text-white hover:bg-black active:scale-[0.98] shadow-lg shadow-gray-200'
+                      }`}
+                  >
+                    {statusInfo.nextLabel}
+                  </button>
                 </div>
               </div>
             );

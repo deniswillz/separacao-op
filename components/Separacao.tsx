@@ -291,10 +291,27 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
 
       await supabase.from('separacao').delete().eq('id', selectedOP.id);
 
-      const { data: tea } = await supabase.from('historico').select('*').eq('documento', selectedOP.opCode).maybeSingle();
-      if (tea) {
-        const newFluxo = [...(tea.itens || []), { status: 'Conferência', icon: '🔍', data: new Date().toLocaleDateString('pt-BR') }];
-        await supabase.from('historico').update({ itens: newFluxo }).eq('id', tea.id);
+      // TEA Sync: Update status to 'Conferência' for all OPs in the lot
+      if (selectedOP.ordens && selectedOP.ordens.length > 0) {
+        for (const opId of selectedOP.ordens) {
+          const { data: tea } = await supabase.from('historico')
+            .select('*')
+            .eq('documento', opId)
+            .eq('armazem', 'TEA')
+            .maybeSingle();
+
+          if (tea) {
+            const newFluxo = [...(tea.itens || []), {
+              status: 'Conferência',
+              icon: '🔍',
+              data: new Date().toLocaleDateString('pt-BR')
+            }];
+            await supabase.from('historico').update({
+              itens: newFluxo,
+              status_atual: 'EM CONFERÊNCIA'
+            }).eq('id', tea.id);
+          }
+        }
       }
 
       // Artificial delay to ensure user perceives the transition

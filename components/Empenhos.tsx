@@ -19,6 +19,7 @@ const Empenhos: React.FC = () => {
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [globalWarehouse, setGlobalWarehouse] = useState('');
+  const [destinoTea, setDestinoTea] = useState('Armazém 04');
   const [isImporting, setIsImporting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -151,10 +152,11 @@ const Empenhos: React.FC = () => {
       const teaRecords = selectedOps.map(op => ({
         documento: op.id,
         nome: op.id,
-        armazem: globalWarehouse,
+        armazem: 'TEA',
+        destino: destinoTea,
         itens: [{
-          status: 'Logística',
-          icon: '🏢',
+          status: 'Separação',
+          icon: '📦',
           data: new Date().toLocaleDateString('pt-BR'),
           produto: op.itens[0]?.codigo || 'DIVERSOS',
           descricao: op.itens[0]?.descricao || 'INÍCIO LOGÍSTICA',
@@ -246,12 +248,26 @@ const Empenhos: React.FC = () => {
             <select
               value={globalWarehouse}
               onChange={(e) => setGlobalWarehouse(e.target.value)}
-              className="w-full bg-gray-50 border-none rounded-2xl py-4 px-6 text-xs font-black text-gray-600 outline-none focus:ring-2 focus:ring-emerald-50 transition-all"
+              className="w-full bg-gray-50 border-none rounded-2xl py-4 px-6 text-xs font-black text-gray-600 outline-none focus:ring-2 focus:ring-emerald-50 transition-all mb-4"
             >
               <option value="">Selecione...</option>
               <option value="CHICOTE">CHICOTE</option>
               <option value="MECANICA">MECÂNICA</option>
               <option value="ELETRONICA">ELETRÔNICA</option>
+            </select>
+
+            <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Destino TEA</h3>
+            <select
+              value={destinoTea}
+              onChange={(e) => setDestinoTea(e.target.value)}
+              className="w-full bg-gray-50 border-none rounded-2xl py-4 px-6 text-xs font-black text-gray-600 outline-none focus:ring-2 focus:ring-emerald-50 transition-all"
+            >
+              <option value="Armazém 04">Armazém 04</option>
+              <option value="Armazém 08">Armazém 08</option>
+              <option value="Armazém 11">Armazém 11</option>
+              <option value="Armazém 21">Armazém 21</option>
+              <option value="Filial Sul">Filial Sul</option>
+              <option value="Filial Norte">Filial Norte</option>
             </select>
           </div>
 

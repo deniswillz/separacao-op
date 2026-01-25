@@ -217,9 +217,37 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
         await supabase.from('historico').insert([{ ...batchHistoryData, total_itens: totalSeparatedSum }]);
       }
 
+      // TEA Sync: Update status to 'Qualidade' for all OPs in the lot
+      if (selectedItem.ordens && selectedItem.ordens.length > 0) {
+        for (const opId of selectedItem.ordens) {
+          const { data: tea } = await supabase.from('historico')
+            .select('*')
+            .eq('documento', opId)
+            .eq('armazem', 'TEA')
+            .maybeSingle();
+
+          if (tea) {
+            const newFluxo = [...(tea.itens || []), {
+              status: 'Qualidade',
+              icon: '⚖️',
+              data: new Date().toLocaleDateString('pt-BR')
+            }];
+            await supabase.from('historico').update({
+              itens: newFluxo,
+              status_atual: 'QUALIDADE'
+            }).eq('id', tea.id);
+          }
+        }
+      }
+
       // Cleanup individual OP records that were previously saved
       if (selectedItem.ordens && selectedItem.ordens.length > 0) {
-        await supabase.from('historico').delete().in('documento', selectedItem.ordens);
+        // Wait, here it deletes individual history records of the OPs that comprise the lot.
+        // I must ensure it DOES NOT delete records where armazem = 'TEA'.
+        await supabase.from('historico')
+          .delete()
+          .in('documento', selectedItem.ordens)
+          .neq('armazem', 'TEA');
       }
 
       await supabase.from('conferencia').delete().eq('id', selectedItem.id);

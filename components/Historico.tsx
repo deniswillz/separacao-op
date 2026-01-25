@@ -296,14 +296,9 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                                   setObsData({ item, observations });
                                   setShowObsModal(true);
                                 }}
-                                className={`w-full h-10 px-4 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black transition-all ${observations.length > 0 ? 'bg-blue-50 text-blue-600 border border-blue-100 shadow-sm' : 'bg-gray-50 text-gray-200'}`}
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center text-base transition-all ${observations.length > 0 ? 'bg-blue-50 text-blue-600 border border-blue-100 shadow-sm' : 'bg-gray-50 text-gray-200'}`}
                               >
-                                <span className="text-base text-blue-400">🗨️</span>
-                                {observations.length > 0 && (
-                                  <span className="truncate max-w-[120px] opacity-70 italic font-medium">
-                                    {observations[observations.length - 1].text}
-                                  </span>
-                                )}
+                                🗨️
                               </button>
                             </td>
                           </tr>
