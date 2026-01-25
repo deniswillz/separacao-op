@@ -229,7 +229,7 @@ const App: React.FC = () => {
       case 'transferencia': return <MatrizFilial user={user!} />;
       case 'blacklist': return <Blacklist items={blacklist} setItems={setBlacklist} user={user!} />;
       case 'historico': return <Historico user={user!} />;
-      case 'configuracoes': return user?.role === 'admin' ? <Configuracoes /> : <Dashboard />;
+      case 'configuracoes': return user?.role === 'admin' ? <Configuracoes user={user!} /> : <Dashboard />;
       default: return (
         <div className="flex flex-col items-center justify-center py-20 text-center space-y-4 bg-[var(--bg-secondary)] rounded-3xl shadow-sm border border-[var(--border-light)]">
           <div className="text-6xl">🚧</div>

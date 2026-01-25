@@ -18,7 +18,7 @@ const mockUsers: SystemUser[] = [
   { id: '7', username: 'johnny', nome: 'Johnny', role: 'user', permissions: ['3/9'], criadoEm: '2026-01-12T16:05:28' },
 ];
 
-const Configuracoes: React.FC = () => {
+const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
   const { showAlert } = useAlert();
   const [users, setUsers] = useState<User[]>([]);
   const [isSyncing, setIsSyncing] = useState(true);
@@ -45,6 +45,37 @@ const Configuracoes: React.FC = () => {
 
   const [newUser, setNewUser] = useState(initialUserState);
 
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [backups, setBackups] = useState<any[]>([]);
+
+  const fetchBackups = async () => {
+    const { data, error } = await supabase.from('backups').select('*').order('data', { ascending: false });
+    if (data) setBackups(data);
+  };
+
+  const handlePruneBackups = async () => {
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const { error } = await supabase.from('backups').delete().lt('data', sevenDaysAgo.toISOString());
+    if (error) console.error('Erro ao podar backups:', error);
+  };
+
+  const runAutoBackup = async () => {
+    const now = new Date();
+    const lastAutoStr = localStorage.getItem('last-auto-backup');
+    const today = now.toISOString().split('T')[0];
+
+    // Check if it's 17:45 (allow a 5-minute window for safety)
+    if (now.getHours() === 17 && now.getMinutes() >= 45 && now.getMinutes() <= 50) {
+      if (lastAutoStr !== today) {
+        console.log('Iniciando backup automático diário...');
+        await handleSupabaseBackup(true); // silent backup
+        localStorage.setItem('last-auto-backup', today);
+        await handlePruneBackups();
+      }
+    }
+  };
+
   const fetchUsers = async () => {
     setIsSyncing(true);
     const { data, error } = await supabase.from('usuarios').select('*');
@@ -59,10 +90,20 @@ const Configuracoes: React.FC = () => {
 
   useEffect(() => {
     fetchUsers();
+    fetchBackups();
+
+    // Check for auto-backup every minute
+    const autoInterval = setInterval(runAutoBackup, 60000);
+
     const channel = supabase.channel('users-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'usuarios' }, fetchUsers)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'backups' }, fetchBackups)
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(autoInterval);
+    };
   }, []);
 
   const handleDelete = async (username: string) => {
@@ -74,15 +115,15 @@ const Configuracoes: React.FC = () => {
     }
   };
 
-  const handleEdit = (user: User) => {
-    setEditingUser(user.username);
+  const handleEdit = (userItem: User) => {
+    setEditingUser(userItem.username);
     setNewUser({
-      username: user.username,
-      nome: user.nome,
+      username: userItem.username,
+      nome: userItem.nome,
       senha: '', // Don't show password
       confirmarSenha: '',
-      role: user.role,
-      permissions: (user.permissions as any) || initialUserState.permissions
+      role: userItem.role,
+      permissions: (userItem.permissions as any) || initialUserState.permissions
     });
     setIsModalOpen(true);
   };
@@ -160,8 +201,8 @@ const Configuracoes: React.FC = () => {
   };
 
   // 🔄 BACKUP MANUAL (Supabase)
-  const handleSupabaseBackup = async () => {
-    setIsSyncing(true);
+  const handleSupabaseBackup = async (silent = false) => {
+    if (!silent) setIsSyncing(true);
     try {
       const tables = ['usuarios', 'enderecos', 'separacao', 'conferencia', 'historico', 'blacklist'];
       const backupData: any = {};
@@ -174,34 +215,33 @@ const Configuracoes: React.FC = () => {
       const { error } = await supabase.from('backups').insert([{
         data: new Date().toISOString(),
         backup_json: JSON.stringify(backupData),
-        responsavel: 'admin'
+        responsavel: silent ? 'Sistema (Auto)' : (user.username || 'admin')
       }]);
 
       if (error) throw error;
-      showAlert('Backup manual salvo no Supabase!', 'success');
+      if (!silent) showAlert('Backup manual salvo no Supabase!', 'success');
+      fetchBackups();
     } catch (e: any) {
-      showAlert('Aviso: Tabela "backups" não encontrada ou erro ao salvar. Use a Exportação JSON.', 'warning');
+      if (!silent) showAlert('Aviso: Tabela "backups" não encontrada ou erro ao salvar.', 'warning');
     } finally {
-      setIsSyncing(false);
+      if (!silent) setIsSyncing(false);
     }
   };
 
-  // 🔄 RESTAURAR BACKUP MANUAL (Supabase)
-  const handleRestoreBackup = async () => {
-    if (!confirm('Deseja restaurar o backup mais recente do servidor? Isso substituirá dados atuais.')) return;
+  // 🔄 RESTAURAR BACKUP (Supabase - Specific ID)
+  const handleRestoreBackup = async (backupItem: any) => {
+    if (!confirm(`Deseja restaurar o backup de ${new Date(backupItem.data).toLocaleString('pt-BR')}? Isso substituirá dados atuais.`)) return;
 
     setIsSyncing(true);
     try {
-      const { data, error } = await supabase.from('backups').select('*').order('id', { ascending: false }).limit(1).single();
-      if (error || !data) throw new Error('Nenhum backup encontrado no servidor.');
-
-      const backup = JSON.parse(data.backup_json);
-      for (const table in backup) {
-        if (Array.isArray(backup[table]) && backup[table].length > 0) {
-          await supabase.from(table).upsert(backup[table]);
+      const backupData = JSON.parse(backupItem.backup_json);
+      for (const table in backupData) {
+        if (Array.isArray(backupData[table]) && backupData[table].length > 0) {
+          await supabase.from(table).upsert(backupData[table]);
         }
       }
       showAlert('Backup restaurado do servidor com sucesso!', 'success');
+      setIsBackupModalOpen(false);
       fetchUsers();
     } catch (e: any) {
       showAlert('Erro ao restaurar: ' + e.message, 'error');
@@ -220,11 +260,11 @@ const Configuracoes: React.FC = () => {
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
-        const backup = JSON.parse(evt.target?.result as string);
-        for (const table in backup) {
-          if (Array.isArray(backup[table]) && backup[table].length > 0) {
+        const backupData = JSON.parse(evt.target?.result as string);
+        for (const table in backupData) {
+          if (Array.isArray(backupData[table]) && backupData[table].length > 0) {
             // Using upsert if possible, or insert
-            const { error } = await supabase.from(table).upsert(backup[table]);
+            const { error } = await supabase.from(table).upsert(backupData[table]);
             if (error) console.error(`Erro ao importar ${table}:`, error);
           }
         }
@@ -390,6 +430,55 @@ const Configuracoes: React.FC = () => {
         </form>
       )}
 
+      {/* Modal Histórico de Backups */}
+      {isBackupModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+          <div className="bg-[var(--bg-secondary)] rounded-[2rem] w-full max-w-4xl overflow-hidden shadow-2xl animate-scaleIn border border-[var(--border-light)] flex flex-col max-h-[80vh]">
+            <div className="bg-[#F2A516] px-8 py-5 flex justify-between items-center text-white">
+              <div className="space-y-0.5">
+                <h3 className="text-sm font-black uppercase tracking-widest">Histórico de Backups (7 Dias)</h3>
+                <p className="text-orange-50 text-[9px] font-bold uppercase opacity-80">Restauração de Segurança via Supabase</p>
+              </div>
+              <button type="button" onClick={() => setIsBackupModalOpen(false)} className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all text-xs">✕</button>
+            </div>
+
+            <div className="p-8 overflow-y-auto custom-scrollbar bg-[var(--bg-secondary)]">
+              <div className="space-y-4">
+                {backups.length === 0 ? (
+                  <div className="py-20 text-center opacity-30 italic font-bold text-xs uppercase tracking-widest">Nenhum backup encontrado no servidor</div>
+                ) : (
+                  backups.map((backup) => (
+                    <div key={backup.id} className="flex items-center justify-between p-5 bg-[var(--bg-inner)] border border-[var(--border-light)] rounded-2xl hover:border-orange-400/50 transition-all group">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 bg-orange-100 text-orange-600 rounded-xl flex items-center justify-center text-xl">📦</div>
+                        <div>
+                          <p className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight">
+                            {new Date(backup.data).toLocaleString('pt-BR')}
+                          </p>
+                          <p className="text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Resp: <span className="text-orange-600">{backup.responsavel}</span></p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleRestoreBackup(backup)}
+                        disabled={isSyncing}
+                        className="px-6 py-2.5 bg-orange-100 text-orange-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-orange-600 hover:text-white transition-all shadow-sm"
+                      >
+                        Restaurar
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="bg-[var(--bg-inner)] px-8 py-6 flex justify-between items-center border-t border-[var(--border-light)]">
+              <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest italic">Atenção: A restauração removerá todos os dados atuais permanentemente.</p>
+              <button type="button" onClick={() => setIsBackupModalOpen(false)} className="px-6 py-3 bg-[var(--bg-secondary)] border border-[var(--border-light)] text-[var(--text-muted)] rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[var(--bg-inner)] transition-all">Fechar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header Compacto */}
       <div className="flex justify-between items-end">
         <div>
@@ -426,7 +515,7 @@ const Configuracoes: React.FC = () => {
           <span className="text-[8px] font-black text-[#F2A516] uppercase tracking-widest">Backup</span>
         </button>
 
-        <button onClick={handleRestoreBackup} title="Restaurar backup do Supabase" className="bg-[#F2A516]/10 border border-[#F2A516]/20 p-4 rounded-[1.5rem] flex flex-col items-center justify-center gap-2 hover:bg-[#F2A516]/20 transition-all group">
+        <button onClick={() => setIsBackupModalOpen(true)} title="Restaurar backup do Supabase" className="bg-[#F2A516]/10 border border-[#F2A516]/20 p-4 rounded-[1.5rem] flex flex-col items-center justify-center gap-2 hover:bg-[#F2A516]/20 transition-all group">
           <span className="text-xl group-hover:scale-110 transition-transform">📥</span>
           <span className="text-[8px] font-black text-[#F2A516] uppercase tracking-widest">Restaura</span>
         </button>
