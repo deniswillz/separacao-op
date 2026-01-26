@@ -85,6 +85,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
 
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historySearchTerm, setHistorySearchTerm] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
 
   const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -405,10 +406,13 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                 <tbody className="divide-y divide-[var(--border-light)]">
                   {history
                     .filter(h => h.status_atual === 'CONCLUIDO')
-                    .filter(h =>
-                      h.documento.toLowerCase().includes(historySearchTerm.toLowerCase()) ||
-                      h.produto?.toLowerCase().includes(historySearchTerm.toLowerCase())
-                    )
+                    .filter(h => {
+                      const searchLower = historySearchTerm.toLowerCase();
+                      const matchesSearch = h.documento.toLowerCase().includes(searchLower) ||
+                        (h.produto || '').toLowerCase().includes(searchLower);
+                      const matchesDate = !dateFilter || (h.ultima_atualizacao && h.ultima_atualizacao.startsWith(dateFilter));
+                      return matchesSearch && matchesDate;
+                    })
                     .map((item) => (
                       <tr key={item.id} className="hover:bg-[var(--bg-inner)]/30 transition-colors">
                         <td className="py-4 font-black text-xs">{item.documento}</td>

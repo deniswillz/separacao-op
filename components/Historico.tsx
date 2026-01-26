@@ -21,6 +21,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
   const [history, setHistory] = useState<FinishedOP[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
   const [selectedItem, setSelectedItem] = useState<FinishedOP | null>(null);
   const [selectedOpFilter, setSelectedOpFilter] = useState<string | null>(null);
   const [showObsModal, setShowObsModal] = useState(false);
@@ -71,15 +72,23 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
           <h2 className="text-xl font-black text-[#111827] uppercase tracking-tight">Histórico de Auditoria</h2>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Registros de conferências finalizadas</p>
         </div>
-        <div className="relative w-full md:w-96 group">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none transition-colors group-focus-within:text-emerald-500">🔍</span>
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 w-full md:w-auto">
           <input
-            type="text"
-            placeholder="BUSCAR POR OP, DOC OU ARMAZÉM..."
-            className="w-full bg-[var(--bg-inner)] border-none rounded-2xl py-3 pl-12 pr-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-emerald-500/20 transition-all text-[var(--text-primary)]"
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
+            type="date"
+            className="bg-[var(--bg-inner)] border-none rounded-2xl py-3 px-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-emerald-500/20 transition-all text-[var(--text-primary)]"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
           />
+          <div className="relative w-full md:w-80 group">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none transition-colors group-focus-within:text-emerald-500">🔍</span>
+            <input
+              type="text"
+              placeholder="BUSCAR POR OP, DOC OU ARMAZÉM..."
+              className="w-full bg-[var(--bg-inner)] border-none rounded-2xl py-3 pl-12 pr-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-emerald-500/20 transition-all text-[var(--text-primary)]"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
@@ -87,12 +96,14 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
         {history
           .filter(item => {
             const search = searchText.toLowerCase();
-            return (
+            const matchesSearch = (
               item.documento?.toLowerCase().includes(search) ||
               item.op_range?.toLowerCase().includes(search) ||
               item.armazem?.toLowerCase().includes(search) ||
               item.nome?.toLowerCase().includes(search)
             );
+            const matchesDate = !dateFilter || (item.data_finalizacao && item.data_finalizacao.startsWith(dateFilter));
+            return matchesSearch && matchesDate;
           })
           .map((item) => (
             <div key={item.id} className="bg-[var(--bg-secondary)] rounded-2xl border-2 border-emerald-500/10 p-4 flex flex-col justify-between hover:shadow-xl transition-all duration-300 group relative">
@@ -120,9 +131,9 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
 
                 <div className="space-y-1">
                   <h4 className="text-sm font-black text-[var(--text-primary)] uppercase leading-tight line-clamp-2 min-h-[32px]">
-                    DOC - {item.documento.replace(/^DOC-/, '')}
+                    {item.op_range ? (item.op_range.includes('-') ? `OP ${item.op_range}` : `OP ${item.op_range}`) : `DOC - ${item.documento.replace(/^DOC-/, '')}`}
                   </h4>
-                  <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">{item.nome}</p>
+                  <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest truncate">{item.nome}</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-y-2 gap-x-2 border-t border-[var(--border-light)] pt-3">

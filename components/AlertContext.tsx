@@ -45,29 +45,29 @@ export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                     <div
                         key={alert.id}
                         className={`
-              pointer-events-auto
-              w-full p-5 rounded-[2.5rem] shadow-2xl
-              backdrop-blur-xl border-2 animate-slideInRight
-              flex items-start gap-4 transform transition-all hover:scale-[1.02]
-              ${alert.type === 'info' ? 'bg-blue-600/90 border-blue-400/50 text-white shadow-blue-500/20' : ''}
-              ${alert.type === 'warning' ? 'bg-amber-500/90 border-amber-300/50 text-white shadow-amber-500/20' : ''}
-              ${alert.type === 'error' ? 'bg-red-600/90 border-red-400/50 text-white shadow-red-500/20' : ''}
-              ${alert.type === 'success' ? 'bg-emerald-600/90 border-emerald-400/50 text-white shadow-emerald-500/20' : ''}
-            `}
+                            pointer-events-auto
+                            w-full p-6 rounded-[2rem] shadow-2xl
+                            backdrop-blur-2xl border-2 animate-slideInRight
+                            flex items-center gap-5 transform transition-all hover:scale-[1.02]
+                            ${alert.type === 'info' ? 'bg-blue-600/90 border-blue-400/50 text-white shadow-blue-500/30' : ''}
+                            ${alert.type === 'warning' ? 'bg-amber-500/90 border-amber-300/50 text-white shadow-amber-500/30 animate-shake' : ''}
+                            ${alert.type === 'error' ? 'bg-rose-600/90 border-rose-400/50 text-white shadow-rose-600/30 animate-shake' : ''}
+                            ${alert.type === 'success' ? 'bg-emerald-600/90 border-emerald-400/50 text-white shadow-emerald-600/30' : ''}
+                        `}
                     >
-                        <div className="text-2xl mt-1">
+                        <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center text-2xl shrink-0 shadow-inner">
                             {alert.type === 'info' && '💎'}
                             {alert.type === 'warning' && '⚠️'}
                             {alert.type === 'error' && '🚫'}
                             {alert.type === 'success' && '✨'}
                         </div>
                         <div className="flex-1">
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-1">{alert.type}</p>
-                            <p className="text-sm font-black leading-relaxed tracking-tight">{alert.message}</p>
+                            <p className="text-[9px] font-black uppercase tracking-[0.3em] opacity-70 mb-1">{alert.type}</p>
+                            <p className="text-sm font-black leading-tight tracking-tight">{alert.message}</p>
                         </div>
                         <button
                             onClick={() => removeAlert(alert.id)}
-                            className="w-8 h-8 rounded-full bg-black/10 flex items-center justify-center hover:bg-black/20 transition-all text-xs"
+                            className="w-10 h-10 rounded-xl bg-black/10 flex items-center justify-center hover:bg-black/20 transition-all text-sm font-bold"
                         >✕</button>
                     </div>
                 ))}

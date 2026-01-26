@@ -411,52 +411,53 @@ const DuplicateOPModal: React.FC<{
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-fadeIn">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={onClose}></div>
-      <div className="relative bg-[var(--bg-secondary)] w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-scaleIn border border-red-500/20">
-        <div className="bg-[#EF4444] px-8 py-6 flex justify-between items-center text-white">
-          <div className="space-y-0.5">
-            <h3 className="text-sm font-black uppercase tracking-widest leading-none">Atenção: OPs Duplicadas</h3>
-            <p className="text-[9px] font-bold text-red-100 uppercase opacity-80">Risco de Duplicidade Detectado</p>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-xl" onClick={onClose}></div>
+      <div className="relative bg-[var(--bg-secondary)] w-full max-w-lg rounded-[3rem] shadow-[0_32px_64px_-12px_rgba(239,68,68,0.3)] overflow-hidden animate-scaleIn border border-white/20">
+        <div className="bg-gradient-to-r from-rose-600 to-rose-500 px-10 py-10 flex flex-col items-center text-white text-center relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
+          <div className="w-20 h-20 bg-white/20 rounded-[2rem] flex items-center justify-center text-4xl mb-6 shadow-inner animate-pulse">
+            ⚠️
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all text-xs">✕</button>
+          <h3 className="text-xl font-black uppercase tracking-[0.2em] leading-none mb-2">Atenção Crítica</h3>
+          <p className="text-[10px] font-bold text-rose-100 uppercase tracking-widest opacity-80">Risco de Duplicidade de Lote</p>
         </div>
 
-        <div className="p-8 space-y-6 bg-[var(--bg-secondary)]">
-          <div className="space-y-2">
-            <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest text-center">
-              As seguintes Ordens de Produção já possuem registros ativos ou finalizados no sistema:
-            </p>
-          </div>
+        <div className="p-10 space-y-8 bg-[var(--bg-secondary)]">
+          <p className="text-[11px] font-black text-[var(--text-muted)] uppercase tracking-[0.2em] text-center leading-relaxed">
+            As seguintes OPs já possuem registros <span className="text-rose-500">Ativos</span> ou <span className="text-emerald-500">Finalizados</span> no ecossistema:
+          </p>
 
           <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
             {duplicates.map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between p-4 bg-[var(--bg-inner)] border border-[var(--border-light)] rounded-2xl">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-red-50 text-red-500 rounded-lg flex items-center justify-center text-xs">⚠️</div>
-                  <span className="text-xs font-black text-[var(--text-primary)] uppercase font-mono">{item.op}</span>
+              <div key={idx} className="flex items-center justify-between p-5 bg-[var(--bg-inner)] border border-[var(--border-light)] rounded-[1.5rem] group hover:border-rose-300/30 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-rose-500 font-black text-xs">
+                    #
+                  </div>
+                  <span className="text-sm font-black text-[var(--text-primary)] uppercase font-mono tracking-tighter">{item.op}</span>
                 </div>
-                <span className={`px-2.5 py-1 rounded-md text-[7px] font-black uppercase tracking-widest ${item.status === 'Finalizada' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                <div className={`px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-widest shadow-sm ${item.status === 'Finalizada' ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'
                   }`}>
                   {item.status}
-                </span>
+                </div>
               </div>
             ))}
           </div>
 
-          <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-start gap-3">
-            <span className="text-lg">💡</span>
-            <p className="text-[9px] font-black text-amber-700 uppercase leading-relaxed">
-              DICA: Remova as OPs duplicadas da exportação antes de tentar gerar uma nova lista de separação para evitar erros de logística.
+          <div className="p-6 bg-rose-50 border border-rose-100 rounded-[2rem] flex items-start gap-4 shadow-sm">
+            <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-xl shrink-0 shadow-sm">💡</div>
+            <p className="text-[10px] font-black text-rose-900 uppercase leading-relaxed tracking-tight">
+              Recomendação: Remova estas OPs do seu arquivo de importação para evitar erros de estoque e divergências na auditoria.
             </p>
           </div>
         </div>
 
-        <div className="bg-[var(--bg-inner)] px-8 py-6 flex justify-center border-t border-[var(--border-light)]">
+        <div className="px-10 pb-10 flex gap-4">
           <button
             onClick={onClose}
-            className="w-full py-3.5 bg-[#EF4444] text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-xl shadow-red-500/10 hover:opacity-90 active:scale-95 transition-all"
+            className="flex-1 py-5 bg-rose-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.2em] shadow-[0_20px_40px_-10px_rgba(225,29,72,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all"
           >
-            Entendido, Vou Corrigir
+            Vou Corrigir Agora
           </button>
         </div>
       </div>
