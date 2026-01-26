@@ -81,15 +81,38 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
   };
 
   const handleStart = async (item: any) => {
-    if (item.responsavel_conferencia && item.responsavel_conferencia !== user.nome) {
-      showAlert(`Bloqueio: Em uso por "${item.responsavel_conferencia}"`, 'warning');
+    setIsLoading(true);
+    const { data, error: fetchError } = await supabase
+      .from('conferencia')
+      .select('responsavel_conferencia')
+      .eq('id', item.id)
+      .single();
+
+    if (fetchError) {
+      setIsLoading(false);
+      showAlert('Erro ao verificar disponibilidade do lote', 'error');
       return;
     }
+
+    if (data.responsavel_conferencia && data.responsavel_conferencia !== user.nome) {
+      setIsLoading(false);
+      showAlert(`Bloqueio: Em uso por "${data.responsavel_conferencia}"`, 'warning');
+      return;
+    }
+
     const sortedItens = [...(item.itens || [])].sort((a, b) => a.codigo.localeCompare(b.codigo));
-    await supabase.from('conferencia').update({ responsavel_conferencia: user.nome, status: 'Em Conferência' }).eq('id', item.id);
+    const { error: lockError } = await supabase.from('conferencia').update({ responsavel_conferencia: user.nome, status: 'Em Conferência' }).eq('id', item.id);
+
+    if (lockError) {
+      setIsLoading(false);
+      showAlert('Erro ao assumir conferência', 'error');
+      return;
+    }
+
     setSelectedItem({ ...item, itens: sortedItens, responsavel_conferencia: user.nome, status: 'Em Conferência' });
     setViewMode('detail');
     setManualConferente(user.nome);
+    setIsLoading(false);
   };
 
   const handleBack = async () => {
@@ -103,10 +126,9 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
   const updateItemConf = async (itemCodigo: string, field: string, value: any) => {
     if (!selectedItem) return;
     const newItens = selectedItem.itens.map((i: any) => i.codigo === itemCodigo ? { ...i, [field]: value } : i);
-    setIsSaving(true);
-    const { error } = await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
-    setIsSaving(false);
-    if (!error) setSelectedItem({ ...selectedItem, itens: newItens });
+    // Silent Save
+    setSelectedItem({ ...selectedItem, itens: newItens });
+    await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
   };
 
   const handleToggleIndivComp = async (itemCodigo: string, op: string, field: 'ok_conf' | 'ok2_conf' | 'tr_conf', value: boolean) => {
@@ -118,10 +140,9 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
       }
       return item;
     });
-    setIsSaving(true);
-    const { error } = await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
-    setIsSaving(false);
-    if (!error) setSelectedItem({ ...selectedItem, itens: newItens });
+    // Silent Save
+    setSelectedItem({ ...selectedItem, itens: newItens });
+    await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
   };
 
   const handleToggleAllTR = async (sku: string, value: boolean) => {
@@ -133,10 +154,9 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
       }
       return item;
     });
-    setIsSaving(true);
-    const { error } = await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
-    setIsSaving(false);
-    if (!error) setSelectedItem({ ...selectedItem, itens: newItens });
+    // Silent Save
+    setSelectedItem({ ...selectedItem, itens: newItens });
+    await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);
   };
 
   const handleSaveObs = async (sku: string, op: string, text: string) => {
@@ -329,6 +349,19 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
     } finally { setIsReverting(false); }
   };
 
+  const isOpFullyChecked = (opCode: string) => {
+    if (!selectedItem) return false;
+    const opItems = selectedItem.itens.filter((i: any) =>
+      i.composicao?.some((c: any) => c.op === opCode)
+    );
+    if (opItems.length === 0) return false;
+    return opItems.every((i: any) =>
+      i.composicao
+        ?.filter((c: any) => c.op === opCode)
+        .every((c: any) => c.ok_conf)
+    );
+  };
+
   if (isLoading && items.length === 0) return <Loading message="Sincronizando Conferência..." />;
 
   // Calculate stats for Detail View
@@ -433,18 +466,31 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
               )}
 
               {!showTransferList && (
-                <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scroll-hide">
+                <div className="flex flex-wrap gap-2 pb-2 md:pb-0">
                   <button
                     onClick={() => setSelectedOpForDetail(null)}
                     className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase border transition-all ${!selectedOpForDetail ? 'bg-[var(--text-primary)] text-[var(--bg-secondary)]' : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-light)] hover:bg-[var(--bg-inner)]'}`}
                   >Todas OPs</button>
-                  {[...new Set(selectedItem.itens.flatMap((i: any) => (i.composicao || []).map((c: any) => c.op)))].map((opCode: any) => (
-                    <button
-                      key={opCode}
-                      onClick={() => setSelectedOpForDetail(selectedOpForDetail === opCode ? null : (opCode as string))}
-                      className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase border transition-all ${selectedOpForDetail === opCode ? 'bg-blue-600 text-white' : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-light)] hover:bg-[var(--bg-inner)]'}`}
-                    >OP {(opCode as string).replace(/^00/, '').replace(/01001$/, '')}</button>
-                  ))}
+                  {[...new Set(selectedItem.itens.flatMap((i: any) => (i.composicao || []).map((c: any) => c.op)))]
+                    .sort((a: any, b: any) => String(a).localeCompare(String(b)))
+                    .map((opCode: any) => {
+                      const isComplete = isOpFullyChecked(opCode);
+                      const isSelected = selectedOpForDetail === opCode;
+
+                      let btnClass = isSelected
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : isComplete
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
+                          : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-light)] hover:bg-[var(--bg-inner)]';
+
+                      return (
+                        <button
+                          key={opCode}
+                          onClick={() => setSelectedOpForDetail(selectedOpForDetail === opCode ? null : (opCode as string))}
+                          className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase border transition-all ${btnClass}`}
+                        >OP {(opCode as string).replace(/^00/, '').replace(/01001$/, '')}</button>
+                      );
+                    })}
                 </div>
               )}
             </div>

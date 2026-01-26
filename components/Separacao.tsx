@@ -140,14 +140,43 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
 
 
   const handleStart = async (op: OPMock) => {
-    if (op.usuarioAtual && op.usuarioAtual !== user.nome) {
-      alert(`⚠️ Bloqueio: Em uso por "${op.usuarioAtual}"`);
+    // 1. Fresh check of the lock status
+    setIsSyncing(true);
+    const { data, error: fetchError } = await supabase
+      .from('separacao')
+      .select('usuario_atual')
+      .eq('id', op.id)
+      .single();
+
+    if (fetchError) {
+      setIsSyncing(false);
+      showAlert('Erro ao verificar disponibilidade da OP', 'error');
       return;
     }
-    await supabase.from('separacao').update({ usuario_atual: user.nome }).eq('id', op.id);
-    setSelectedOP({ ...op, usuarioAtual: user.nome });
-    setManualSeparador(user.nome);
+
+    if (data.usuario_atual && data.usuario_atual !== user.nome) {
+      setIsSyncing(false);
+      showAlert(`Bloqueio: Esta OP já está sendo separada por "${data.usuario_atual}"`, 'warning');
+      return;
+    }
+
+    // 2. Apply the lock
+    const { error: lockError } = await supabase
+      .from('separacao')
+      .update({ usuario_atual: user.nome, status: 'Em Separação' })
+      .eq('id', op.id);
+
+    if (lockError) {
+      setIsSyncing(false);
+      showAlert('Erro ao bloquear a OP', 'error');
+      return;
+    }
+
+    setSelectedOP({ ...op, usuarioAtual: user.nome, status: 'Em Separação' });
     setViewMode('detail');
+    setDocTransferencia(op.rawItens[0]?.doc_transferencia || '');
+    setManualSeparador(user.nome);
+    setIsSyncing(false);
   };
 
   const handleBack = async () => {
@@ -242,14 +271,12 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
     if (!selectedOP) return;
     const newItens = selectedOP.rawItens.map(i => i.codigo === itemCodigo ? { ...i, [field]: value } : i);
 
-    setIsFinalizing(true);
-    // Auto-save to DB instantly
-    const { error } = await supabase.from('separacao').update({ itens: newItens }).eq('id', selectedOP.id);
-    setIsFinalizing(false);
+    // Silent Save: No global loading, just local update + background sync
+    setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
 
-    if (!error) {
-      setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
-    } else {
+    const { error } = await supabase.from('separacao').update({ itens: newItens }).eq('id', selectedOP.id);
+
+    if (error) {
       console.error('Erro ao auto-salvar item:', error);
       showAlert('Erro ao auto-salvar item: ' + error.message, 'error');
     }
