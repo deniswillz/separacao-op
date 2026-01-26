@@ -17,9 +17,10 @@ const Dashboard: React.FC = () => {
     totalDivergencias: 0,
     whData: [] as any[],
     ranking: [] as any[],
-    stalledLots: [] as any[]
+    stalledLots: [] as any[],
+    dailyVolume: [] as any[]
   });
-  const [opStatusList, setOpStatusList] = useState<{ id: string, type: 'Separação' | 'Conferência', status: string, usuario: string | null, data?: string }[]>([]);
+  const [opStatusList, setOpStatusList] = useState<{ id: string, type: 'Separação' | 'Conferência', status: string, usuario: string | null, data?: string, op_range?: string }[]>([]);
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -73,21 +74,30 @@ const Dashboard: React.FC = () => {
       });
       const whData = Object.entries(whStats).map(([name, value]) => ({ name, value }));
 
-      // Gargalos (> 2 horas parado)
       const bottleneckTime = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
       const stalledLots = [...(sepData || []), ...(confData || [])]
-        .filter(item => isPending(item.status) && (item.updated_at || item.data_criacao) < bottleneckTime)
+        .filter(item => isPending(item.status) && (item.updated_at || item.data_criacao || item.created_at) < bottleneckTime)
         .map(item => ({
           id: item.id,
           op: String(item.id).slice(0, 8),
-          time: new Date(item.updated_at || item.data_criacao).toLocaleTimeString('pt-BR'),
+          time: new Date(item.updated_at || item.data_criacao || item.created_at).toLocaleTimeString('pt-BR'),
           type: sepData?.find(s => s.id === item.id) ? 'Separação' : 'Conferência'
         }));
 
-      // Divergências
+      const dailyMap: Record<string, number> = {};
+      histData?.forEach(h => {
+        const date = (h.data_finalizacao || h.created_at || '').split('T')[0];
+        if (date) dailyMap[date] = (dailyMap[date] || 0) + 1;
+      });
+      const dailyVolume = Object.entries(dailyMap)
+        .map(([name, value]) => ({ name: name.split('-').slice(1).reverse().join('/'), value }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .slice(-7);
+
       const currentDivergencias: any[] = [];
       (confData || []).forEach(conf => {
-        if (conf.status !== 'Finalizado') {
+        const isFinalized = conf.status === 'Finalizado' || conf.status === 'Finalizada';
+        if (!isFinalized) {
           (conf.itens || []).forEach((item: any) => {
             (item.composicao || []).forEach((comp: any) => {
               if (comp.falta_conf) {
@@ -111,12 +121,32 @@ const Dashboard: React.FC = () => {
         totalDivergencias: currentDivergencias.length,
         whData,
         ranking,
-        stalledLots
+        stalledLots,
+        dailyVolume
       });
 
+      const getOpRange = (item: any) => {
+        const firstItem = (item.itens || [])[0] || {};
+        return (firstItem.metadata?.op_range || item.op_range) || item.nome || item.documento || String(item.id).slice(0, 8);
+      };
+
       const combined = [
-        ...(sepData || []).map(d => ({ id: d.id, type: 'Separação' as const, status: d.status, usuario: d.usuario_atual, data: d.data_criacao || d.created_at || d.updated_at })),
-        ...(confData || []).map(d => ({ id: d.id, type: 'Conferência' as const, status: d.status, usuario: d.responsavel_conferencia, data: d.data_conferencia || d.created_at || d.updated_at }))
+        ...(sepData || []).map(d => ({
+          id: d.id,
+          type: 'Separação' as const,
+          status: d.status,
+          usuario: d.usuario_atual,
+          data: d.data_criacao || d.created_at || d.updated_at,
+          op_range: getOpRange(d)
+        })),
+        ...(confData || []).map(d => ({
+          id: d.id,
+          type: 'Conferência' as const,
+          status: d.status,
+          usuario: d.responsavel_conferencia,
+          data: d.data_conferencia || d.created_at || d.updated_at,
+          op_range: getOpRange(d)
+        }))
       ];
 
       setOpStatusList(combined);
@@ -204,59 +234,55 @@ const Dashboard: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Lado Esquerdo: Ranking e Progresso */}
+        {/* Lado Esquerdo: Volume Diário */}
         <div className="lg:col-span-2 space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Ranking de Produtividade */}
-            <div className="bg-[var(--bg-secondary)] p-8 rounded-2xl shadow-[var(--shadow-sm)] border border-[var(--border-light)] flex flex-col">
-              <h3 className="text-lg font-black text-[var(--text-primary)] mb-6 uppercase tracking-tighter flex items-center gap-2">
-                🏆 Top Performers (Mês)
-              </h3>
-              <div className="space-y-4 flex-1 flex flex-col justify-center">
-                {(kpiData.ranking || []).length > 0 ? (kpiData.ranking || []).map((user: any, i: number) => (
-                  <div key={user.name} className="flex items-center gap-4 group">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-white shadow-lg ${i === 0 ? 'bg-yellow-500 scale-110' : i === 1 ? 'bg-slate-400' : 'bg-orange-600'}`}>
-                      {i + 1}º
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs font-black text-[var(--text-primary)] uppercase">{user.name}</p>
-                      <div className="w-full h-1.5 bg-[var(--bg-inner)] rounded-full mt-1 overflow-hidden">
-                        <div
-                          className={`h-full transition-all duration-1000 ${i === 0 ? 'bg-yellow-500' : 'bg-emerald-500'}`}
-                          style={{ width: `${Math.min(100, (user.value / (kpiData.ranking[0].value)) * 100)}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                    <p className="text-[10px] font-black text-emerald-600">{user.value} OPs</p>
-                  </div>
-                )) : (
-                  <p className="text-center text-[10px] font-bold text-[var(--text-muted)] uppercase italic">Sem dados históricos</p>
-                )}
+          <div className="bg-[var(--bg-secondary)] p-8 rounded-2xl shadow-[var(--shadow-sm)] border border-[var(--border-light)] flex flex-col h-[400px]">
+            <div className="flex justify-between items-center mb-8">
+              <div>
+                <h3 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tighter">📦 OPs Entregues por Dia</h3>
+                <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Volume de finalizações nos últimos 7 dias</p>
+              </div>
+              <div className="flex items-center gap-2 bg-emerald-500/10 px-4 py-2 rounded-xl">
+                <span className="text-xl">📊</span>
+                <span className="text-xs font-black text-emerald-600 uppercase">Performance</span>
               </div>
             </div>
 
-            {/* Medidor de Carga Real-time */}
-            <div className="bg-[var(--bg-secondary)] p-8 rounded-2xl shadow-[var(--shadow-sm)] border border-[var(--border-light)] flex flex-col items-center justify-center text-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-emerald-500/5 pointer-events-none"></div>
-              <h3 className="text-sm font-black text-[var(--text-muted)] mb-6 uppercase tracking-widest">Capacidade do Dia</h3>
-              <div className="relative w-40 h-40">
-                <svg className="w-full h-full transform -rotate-90">
-                  <circle cx="80" cy="80" r="70" stroke="var(--bg-inner)" strokeWidth="12" fill="transparent" />
-                  <circle
-                    cx="80" cy="80" r="70"
-                    stroke="#10b981" strokeWidth="12" fill="transparent"
-                    strokeDasharray={440}
-                    strokeDashoffset={440 - (440 * Math.min(1, kpiData.finalizedMonth / 50))}
-                    strokeLinecap="round"
-                    className="transition-all duration-1000"
+            <div className="flex-1 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={kpiData.dailyVolume || []} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity={0.8} />
+                      <stop offset="100%" stopColor="#10b981" stopOpacity={0.2} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-light)" />
+                  <XAxis
+                    dataKey="name"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 900 }}
                   />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <p className="text-3xl font-black text-[var(--text-primary)]">{Math.round((kpiData.finalizedMonth / 50) * 100)}%</p>
-                  <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-tighter">Meta: 50 OPs</p>
-                </div>
-              </div>
-              <p className="mt-6 text-[10px] font-black text-emerald-600 uppercase tracking-widest animate-pulse">Operação em Fluxo</p>
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fill: 'var(--text-muted)', fontSize: 10, fontWeight: 900 }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'var(--bg-inner)', opacity: 0.4 }}
+                    contentStyle={{
+                      backgroundColor: 'var(--bg-secondary)',
+                      border: '2px solid var(--border-light)',
+                      borderRadius: '1rem',
+                      fontSize: '10px',
+                      fontWeight: 900,
+                      textTransform: 'uppercase'
+                    }}
+                  />
+                  <Bar dataKey="value" fill="url(#barGradient)" radius={[8, 8, 0, 0]} barSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
 
@@ -351,27 +377,38 @@ const Dashboard: React.FC = () => {
           {opStatusList
             .filter(op => (op as any).data?.startsWith(dateFilter))
             .map((op, idx) => {
-              const borderClass = op.status === 'Finalizado' ? 'border-emerald-500' :
+              const borderClass = op.status === 'Finalizado' || op.status === 'Finalizada' ? 'border-emerald-500' :
                 op.usuario ? 'border-blue-500' : 'border-[var(--border-light)]';
               return (
-                <div key={`${op.id}-${idx}`} className={`bg-[var(--bg-secondary)] border-2 ${borderClass} p-4 rounded-2xl shadow-[var(--shadow-sm)] hover:shadow-md transition-shadow`}>
-                  <div className="flex justify-between items-start mb-3">
-                    <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase ${op.type === 'Separação' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'}`}>
+                <div key={`${op.id}-${idx}`} className={`bg-[var(--bg-secondary)] border-2 ${borderClass} p-5 rounded-[2rem] shadow-[var(--shadow-sm)] hover:shadow-xl hover:scale-[1.02] transition-all relative overflow-hidden group`}>
+                  <div className="flex justify-between items-start mb-4">
+                    <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter shadow-sm ${op.type === 'Separação' ? 'bg-blue-600 text-white' : 'bg-orange-500 text-white'}`}>
                       {op.type}
                     </span>
-                    <span className="text-[10px] font-black text-gray-300">#{op.id.toString().slice(-4)}</span>
+                    <div className="flex items-center gap-1.5 opacity-30 group-hover:opacity-100 transition-opacity">
+                      <span className="text-[12px]">🔍</span>
+                      <span className="text-[7px] font-black uppercase tracking-tighter">Relação de OPs</span>
+                    </div>
                   </div>
-                  <p className="text-xs font-black text-[var(--text-primary)] mb-1 truncate">OP {op.id.toString().slice(0, 6)}</p>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-1.5 h-1.5 rounded-full ${op.status === 'Finalizado' ? 'bg-emerald-500' : 'bg-orange-500 animate-pulse'}`}></div>
-                    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">{op.status}</p>
+
+                  <div className="space-y-1 mb-4">
+                    <p className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-tight leading-tight">
+                      {op.op_range || `OP ${op.id.toString().slice(0, 6)}`}
+                    </p>
+                    <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase tracking-widest">Lote {op.id.toString().slice(-4)}</p>
                   </div>
+
+                  <div className="flex items-center gap-2.5 bg-[var(--bg-inner)] p-3 rounded-2xl">
+                    <div className={`w-2 h-2 rounded-full ${op.status === 'Finalizado' || op.status === 'Finalizada' ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-orange-500 animate-pulse'}`}></div>
+                    <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-tighter">{op.status}</p>
+                  </div>
+
                   {op.usuario && (
-                    <div className="mt-2 pt-2 border-t border-gray-50 flex items-center gap-2">
-                      <div className="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center text-[8px] font-black text-emerald-700">
+                    <div className="mt-4 pt-4 border-t border-[var(--border-light)] flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-[10px] font-black text-white shadow-sm">
                         {op.usuario.charAt(0)}
                       </div>
-                      <span className="text-[9px] font-bold text-gray-400 truncate">{op.usuario}</span>
+                      <span className="text-[10px] font-black text-[var(--text-muted)] uppercase truncate tracking-tighter">{op.usuario}</span>
                     </div>
                   )}
                 </div>
