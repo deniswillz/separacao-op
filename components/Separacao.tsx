@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { UrgencyLevel, User } from '../types';
 import { BlacklistItem } from '../App';
-import { supabase } from '../services/supabaseClient';
+import { supabase, supabaseUrl, supabaseAnonKey } from '../services/supabaseClient';
 import Loading from './Loading';
 import { useAlert } from './AlertContext';
 
@@ -43,6 +43,34 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
   const [showObsModal, setShowObsModal] = useState(false);
   const [obsItem, setObsItem] = useState<any | null>(null);
   const [manualSeparador, setManualSeparador] = useState(user.nome);
+
+  const selectedOPRef = useRef<OPMock | null>(null);
+  useEffect(() => { selectedOPRef.current = selectedOP; }, [selectedOP]);
+
+  useEffect(() => {
+    const handleRelease = () => {
+      if (selectedOPRef.current) {
+        const id = selectedOPRef.current.id;
+        const url = `${supabaseUrl}/rest/v1/separacao?id=eq.${id}`;
+        fetch(url, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseAnonKey!,
+            'Authorization': `Bearer ${supabaseAnonKey}`
+          },
+          body: JSON.stringify({ usuario_atual: null }),
+          keepalive: true
+        });
+      }
+    };
+
+    window.addEventListener('beforeunload', handleRelease);
+    return () => {
+      window.removeEventListener('beforeunload', handleRelease);
+      handleRelease();
+    };
+  }, []);
 
   const fetchOps = async () => {
     setIsSyncing(true);
@@ -248,17 +276,18 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
       if (blacklistItem?.nao_sep) return true;
       if (i.falta) return true;
 
-      // If item is marked as OK, it must have Lupa and TR finished.
-      // If not marked as OK, it is skipped (OUT) and doesn't block finalization.
-      if (i.ok) {
-        const isLupaDone = i.composicao?.every((c: any) => c.concluido);
-        return isLupaDone && i.tr;
-      }
-      return true;
+      // New Strict Rule: Every non-blacklisted, non-OUT item MUST have:
+      // 1. OK marked
+      // 2. Lupa distribution finished (all compositions concluded)
+      // 3. TR marked
+      const isLupaDone = i.composicao?.every((c: any) => c.concluido) &&
+        i.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0) >= i.quantidade;
+
+      return i.ok && isLupaDone && i.tr;
     });
 
     if (!isComplete) {
-      showAlert('PROCESSO IMPEDIDO: Itens marcados como OK devem ter a Lupa finalizada e o Check TR marcado.', 'error');
+      showAlert('PROCESSO IMPEDIDO: Todos os itens devem ser finalizados (OK + LUPA + TR) ou marcados como FALTA (OUT).', 'error');
       return;
     }
 

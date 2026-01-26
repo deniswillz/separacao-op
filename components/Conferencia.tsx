@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../services/supabaseClient';
+import React, { useState, useEffect, useRef } from 'react';
+import { supabase, supabaseUrl, supabaseAnonKey } from '../services/supabaseClient';
 import { User } from '../types';
 import Loading from './Loading';
 import { useAlert } from './AlertContext';
@@ -25,6 +25,34 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
   const [showDivModal, setShowDivModal] = useState(false);
   const [divItem, setDivItem] = useState<any | null>(null);
   const [divReason, setDivReason] = useState('');
+
+  const selectedItemRef = useRef<any>(null);
+  useEffect(() => { selectedItemRef.current = selectedItem; }, [selectedItem]);
+
+  useEffect(() => {
+    const handleRelease = () => {
+      if (selectedItemRef.current) {
+        const id = selectedItemRef.current.id;
+        const url = `${supabaseUrl}/rest/v1/conferencia?id=eq.${id}`;
+        fetch(url, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseAnonKey!,
+            'Authorization': `Bearer ${supabaseAnonKey}`
+          },
+          body: JSON.stringify({ responsavel_conferencia: null }),
+          keepalive: true
+        });
+      }
+    };
+
+    window.addEventListener('beforeunload', handleRelease);
+    return () => {
+      window.removeEventListener('beforeunload', handleRelease);
+      handleRelease();
+    };
+  }, []);
 
   const fetchItems = async () => {
     setIsLoading(true);
@@ -179,7 +207,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
     });
 
     if (!isComplete) {
-      showAlert('Bloqueio: Todos os itens conferidos devem estar em check (OK e TR) para finalizar.', 'warning');
+      showAlert('PROCESSO IMPEDIDO: Todos os itens devem ter as 2 etapas de conferência (OK e TR) efetuadas para finalizar.', 'error');
       return;
     }
 
