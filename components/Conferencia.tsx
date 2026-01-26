@@ -123,9 +123,9 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
     setSelectedItem(null);
   };
 
-  const updateItemConf = async (itemCodigo: string, field: string, value: any) => {
+  const updateItemConf = async (itemCodigo: string, updates: Record<string, any>) => {
     if (!selectedItem) return;
-    const newItens = selectedItem.itens.map((i: any) => i.codigo === itemCodigo ? { ...i, [field]: value } : i);
+    const newItens = selectedItem.itens.map((i: any) => i.codigo === itemCodigo ? { ...i, ...updates } : i);
     // Silent Save
     setSelectedItem({ ...selectedItem, itens: newItens });
     await supabase.from('conferencia').update({ itens: newItens }).eq('id', selectedItem.id);

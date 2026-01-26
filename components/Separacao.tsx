@@ -267,9 +267,9 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
     }
   };
 
-  const updateItem = async (itemCodigo: string, field: string, value: any) => {
+  const updateItem = async (itemCodigo: string, updates: Record<string, any>) => {
     if (!selectedOP) return;
-    const newItens = selectedOP.rawItens.map(i => i.codigo === itemCodigo ? { ...i, [field]: value } : i);
+    const newItens = selectedOP.rawItens.map(i => i.codigo === itemCodigo ? { ...i, ...updates } : i);
 
     // Silent Save: No global loading, just local update + background sync
     setSelectedOP({ ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) });
@@ -531,14 +531,14 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                               disabled={isOut}
                               className={`w-20 px-3 py-2 bg-[var(--bg-secondary)] border rounded-xl text-center font-black text-sm outline-none transition-all ${isOut ? 'opacity-20 bg-[var(--bg-inner)]' : item.qtd_separada > item.quantidade ? 'border-red-500 ring-4 ring-red-500/10' : 'border-[var(--border-light)] focus:ring-4 focus:ring-emerald-500/10 text-[var(--text-primary)]'}`}
                               value={item.qtd_separada || 0}
-                              onChange={(e) => updateItem(item.codigo, 'qtd_separada', Number(e.target.value))}
+                              onChange={(e) => updateItem(item.codigo, { qtd_separada: Number(e.target.value) })}
                             />
                           </td>
                           <td className="px-10 py-6">
                             <div className="flex justify-center gap-2">
                               <button
                                 disabled={isOut}
-                                onClick={() => updateItem(item.codigo, 'ok', !item.ok)}
+                                onClick={() => updateItem(item.codigo, { ok: !item.ok })}
                                 className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : item.ok ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-100' : 'bg-white border border-gray-200 text-emerald-600 hover:bg-emerald-50'}`}
                                 title="1. OK - Separado"
                               >
@@ -546,7 +546,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                               </button>
                               <button
                                 disabled={isOut}
-                                onClick={() => updateItem(item.codigo, 'tr', !item.tr)}
+                                onClick={() => updateItem(item.codigo, { tr: !item.tr })}
                                 className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${isOut ? 'opacity-20 cursor-not-allowed' : item.tr ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' : 'bg-white border border-gray-200 text-blue-600 hover:bg-blue-50'}`}
                                 title="3. TR - Transferido"
                               >
@@ -555,12 +555,12 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                               <button
                                 onClick={() => {
                                   const newFalta = !item.falta;
-                                  // When turning on OUT, clear other flags
-                                  updateItem(item.codigo, 'falta', newFalta);
-                                  if (newFalta) {
-                                    updateItem(item.codigo, 'ok', false);
-                                    updateItem(item.codigo, 'tr', false);
-                                  }
+                                  // Atomic Batch Update to prevent race conditions
+                                  updateItem(item.codigo, {
+                                    falta: newFalta,
+                                    ok: newFalta ? false : item.ok,
+                                    tr: newFalta ? false : item.tr
+                                  });
                                 }}
                                 className={`w-12 h-12 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center ${item.falta ? 'bg-red-600 text-white shadow-lg shadow-red-100' : 'bg-white border border-gray-200 text-red-600 hover:bg-red-50'}`}
                                 title="OUT - Falta/Divergência"
