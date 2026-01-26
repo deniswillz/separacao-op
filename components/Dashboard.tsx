@@ -20,7 +20,9 @@ const Dashboard: React.FC = () => {
     whData: [] as any[],
     ranking: [] as any[],
     stalledLots: [] as any[],
-    dailyVolume: [] as any[]
+    dailyVolume: [] as any[],
+    abcCurve: [] as any[],
+    shortageItems: [] as any[]
   });
   const [opStatusList, setOpStatusList] = useState<{ id: string, type: 'Separação' | 'Conferência', status: string, usuario: string | null, data?: string, op_range?: string, itens?: any[] }[]>([]);
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
@@ -78,6 +80,86 @@ const Dashboard: React.FC = () => {
         if (item.armazem) whStats[item.armazem] = (whStats[item.armazem] || 0) + 1;
       });
       const whData = Object.entries(whStats).map(([name, value]) => ({ name, value }));
+
+      const currentDivergencias: any[] = [];
+      (confData || []).forEach(conf => {
+        const isFinalized = conf.status === 'Finalizado' || conf.status === 'Finalizada';
+        if (!isFinalized) {
+          (conf.itens || []).forEach((item: any) => {
+            (item.composicao || []).forEach((comp: any) => {
+              if (comp.falta_conf) {
+                currentDivergencias.push({
+                  op: comp.op,
+                  produto: `${item.codigo} - ${item.descricao}`,
+                  responsavel: conf.responsavel_conferencia || 'Não atribuído',
+                  motivo: comp.motivo_divergencia || 'Não especificado'
+                });
+              }
+            });
+          });
+        }
+      });
+
+      setDivergencias(currentDivergencias);
+
+      // --- Curva ABC e Análise de Itens ---
+      const itemFrequency: Record<string, { code: string, desc: string, count: number }> = {};
+      histData?.forEach(h => {
+        (h.itens || []).forEach((item: any) => {
+          if (!item.codigo) return;
+          if (!itemFrequency[item.codigo]) {
+            itemFrequency[item.codigo] = { code: item.codigo, desc: item.descricao || 'N/A', count: 0 };
+          }
+          itemFrequency[item.codigo].count++;
+        });
+      });
+
+      const sortedFreq = Object.values(itemFrequency).sort((a, b) => b.count - a.count);
+      const totalFrequency = sortedFreq.reduce((acc, curr) => acc + curr.count, 0) || 1;
+      let cumulative = 0;
+      const abcCurve = sortedFreq.map(item => {
+        cumulative += item.count;
+        const percentile = (cumulative / totalFrequency) * 100;
+        let category = 'C';
+        if (percentile <= 20) category = 'A';
+        else if (percentile <= 50) category = 'B';
+        return { ...item, category, percent: ((item.count / totalFrequency) * 100).toFixed(1) };
+      });
+
+      // Consolidação de Faltas por Item
+      const shortageMap: Record<string, { code: string, desc: string, count: number }> = {};
+      currentDivergencias.forEach(div => {
+        const code = div.produto.split(' - ')[0];
+        const desc = div.produto.split(' - ')[1] || 'N/A';
+        if (!shortageMap[code]) shortageMap[code] = { code, desc, count: 0 };
+        shortageMap[code].count++;
+      });
+      const shortageItems = Object.values(shortageMap).sort((a, b) => b.count - a.count);
+
+      const dailyMap: Record<string, number> = {};
+      histData?.forEach(h => {
+        const date = (h.data_finalizacao || h.created_at || '').split('T')[0];
+        if (date) dailyMap[date] = (dailyMap[date] || 0) + 1;
+      });
+      const dailyVolume = Object.entries(dailyMap)
+        .map(([name, value]) => ({ name: name.split('-').slice(1).reverse().join('/'), value }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .slice(-7);
+
+      setKpiData({
+        pendingOps: pending,
+        pendingSeparation: pendingSep,
+        pendingConferencia: pendingConf,
+        finalizedMonth: finalizedMonthCount,
+        inTransit: inTransitCount,
+        totalDivergencias: currentDivergencias.length,
+        whData,
+        ranking,
+        stalledLots: [],
+        dailyVolume,
+        abcCurve: abcCurve.slice(0, 10),
+        shortageItems: shortageItems.slice(0, 5)
+      });
 
       const bottleneckThreshold = 6 * 60 * 60 * 1000;
       const bottleneckTime = new Date(now.getTime() - bottleneckThreshold).toISOString();
@@ -257,17 +339,56 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Distribuição por Armazém */}
-          <div className="bg-[var(--bg-secondary)] p-8 rounded-2xl shadow-[var(--shadow-sm)] border border-[var(--border-light)]">
-            <h3 className="text-sm font-black text-[var(--text-primary)] mb-6 uppercase tracking-widest">📍 Volume Ativo por Armazém</h3>
-            <div className="flex flex-wrap gap-4 justify-center">
-              {(kpiData.whData || []).map((wh: any) => (
-                <div key={wh.name} className="flex flex-col items-center gap-2 p-4 bg-[var(--bg-inner)] rounded-2xl border border-[var(--border-light)] min-w-[100px]">
-                  <p className="text-lg font-black text-[var(--text-primary)]">{wh.value}</p>
-                  <p className="text-[9px] font-black text-blue-500 uppercase tracking-tighter">Setor {wh.name}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Distribuição por Armazém */}
+            <div className="bg-[var(--bg-secondary)] p-8 rounded-2xl shadow-[var(--shadow-sm)] border border-[var(--border-light)]">
+              <h3 className="text-sm font-black text-[var(--text-primary)] mb-6 uppercase tracking-widest flex items-center gap-2">
+                📍 Volume Ativo por Armazém
+              </h3>
+              <div className="flex flex-wrap gap-4 justify-center">
+                {(kpiData.whData || []).map((wh: any) => (
+                  <div key={wh.name} className="flex flex-col items-center gap-2 p-4 bg-[var(--bg-inner)] rounded-2xl border border-[var(--border-light)] min-w-[100px] flex-1">
+                    <p className="text-lg font-black text-[var(--text-primary)]">{wh.value}</p>
+                    <p className="text-[9px] font-black text-blue-500 uppercase tracking-tighter">Setor {wh.name}</p>
+                  </div>
+                ))}
+                {(kpiData.whData || []).length === 0 && <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase italic">Aguardando dados...</p>}
+              </div>
+            </div>
+
+            {/* Análise de Itens (ABC e Faltas) */}
+            <div className="bg-[var(--bg-secondary)] p-8 rounded-2xl shadow-[var(--shadow-sm)] border border-[var(--border-light)]">
+              <h3 className="text-sm font-black text-[var(--text-primary)] mb-6 uppercase tracking-widest flex items-center gap-2">
+                📊 Análise de Itens (ABC)
+              </h3>
+              <div className="space-y-4">
+                <div className="flex gap-2 mb-4 overflow-x-auto pb-2 custom-scrollbar">
+                  {kpiData.abcCurve.slice(0, 5).map((item, i) => (
+                    <div key={i} className="flex flex-col items-center p-3 bg-[var(--bg-inner)] rounded-xl border border-[var(--border-light)] min-w-[70px]">
+                      <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md mb-1 ${item.category === 'A' ? 'bg-emerald-500 text-white' : item.category === 'B' ? 'bg-blue-500 text-white' : 'bg-gray-400 text-white'}`}>
+                        {item.category}
+                      </span>
+                      <p className="text-[9px] font-black text-[var(--text-primary)] truncate w-full text-center">{item.code}</p>
+                      <p className="text-[8px] font-bold text-gray-400">{item.percent}%</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              {(kpiData.whData || []).length === 0 && <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase italic">Aguardando dados...</p>}
+
+                <h4 className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-3">🔥 Faltas Recorrentes</h4>
+                <div className="space-y-2">
+                  {kpiData.shortageItems.length > 0 ? kpiData.shortageItems.map((item, i) => (
+                    <div key={i} className="flex justify-between items-center bg-red-500/5 p-2 rounded-lg border border-red-500/10">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-[var(--text-primary)]">{item.code}</span>
+                        <span className="text-[8px] font-medium text-gray-500 truncate max-w-[120px]">{item.desc}</span>
+                      </div>
+                      <span className="text-[10px] font-black bg-red-500 text-white px-2 py-0.5 rounded-full">{item.count} OPs</span>
+                    </div>
+                  )) : (
+                    <p className="text-[9px] font-bold text-gray-400 uppercase italic">Nenhuma falta recorrente</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
