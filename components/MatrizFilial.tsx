@@ -419,7 +419,13 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                         <td className="py-4 text-center font-black text-xs">{item.quantidade}</td>
                         <td className="py-4 font-black text-[10px] text-purple-600 uppercase">{item.destino}</td>
                         <td className="py-4 text-right text-[10px] font-bold text-[var(--text-muted)]">
-                          {new Date(item.ultima_atualizacao!).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })} (BRT)
+                          {(() => {
+                            const dateStr = item.ultima_atualizacao!;
+                            const fixedDateStr = (dateStr.includes(' ') && !dateStr.includes('Z') && !dateStr.includes('+'))
+                              ? dateStr.replace(' ', 'T') + 'Z'
+                              : dateStr;
+                            return new Date(fixedDateStr).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+                          })()} (BRT)
                         </td>
                       </tr>
                     ))}

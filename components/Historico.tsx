@@ -140,7 +140,15 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
               <div className="flex justify-between items-end mt-4">
                 <div className="space-y-1">
                   <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest leading-none">Data Fechamento</p>
-                  <p className="text-[10px] font-black text-[var(--text-muted)] italic">{new Date(item.data_finalizacao).toLocaleDateString('pt-BR')}</p>
+                  <p className="text-[10px] font-black text-[var(--text-muted)] italic">
+                    {(() => {
+                      const dateStr = item.data_finalizacao;
+                      const fixedDateStr = (dateStr.includes(' ') && !dateStr.includes('Z') && !dateStr.includes('+'))
+                        ? dateStr.replace(' ', 'T') + 'Z'
+                        : dateStr;
+                      return new Date(fixedDateStr).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+                    })()}
+                  </p>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -238,7 +246,13 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                       <span className="text-emerald-400">✅</span>
                     </div>
                     <p className="text-[10px] font-medium text-[var(--text-muted)] font-mono italic opacity-60">
-                      {new Date(selectedItem.data_finalizacao).toLocaleString('pt-BR')}
+                      {(() => {
+                        const dateStr = selectedItem.data_finalizacao;
+                        const fixedDateStr = (dateStr.includes(' ') && !dateStr.includes('Z') && !dateStr.includes('+'))
+                          ? dateStr.replace(' ', 'T') + 'Z'
+                          : dateStr;
+                        return new Date(fixedDateStr).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+                      })()} (BRT)
                     </p>
                   </div>
                 </div>

@@ -363,11 +363,14 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
       i.composicao?.some((c: any) => c.op === opCode)
     );
     if (opItems.length === 0) return false;
-    return opItems.every((i: any) =>
-      i.composicao
+    return opItems.every((i: any) => {
+      // Ignore items that were NOT OK'd in separation (following handleFinalize line 220)
+      if (i.ok !== true && i.ok !== 'true') return true;
+
+      return i.composicao
         ?.filter((c: any) => c.op === opCode)
-        .every((c: any) => c.ok_conf)
-    );
+        .every((c: any) => c.ok_conf && c.tr_conf);
+    });
   };
 
   if (isLoading && items.length === 0) return <Loading message="Sincronizando Conferência..." />;
@@ -375,12 +378,12 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
   // Calculate stats for Detail View
   const totalSeparado = selectedItem?.itens.reduce((acc: number, item: any) => acc + (item.quantidade || 0), 0) || 0;
   const totalConferidoQtd = selectedItem?.itens.reduce((acc: number, item: any) => {
-    return acc + (item.composicao || []).reduce((cAcc: number, c: any) => c.ok_conf ? cAcc + (c.qtd_separada || 0) : cAcc, 0);
+    return acc + (item.composicao || []).reduce((cAcc: number, c: any) => (c.ok_conf && c.tr_conf) ? cAcc + (c.qtd_separada || 0) : cAcc, 0);
   }, 0) || 0;
 
   const progressoGeral = totalSeparado > 0 ? Math.round((totalConferidoQtd / totalSeparado) * 100) : 0;
   const totalOkItemsCount = selectedItem?.itens.filter((i: any) => i.ok === true || i.ok === 'true').length || 0;
-  const itensCompletosCount = selectedItem?.itens.filter((i: any) => (i.ok === true || i.ok === 'true') && (i.composicao || []).every((c: any) => c.ok_conf)).length || 0;
+  const itensCompletosCount = selectedItem?.itens.filter((i: any) => (i.ok === true || i.ok === 'true') && (i.composicao || []).every((c: any) => c.ok_conf && c.tr_conf)).length || 0;
   const divergenciasCount = selectedItem?.itens.filter((i: any) => i.div_conferencia).length || 0;
 
   return (
