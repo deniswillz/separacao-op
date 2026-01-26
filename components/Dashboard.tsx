@@ -370,16 +370,16 @@ const Dashboard: React.FC = () => {
               </h3>
               <div className="space-y-4">
                 <div className="flex gap-2 mb-4">
-                  {kpiData.abcCurve.slice(0, 1).map((item, i) => (
-                    <div key={i} className="flex flex-col items-center p-3 bg-[var(--bg-inner)] rounded-xl border border-[var(--border-light)] min-w-[85px] hover:scale-105 transition-transform shadow-sm">
+                  {kpiData.abcCurve.slice(0, 2).map((item, i) => (
+                    <div key={i} className="flex flex-col items-center p-3 bg-[var(--bg-inner)] rounded-xl border border-[var(--border-light)] min-w-[95px] hover:scale-105 transition-transform shadow-sm">
                       <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md mb-1 ${item.category === 'A' ? 'bg-emerald-500 text-white' : item.category === 'B' ? 'bg-blue-500 text-white' : 'bg-gray-400 text-white'}`}>
                         {item.category}
                       </span>
-                      <p className="text-[10px] font-black text-[var(--text-primary)] truncate w-full text-center leading-none" title={item.code}>{item.code}</p>
+                      <p className="text-[10px] font-black text-[var(--text-primary)] w-full text-center leading-none tracking-tight" title={item.code}>{item.code}</p>
                       <p className="text-[8px] font-bold text-gray-400 mt-1">{item.percent}%</p>
                     </div>
                   ))}
-                  {kpiData.abcCurve.length > 3 && (
+                  {kpiData.abcCurve.length > 2 && (
                     <button
                       onClick={() => setShowABCPopup(true)}
                       className="flex flex-col items-center justify-center p-3 bg-emerald-50 border-2 border-dashed border-emerald-200 rounded-xl min-w-[50px] hover:bg-emerald-100 transition-colors group"
