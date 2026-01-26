@@ -28,6 +28,7 @@ const Dashboard: React.FC = () => {
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showABCPopup, setShowABCPopup] = useState(false);
+  const [selectedShortage, setSelectedShortage] = useState<any>(null);
   const [selectedLot, setSelectedLot] = useState<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -93,7 +94,8 @@ const Dashboard: React.FC = () => {
                   op: comp.op,
                   produto: `${item.codigo} - ${item.descricao}`,
                   responsavel: conf.responsavel_conferencia || 'Não atribuído',
-                  motivo: comp.motivo_divergencia || 'Não especificado'
+                  motivo: comp.motivo_divergencia || 'Não especificado',
+                  data: conf.data_conferencia || conf.created_at || conf.updated_at
                 });
               }
             });
@@ -131,12 +133,13 @@ const Dashboard: React.FC = () => {
       });
 
       // Consolidação de Faltas por Item
-      const shortageMap: Record<string, { code: string, desc: string, count: number }> = {};
+      const shortageMap: Record<string, { code: string, desc: string, count: number, ops: any[] }> = {};
       currentDivergencias.forEach(div => {
         const code = div.produto.split(' - ')[0];
         const desc = div.produto.split(' - ')[1] || 'N/A';
-        if (!shortageMap[code]) shortageMap[code] = { code, desc, count: 0 };
+        if (!shortageMap[code]) shortageMap[code] = { code, desc, count: 0, ops: [] };
         shortageMap[code].count++;
+        shortageMap[code].ops.push({ op: div.op, data: div.data });
       });
       const shortageItems = Object.values(shortageMap).sort((a, b) => b.count - a.count);
 
@@ -395,7 +398,12 @@ const Dashboard: React.FC = () => {
                         <span className="text-[10px] font-black text-[var(--text-primary)]">{item.code}</span>
                         <span className="text-[8px] font-medium text-gray-500 truncate max-w-[120px]">{item.desc}</span>
                       </div>
-                      <span className="text-[10px] font-black bg-red-500 text-white px-2 py-0.5 rounded-full">{item.count} OPs</span>
+                      <button
+                        onClick={() => setSelectedShortage(item)}
+                        className="text-[10px] font-black bg-red-500 text-white px-2 py-0.5 rounded-full hover:bg-red-600 transition-colors shadow-sm"
+                      >
+                        {item.count} OPs
+                      </button>
                     </div>
                   )) : (
                     <p className="text-[9px] font-bold text-gray-400 uppercase italic">Nenhuma falta recorrente</p>
@@ -651,6 +659,68 @@ const Dashboard: React.FC = () => {
                 className="w-full py-5 bg-[#1a1c1e] rounded-[1.5rem] text-[10px] font-black text-white uppercase tracking-[0.2em] shadow-xl hover:bg-black active:scale-95 transition-all"
               >
                 Voltar ao Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shortage Detail Modal */}
+      {selectedShortage && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSelectedShortage(null)}></div>
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl relative overflow-hidden animate-scaleIn border border-white flex flex-col max-h-[70vh]">
+            <div className="p-8 pb-4 bg-red-600 text-white shrink-0">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-xl font-black uppercase tracking-tighter">Detalhamento de Faltas</h3>
+                <button
+                  onClick={() => setSelectedShortage(null)}
+                  className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-2xl flex items-center justify-center transition-all"
+                >
+                  ✕
+                </button>
+              </div>
+              <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest leading-tight">
+                {selectedShortage.code} - {selectedShortage.desc}
+              </p>
+            </div>
+
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-2">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="pb-3 text-[9px] font-bold text-gray-400 uppercase tracking-widest px-2">OP Relacionada</th>
+                    <th className="pb-3 text-[9px] font-bold text-gray-400 uppercase tracking-widest px-2 text-right">Data/Hora</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {selectedShortage.ops.map((opItem: any, i: number) => (
+                    <tr key={i} className="hover:bg-gray-50 transition-colors">
+                      <td className="py-4 px-2">
+                        <span className="text-xs font-black text-gray-800 font-mono tracking-tighter bg-gray-100 px-2 py-1 rounded-lg border border-gray-200">
+                          OP-{opItem.op}
+                        </span>
+                      </td>
+                      <td className="py-4 px-2 text-right">
+                        <p className="text-[10px] font-bold text-gray-500">
+                          {new Date(opItem.data).toLocaleDateString('pt-BR')}
+                        </p>
+                        <p className="text-[8px] font-medium text-gray-400 italic">
+                          {new Date(opItem.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="p-8 pt-4 bg-gray-50 border-t border-gray-100 shrink-0">
+              <button
+                onClick={() => setSelectedShortage(null)}
+                className="w-full py-4 bg-gray-800 rounded-2xl text-[10px] font-black text-white uppercase tracking-widest shadow-lg hover:bg-black active:scale-95 transition-all"
+              >
+                Fechar Detalhamento
               </button>
             </div>
           </div>
