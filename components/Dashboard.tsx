@@ -141,7 +141,7 @@ const Dashboard: React.FC = () => {
         ...(sepData || []).map(d => ({
           id: d.id,
           type: 'Separação' as const,
-          status: d.status,
+          status: d.status === 'Em Uso' ? 'Em Separação' : d.status,
           usuario: d.usuario_atual,
           data: d.data_criacao || d.created_at || d.updated_at,
           op_range: getOpRange(d),
@@ -150,7 +150,7 @@ const Dashboard: React.FC = () => {
         ...(confData || []).map(d => ({
           id: d.id,
           type: 'Conferência' as const,
-          status: d.status,
+          status: d.status === 'Em Uso' ? 'Em Conferência' : d.status,
           usuario: d.responsavel_conferencia,
           data: d.data_conferencia || d.created_at || d.updated_at,
           op_range: getOpRange(d),
@@ -383,23 +383,6 @@ const Dashboard: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {/* Card Resumo: Pendente Separação */}
-          <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-5 rounded-[2rem] shadow-lg flex flex-col justify-between items-center text-center group hover:scale-[1.02] transition-all border-b-4 border-blue-800">
-            <span className="text-2xl mb-2">📦</span>
-            <div className="space-y-0.5">
-              <p className="text-[24px] font-black text-white leading-none">{kpiData.pendingSeparation}</p>
-              <p className="text-[8px] font-black text-blue-100 uppercase tracking-widest opacity-80">Pendente Separação</p>
-            </div>
-          </div>
-
-          {/* Card Resumo: Pendente Conferência */}
-          <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-5 rounded-[2rem] shadow-lg flex flex-col justify-between items-center text-center group hover:scale-[1.02] transition-all border-b-4 border-orange-700">
-            <span className="text-2xl mb-2">🔍</span>
-            <div className="space-y-0.5">
-              <p className="text-[24px] font-black text-white leading-none">{kpiData.pendingConferencia}</p>
-              <p className="text-[8px] font-black text-orange-100 uppercase tracking-widest opacity-80">Pendente Conferência</p>
-            </div>
-          </div>
 
           {opStatusList
             .filter(op => (op as any).data?.startsWith(dateFilter))
@@ -423,7 +406,7 @@ const Dashboard: React.FC = () => {
 
                   <div className="space-y-1 mb-4">
                     <p className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-tight leading-tight">
-                      {op.op_range || `OP ${op.id.toString().slice(0, 6)}`}
+                      {op.op_range || 'OP sem intervalo'}
                     </p>
 
                   </div>
