@@ -27,6 +27,7 @@ const Dashboard: React.FC = () => {
   const [opStatusList, setOpStatusList] = useState<{ id: string, type: 'Separação' | 'Conferência', status: string, usuario: string | null, data?: string, op_range?: string, itens?: any[] }[]>([]);
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [showBreakdown, setShowBreakdown] = useState(false);
+  const [showABCPopup, setShowABCPopup] = useState(false);
   const [selectedLot, setSelectedLot] = useState<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -103,10 +104,13 @@ const Dashboard: React.FC = () => {
       setDivergencias(currentDivergencias);
 
       // --- Curva ABC e Análise de Itens ---
+      const { data: blacklistData } = await supabase.from('blacklist').select('codigo, nao_sep');
+      const nonSepCodes = new Set(blacklistData?.filter(b => b.nao_sep).map(b => b.codigo) || []);
+
       const itemFrequency: Record<string, { code: string, desc: string, count: number }> = {};
       histData?.forEach(h => {
         (h.itens || []).forEach((item: any) => {
-          if (!item.codigo) return;
+          if (!item.codigo || nonSepCodes.has(item.codigo)) return;
           if (!itemFrequency[item.codigo]) {
             itemFrequency[item.codigo] = { code: item.codigo, desc: item.descricao || 'N/A', count: 0 };
           }
@@ -362,16 +366,25 @@ const Dashboard: React.FC = () => {
                 📊 Análise de Itens (ABC)
               </h3>
               <div className="space-y-4">
-                <div className="flex gap-2 mb-4 overflow-x-auto pb-2 custom-scrollbar">
-                  {kpiData.abcCurve.slice(0, 5).map((item, i) => (
-                    <div key={i} className="flex flex-col items-center p-3 bg-[var(--bg-inner)] rounded-xl border border-[var(--border-light)] min-w-[70px]">
+                <div className="flex gap-2 mb-4">
+                  {kpiData.abcCurve.slice(0, 3).map((item, i) => (
+                    <div key={i} className="flex flex-col items-center p-3 bg-[var(--bg-inner)] rounded-xl border border-[var(--border-light)] min-w-[85px] hover:scale-105 transition-transform shadow-sm">
                       <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md mb-1 ${item.category === 'A' ? 'bg-emerald-500 text-white' : item.category === 'B' ? 'bg-blue-500 text-white' : 'bg-gray-400 text-white'}`}>
                         {item.category}
                       </span>
-                      <p className="text-[9px] font-black text-[var(--text-primary)] truncate w-full text-center">{item.code}</p>
-                      <p className="text-[8px] font-bold text-gray-400">{item.percent}%</p>
+                      <p className="text-[10px] font-black text-[var(--text-primary)] truncate w-full text-center leading-none" title={item.code}>{item.code}</p>
+                      <p className="text-[8px] font-bold text-gray-400 mt-1">{item.percent}%</p>
                     </div>
                   ))}
+                  {kpiData.abcCurve.length > 3 && (
+                    <button
+                      onClick={() => setShowABCPopup(true)}
+                      className="flex flex-col items-center justify-center p-3 bg-emerald-50 border-2 border-dashed border-emerald-200 rounded-xl min-w-[50px] hover:bg-emerald-100 transition-colors group"
+                    >
+                      <span className="text-emerald-600 text-lg font-black group-hover:scale-125 transition-transform">+</span>
+                      <span className="text-[7px] font-black text-emerald-600 uppercase">Ver Tudo</span>
+                    </button>
+                  )}
                 </div>
 
                 <h4 className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-3">🔥 Faltas Recorrentes</h4>
@@ -583,6 +596,61 @@ const Dashboard: React.FC = () => {
                 className="w-full py-5 bg-[#1a1c1e] rounded-[1.5rem] text-[10px] font-black text-white uppercase tracking-[0.2em] shadow-xl hover:bg-black active:scale-95 transition-all"
               >
                 FECHAR LISTA
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ABC Full List Modal */}
+      {showABCPopup && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowABCPopup(false)}></div>
+          <div className="bg-[#f8f9fa] w-full max-w-lg rounded-[2.5rem] shadow-2xl relative overflow-hidden animate-scaleIn border border-white flex flex-col max-h-[85vh]">
+            <div className="p-8 pb-4 bg-emerald-600 text-white shrink-0">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-xl font-black uppercase tracking-tighter">Ranking Curva ABC</h3>
+                <button
+                  onClick={() => setShowABCPopup(false)}
+                  className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-2xl flex items-center justify-center transition-all"
+                >
+                  ✕
+                </button>
+              </div>
+              <p className="text-[10px] font-bold opacity-80 uppercase tracking-widest">Baseado na frequência histórica (Itens Ativos)</p>
+            </div>
+
+            <div className="p-8 overflow-y-auto custom-scrollbar flex-1 space-y-3">
+              {kpiData.abcCurve.map((item, idx) => (
+                <div key={idx} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between group hover:scale-[1.01] transition-all">
+                  <div className="flex items-center gap-4">
+                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black text-white ${item.category === 'A' ? 'bg-emerald-500' : item.category === 'B' ? 'bg-blue-500' : 'bg-gray-400'}`}>
+                      {item.category}
+                    </span>
+                    <div>
+                      <p className="text-sm font-black text-[#1a1c1e] font-mono leading-none mb-1">{item.code}</p>
+                      <p className="text-[9px] font-bold text-gray-400 uppercase truncate max-w-[200px]">{item.desc}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-black text-emerald-600">{item.percent}%</p>
+                    <p className="text-[8px] font-bold text-gray-300 uppercase">{item.count} VEZES</p>
+                  </div>
+                </div>
+              ))}
+              {kpiData.abcCurve.length === 0 && (
+                <div className="py-20 text-center text-[10px] font-black text-gray-300 uppercase italic">
+                  Nenhum dado acumulado
+                </div>
+              )}
+            </div>
+
+            <div className="p-8 pt-4 bg-gray-50 border-t border-gray-100 shrink-0">
+              <button
+                onClick={() => setShowABCPopup(false)}
+                className="w-full py-5 bg-[#1a1c1e] rounded-[1.5rem] text-[10px] font-black text-white uppercase tracking-[0.2em] shadow-xl hover:bg-black active:scale-95 transition-all"
+              >
+                Voltar ao Dashboard
               </button>
             </div>
           </div>

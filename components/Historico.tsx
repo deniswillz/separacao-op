@@ -21,7 +21,10 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
   const [history, setHistory] = useState<FinishedOP[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [warehouseFilter, setWarehouseFilter] = useState('');
+  const [responsibleFilter, setResponsibleFilter] = useState('');
   const [selectedItem, setSelectedItem] = useState<FinishedOP | null>(null);
   const [selectedOpFilter, setSelectedOpFilter] = useState<string | null>(null);
   const [showObsModal, setShowObsModal] = useState(false);
@@ -72,23 +75,72 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
           <h2 className="text-xl font-black text-[#111827] uppercase tracking-tight">Histórico de Auditoria</h2>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Registros de conferências finalizadas</p>
         </div>
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 w-full md:w-auto">
-          <input
-            type="date"
-            className="bg-[var(--bg-inner)] border-none rounded-2xl py-3 px-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-emerald-500/20 transition-all text-[var(--text-primary)]"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-          />
-          <div className="relative w-full md:w-80 group">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none transition-colors group-focus-within:text-emerald-500">🔍</span>
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 custom-scrollbar">
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              className="bg-[var(--bg-inner)] border-none rounded-2xl py-3 px-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-emerald-500/20 transition-all text-[var(--text-primary)]"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              title="Data Inicial"
+            />
+            <span className="text-gray-300 font-bold">à</span>
+            <input
+              type="date"
+              className="bg-[var(--bg-inner)] border-none rounded-2xl py-3 px-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-emerald-500/20 transition-all text-[var(--text-primary)]"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              title="Data Final"
+            />
+          </div>
+
+          <select
+            className="bg-[var(--bg-inner)] border-none rounded-2xl py-3 px-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-emerald-500/20 transition-all text-[var(--text-primary)] min-w-[120px]"
+            value={warehouseFilter}
+            onChange={(e) => setWarehouseFilter(e.target.value)}
+          >
+            <option value="">TODOS SETORES</option>
+            {Array.from(new Set(history.map(h => h.armazem))).filter(Boolean).sort().map(wh => (
+              <option key={wh} value={wh}>{wh}</option>
+            ))}
+          </select>
+
+          <div className="relative w-full md:w-48 group">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none transition-colors group-focus-within:text-emerald-500 text-xs">👤</span>
             <input
               type="text"
-              placeholder="BUSCAR POR OP, DOC OU ARMAZÉM..."
-              className="w-full bg-[var(--bg-inner)] border-none rounded-2xl py-3 pl-12 pr-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-emerald-500/20 transition-all text-[var(--text-primary)]"
+              placeholder="RESPONSÁVEL..."
+              className="w-full bg-[var(--bg-inner)] border-none rounded-2xl py-3 pl-10 pr-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-emerald-500/20 transition-all text-[var(--text-primary)]"
+              value={responsibleFilter}
+              onChange={(e) => setResponsibleFilter(e.target.value)}
+            />
+          </div>
+
+          <div className="relative w-full md:w-64 group">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none transition-colors group-focus-within:text-emerald-500 text-xs">🔍</span>
+            <input
+              type="text"
+              placeholder="BUSCAR OP / DOC..."
+              className="w-full bg-[var(--bg-inner)] border-none rounded-2xl py-3 pl-10 pr-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-emerald-500/20 transition-all text-[var(--text-primary)]"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
             />
           </div>
+
+          {(startDate || endDate || warehouseFilter || responsibleFilter || searchText) && (
+            <button
+              onClick={() => {
+                setStartDate('');
+                setEndDate('');
+                setWarehouseFilter('');
+                setResponsibleFilter('');
+                setSearchText('');
+              }}
+              className="px-4 py-3 bg-red-50 text-red-600 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all border border-red-100 whitespace-nowrap"
+            >
+              LIMPAR
+            </button>
+          )}
         </div>
       </div>
 
@@ -96,14 +148,26 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
         {history
           .filter(item => {
             const search = searchText.toLowerCase();
+            const respSearch = responsibleFilter.toLowerCase();
+
             const matchesSearch = (
               item.documento?.toLowerCase().includes(search) ||
               item.op_range?.toLowerCase().includes(search) ||
-              item.armazem?.toLowerCase().includes(search) ||
               item.nome?.toLowerCase().includes(search)
             );
-            const matchesDate = !dateFilter || (item.data_finalizacao && item.data_finalizacao.startsWith(dateFilter));
-            return matchesSearch && matchesDate;
+
+            const matchesWarehouse = !warehouseFilter || item.armazem === warehouseFilter;
+
+            const matchesResponsible = !responsibleFilter || (
+              item.separador?.toLowerCase().includes(respSearch) ||
+              item.conferente?.toLowerCase().includes(respSearch)
+            );
+
+            const itemDate = item.data_finalizacao ? item.data_finalizacao.split('T')[0] : '';
+            const matchesStartDate = !startDate || itemDate >= startDate;
+            const matchesEndDate = !endDate || itemDate <= endDate;
+
+            return matchesSearch && matchesWarehouse && matchesResponsible && matchesStartDate && matchesEndDate;
           })
           .map((item) => (
             <div key={item.id} className="bg-[var(--bg-secondary)] rounded-2xl border-2 border-emerald-500/10 p-4 flex flex-col justify-between hover:shadow-xl transition-all duration-300 group relative">
