@@ -714,7 +714,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
 
                 {/* OP Section */}
                 <div className="space-y-4 relative z-10">
-                  <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter leading-tight">OP Lote-{opDisplay}</h3>
+                  <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter leading-tight">OP - {opDisplay}</h3>
                   <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-tight flex items-center gap-2">
                     <span>📍 Armazém: {item.armazem}</span>
                     <span className="opacity-30">|</span>

@@ -190,6 +190,7 @@ const Dashboard: React.FC = () => {
             usuario: d.usuario_atual,
             data: creationDate,
             op_range: getOpRange(d),
+            ordens: d.ordens,
             itens: d.itens,
             isStalled
           };
@@ -204,6 +205,7 @@ const Dashboard: React.FC = () => {
             usuario: d.responsavel_conferencia,
             data: creationDate,
             op_range: getOpRange(d),
+            ordens: d.ordens,
             itens: d.itens,
             isStalled
           };
@@ -517,7 +519,7 @@ const Dashboard: React.FC = () => {
 
                   <div className="space-y-1 mb-4">
                     <p className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-tight leading-tight">
-                      {op.op_range ? `OP-${op.op_range}` : 'OP sem intervalo'}
+                      {op.op_range ? `OP - ${op.op_range}` : 'OP sem intervalo'}
                     </p>
                   </div>
 
@@ -554,7 +556,7 @@ const Dashboard: React.FC = () => {
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h3 className="text-2xl font-black italic uppercase tracking-tighter text-[#1a1c1e] leading-none">RELAÇÃO DE OPs</h3>
-                  <p className="text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-widest">{selectedLot.op_range ? `OP-${selectedLot.op_range}` : ''}</p>
+                  <p className="text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-widest">{selectedLot.op_range ? `OP - ${selectedLot.op_range}` : ''}</p>
                 </div>
                 <button
                   onClick={() => setShowBreakdown(false)}
@@ -578,12 +580,13 @@ const Dashboard: React.FC = () => {
                   </span>
                 </div>
 
-                {/* List of Individual OPs extracted from items */}
-                {Array.from(new Set((selectedLot.itens || []).map((i: any) => i.op))).map((opId: any, idx) => {
+                {/* List of Individual OPs extracted from ordens */}
+                {(selectedLot.ordens || []).map((opId: any, idx: number) => {
                   const isDone = selectedLot.status === 'Finalizado' || selectedLot.status === 'Finalizada';
+                  const formattedOp = String(opId).replace(/^00/, '').replace(/01001$/, '');
                   return (
                     <div key={idx} className="bg-white p-5 rounded-[1.5rem] border border-gray-100 shadow-sm flex justify-between items-center group hover:scale-[1.02] transition-all">
-                      <span className="text-sm font-black text-[#1a1c1e] uppercase tracking-tight">OP {String(opId).slice(-4)}</span>
+                      <span className="text-sm font-black text-[#1a1c1e] uppercase tracking-tight">OP {formattedOp}</span>
                       <span className={`${isDone ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-gray-50 text-gray-400 border-gray-100'} px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-colors`}>
                         {isDone ? 'CONCLUÍDO' : 'PENDENTE'}
                       </span>
@@ -591,7 +594,7 @@ const Dashboard: React.FC = () => {
                   );
                 })}
 
-                {(selectedLot.itens || []).length === 0 && (
+                {(selectedLot.ordens || []).length === 0 && (
                   <div className="py-10 text-center text-[10px] font-black text-gray-300 uppercase italic">
                     Composição não encontrada
                   </div>
