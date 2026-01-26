@@ -79,58 +79,8 @@ const Dashboard: React.FC = () => {
       });
       const whData = Object.entries(whStats).map(([name, value]) => ({ name, value }));
 
-      const bottleneckTime = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
-      const stalledLots = [...(sepData || []), ...(confData || [])]
-        .filter(item => isPending(item.status) && (item.updated_at || item.data_criacao || item.created_at) < bottleneckTime)
-        .map(item => ({
-          id: item.id,
-          op: String(item.id).slice(0, 8),
-          time: new Date(item.updated_at || item.data_criacao || item.created_at).toLocaleTimeString('pt-BR'),
-          type: sepData?.find(s => s.id === item.id) ? 'Separação' : 'Conferência'
-        }));
-
-      const dailyMap: Record<string, number> = {};
-      histData?.forEach(h => {
-        const date = (h.data_finalizacao || h.created_at || '').split('T')[0];
-        if (date) dailyMap[date] = (dailyMap[date] || 0) + 1;
-      });
-      const dailyVolume = Object.entries(dailyMap)
-        .map(([name, value]) => ({ name: name.split('-').slice(1).reverse().join('/'), value }))
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .slice(-7);
-
-      const currentDivergencias: any[] = [];
-      (confData || []).forEach(conf => {
-        const isFinalized = conf.status === 'Finalizado' || conf.status === 'Finalizada';
-        if (!isFinalized) {
-          (conf.itens || []).forEach((item: any) => {
-            (item.composicao || []).forEach((comp: any) => {
-              if (comp.falta_conf) {
-                currentDivergencias.push({
-                  op: comp.op,
-                  produto: `${item.codigo} - ${item.descricao}`,
-                  responsavel: conf.responsavel_conferencia || 'Não atribuído',
-                  motivo: comp.motivo_divergencia || 'Não especificado'
-                });
-              }
-            });
-          });
-        }
-      });
-
-      setDivergencias(currentDivergencias);
-      setKpiData({
-        pendingOps: pending,
-        pendingSeparation: pendingSep,
-        pendingConferencia: pendingConf,
-        finalizedMonth: finalizedMonthCount,
-        inTransit: inTransitCount,
-        totalDivergencias: currentDivergencias.length,
-        whData,
-        ranking,
-        stalledLots,
-        dailyVolume
-      });
+      const bottleneckThreshold = 6 * 60 * 60 * 1000;
+      const bottleneckTime = new Date(now.getTime() - bottleneckThreshold).toISOString();
 
       const getOpRange = (item: any) => {
         const firstItem = (item.itens || [])[0] || {};
@@ -140,24 +90,34 @@ const Dashboard: React.FC = () => {
       };
 
       const combined = [
-        ...(sepData || []).map(d => ({
-          id: d.id,
-          type: 'Separação' as const,
-          status: d.status === 'Em Uso' ? 'Em Separação' : d.status,
-          usuario: d.usuario_atual,
-          data: d.data_criacao || d.created_at || d.updated_at,
-          op_range: getOpRange(d),
-          itens: d.itens
-        })),
-        ...(confData || []).map(d => ({
-          id: d.id,
-          type: 'Conferência' as const,
-          status: d.status === 'Em Uso' ? 'Em Conferência' : d.status,
-          usuario: d.responsavel_conferencia,
-          data: d.data_conferencia || d.created_at || d.updated_at,
-          op_range: getOpRange(d),
-          itens: d.itens
-        }))
+        ...(sepData || []).map(d => {
+          const creationDate = d.data_criacao || d.created_at || d.updated_at;
+          const isStalled = isPending(d.status) && creationDate < bottleneckTime;
+          return {
+            id: d.id,
+            type: 'Separação' as const,
+            status: d.status === 'Em Uso' ? 'Em Separação' : d.status,
+            usuario: d.usuario_atual,
+            data: creationDate,
+            op_range: getOpRange(d),
+            itens: d.itens,
+            isStalled
+          };
+        }),
+        ...(confData || []).map(d => {
+          const creationDate = d.data_conferencia || d.created_at || d.updated_at;
+          const isStalled = isPending(d.status) && creationDate < bottleneckTime;
+          return {
+            id: d.id,
+            type: 'Conferência' as const,
+            status: d.status === 'Em Uso' ? 'Em Conferência' : d.status,
+            usuario: d.responsavel_conferencia,
+            data: creationDate,
+            op_range: getOpRange(d),
+            itens: d.itens,
+            isStalled
+          };
+        })
       ];
 
       setOpStatusList(combined);
@@ -319,16 +279,16 @@ const Dashboard: React.FC = () => {
               ⚠️ Alerta de Gargalo
             </h3>
             <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
-              {(kpiData.stalledLots || []).length > 0 ? (kpiData.stalledLots || []).map((st: any) => (
-                <div key={st.id} className="p-4 bg-orange-50 border border-orange-100 rounded-xl relative overflow-hidden group animate-pulse">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-orange-500"></div>
+              {opStatusList.filter(op => (op as any).isStalled).length > 0 ? opStatusList.filter(op => (op as any).isStalled).map((st: any) => (
+                <div key={st.id} className="p-4 bg-red-50 border border-red-100 rounded-xl relative overflow-hidden group animate-pulse">
+                  <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
                   <div className="flex justify-between items-center">
                     <div>
-                      <p className="text-[10px] font-black text-orange-600 uppercase italic">Atraso {'>'} 2 horas</p>
-                      <p className="text-xs font-bold text-[var(--text-primary)] mt-1">OP {st.op}</p>
-                      <p className="text-[9px] font-bold text-gray-400 mt-1 uppercase">Entrada: {st.time}</p>
+                      <p className="text-[10px] font-black text-red-600 uppercase italic">Atraso {'>'} 6 horas</p>
+                      <p className="text-xs font-bold text-[var(--text-primary)] mt-1">OP {st.op_range}</p>
+                      <p className="text-[9px] font-bold text-gray-400 mt-1 uppercase">Entrada: {new Date(st.data).toLocaleTimeString('pt-BR')}</p>
                     </div>
-                    <span className="text-[9px] font-black bg-white px-2 py-1 rounded-lg shadow-sm border border-orange-100">{st.type}</span>
+                    <span className="text-[9px] font-black bg-white px-2 py-1 rounded-lg shadow-sm border border-red-100">{st.type}</span>
                   </div>
                 </div>
               )) : (
@@ -388,11 +348,17 @@ const Dashboard: React.FC = () => {
 
           {opStatusList
             .filter(op => (op as any).data?.startsWith(dateFilter))
-            .map((op, idx) => {
-              const borderClass = op.status === 'Finalizado' || op.status === 'Finalizada' ? 'border-emerald-500' :
-                op.usuario ? 'border-blue-500' : 'border-[var(--border-light)]';
+            .map((op: any, idx) => {
+              const borderClass = (op.status === 'Finalizado' || op.status === 'Finalizada') ? 'border-emerald-500' :
+                op.isStalled ? 'border-red-500 ring-2 ring-red-500/50 animate-pulse' :
+                  op.usuario ? 'border-blue-500' : 'border-[var(--border-light)]';
               return (
                 <div key={`${op.id}-${idx}`} className={`bg-[var(--bg-secondary)] border-2 ${borderClass} p-5 rounded-[2rem] shadow-[var(--shadow-sm)] hover:shadow-xl hover:scale-[1.02] transition-all relative overflow-hidden group`}>
+                  {op.isStalled && (
+                    <div className="absolute -top-1 -right-1 bg-red-600 text-white text-[8px] font-black px-2 py-1 rounded-bl-xl uppercase tracking-tighter z-10 animate-fadeIn">
+                      Gargalo
+                    </div>
+                  )}
                   <div className="flex justify-between items-start mb-4">
                     <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-tighter shadow-sm ${op.type === 'Separação' ? 'bg-blue-600 text-white' : 'bg-orange-500 text-white'}`}>
                       {op.type}
