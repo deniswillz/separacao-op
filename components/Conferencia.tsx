@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase, supabaseUrl, supabaseAnonKey } from '../services/supabaseClient';
+import { supabase, supabaseUrl, supabaseAnonKey, upsertBatched } from '../services/supabaseClient';
 import { User } from '../types';
 import Loading from './Loading';
 import { useAlert } from './AlertContext';
@@ -328,6 +328,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
     try {
       const separationData = {
         documento: selectedItem.nome || selectedItem.documento,
+        nome: selectedItem.nome || selectedItem.documento,
         armazem: selectedItem.armazem,
         ordens: selectedItem.ordens,
         itens: selectedItem.itens.map((i: any) => ({
@@ -337,15 +338,22 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
           tr: false,
           composicao: (i.composicao || []).map((c: any) => ({ ...c, concluido: false, ok_conf: false, tr_conf: false }))
         })),
-        status: 'Pendente'
+        status: 'pendente',
+        data_criacao: new Date().toISOString()
       };
+
+      // 1. Insert into separacao first (Safer)
+      await upsertBatched('separacao', [separationData]);
+
+      // 2. Only if succeeded, delete from conference
       await supabase.from('conferencia').delete().eq('id', selectedItem.id);
-      await supabase.from('separacao').insert([separationData]);
+
       showAlert('Lote revertido para Separação com sucesso!', 'success');
       setViewMode('list'); setSelectedItem(null);
-    } catch (e) {
-      console.error(e);
-      showAlert('Erro ao reverter', 'error');
+      fetchItems();
+    } catch (e: any) {
+      console.error('Erro ao reverter:', e);
+      showAlert('Erro ao reverter: ' + (e.message || 'Consulte o log do console'), 'error');
     } finally { setIsReverting(false); }
   };
 
