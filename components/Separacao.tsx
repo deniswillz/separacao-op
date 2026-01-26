@@ -130,8 +130,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
 
     const count = validItens.filter(i => {
       if (i.falta) return true;
-      const isLupaDone = i.composicao?.every((c: any) => c.concluido) &&
-        i.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0) >= i.quantidade;
+      const isLupaDone = i.composicao?.every((c: any) => c.concluido);
       return i.ok && isLupaDone && i.tr;
     }).length;
 
@@ -235,8 +234,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
           if (c.op === op) {
             return {
               ...c,
-              concluido: isFinalize,
-              qtd_separada: isFinalize ? (c.qtd_separada || c.quantidade_original || c.quantidade || 0) : 0
+              concluido: isFinalize
             };
           }
           return c;
@@ -409,7 +407,9 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
     <div className="space-y-8 animate-fadeIn pb-20">
       <div className="flex justify-between items-center bg-[var(--bg-secondary)] p-4 rounded-xl border-l-4 border-[#006B47] shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-4">
-          <h1 className="text-sm font-black text-[#006B47] uppercase tracking-widest">Seleção de OP</h1>
+          <h1 className="text-sm font-black text-[#006B47] uppercase tracking-widest">
+            {viewMode === 'detail' && selectedOP ? `OP ${getOPDisplayRange(selectedOP.ordens)}` : 'Seleção de OP'}
+          </h1>
           {isFinalizing && (
             <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full animate-pulse border border-emerald-100">
               <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
@@ -430,7 +430,9 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
             <div className="bg-[var(--bg-inner)]/50 p-8 border-b border-[var(--border-light)] flex flex-col md:flex-row justify-between items-center gap-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-gray-900 text-white rounded-2xl flex items-center justify-center text-xl font-black">📦</div>
-                <h2 className="text-2xl font-black tracking-tight uppercase">Seleção de OP</h2>
+                <h2 className="text-2xl font-black tracking-tight uppercase">
+                  OP {getOPDisplayRange(selectedOP.ordens)}
+                </h2>
               </div>
               <div className="flex items-center gap-6">
                 <div className="text-right bg-[var(--bg-secondary)] p-2 px-4 rounded-xl border border-[var(--border-light)] shadow-[var(--shadow-sm)]">
@@ -479,17 +481,18 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                       const endereco = enderecoData?.endereco || '--';
 
                       const isOut = !!item.falta;
-                      const isLupaDone = item.composicao?.every((c: any) => c.concluido) &&
-                        item.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0) >= item.quantidade;
-
+                      const isLupaDone = item.composicao?.every((c: any) => c.concluido);
                       const isDone = item.ok && isLupaDone && item.tr;
+                      const hasMessage = item.composicao?.some((c: any) => c.observacao);
 
                       const rowClass = isOut ? 'bg-red-50 border-l-4 border-red-500' :
                         isDone ? 'bg-emerald-50/80 border-l-4 border-emerald-500' :
                           isTalvez ? 'border-l-4 border-amber-500' : 'border-l-4 border-transparent';
 
+                      const borderClass = hasMessage ? 'border-b-2 border-blue-400' : '';
+
                       return (
-                        <tr key={idx} className={`group ${rowClass} transition-all border-b border-[var(--border-light)] hover:bg-[var(--bg-inner)]/30`}>
+                        <tr key={idx} className={`group ${rowClass} ${borderClass} transition-all border-b border-[var(--border-light)] hover:bg-[var(--bg-inner)]/30`}>
                           <td className="px-8 py-6 text-center">
                             <button
                               disabled={isOut}

@@ -535,9 +535,11 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                           const rowClass = hasCompDivergence ? 'bg-red-500/10' :
                             isCompComplete ? 'bg-emerald-500/10' :
                               '';
+                          const hasMessage = !!comp.observacao;
+                          const messageBorder = hasMessage ? 'border-b-2 border-blue-400' : '';
 
                           return (
-                            <tr key={`${idx}-${cidx}`} className={`group ${rowClass} transition-all border-b border-[var(--border-light)] hover:bg-[var(--bg-inner)]/30`}>
+                            <tr key={`${idx}-${cidx}`} className={`group ${rowClass} ${messageBorder} transition-all border-b border-[var(--border-light)] hover:bg-[var(--bg-inner)]/30`}>
                               <td className={`px-8 py-4 border-l-4 ${hasCompDivergence ? 'border-red-500' : isCompComplete ? 'border-emerald-500' : 'border-transparent'}`}>
                                 <button
                                   onClick={() => { setObsItem({ ...item, currentOp: comp.op }); setShowObsModal(true); }}
@@ -546,7 +548,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                               </td>
                               <td className="px-6 py-4">
                                 <div className="space-y-0.5">
-                                  <p className="text-base font-black text-gray-900 tracking-tight">{item.codigo}</p>
+                                  <p className="text-base font-black text-[#006B47] tracking-tight">{item.codigo}</p>
                                   <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter truncate max-w-[200px]">{item.descricao}</p>
                                   <p className="text-xs font-black text-blue-500 font-mono italic">OP {comp.op}</p>
                                 </div>

@@ -354,8 +354,15 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
   };
 
   // 🚪 DESLOGAR TODOS
-  const handleLogoutAll = () => {
-    if (confirm('Deseja deslogar e limpar a sessão atual?')) {
+  const handleLogoutAll = async () => {
+    if (confirm('Deseja deslogar todas as contas logadas em todos os terminais?')) {
+      // Broadcast force-logout to all connected clients
+      await supabase.channel('system-commands').send({
+        type: 'broadcast',
+        event: 'force-logout',
+        payload: { timestamp: Date.now() }
+      });
+
       localStorage.clear();
       window.location.reload();
     }

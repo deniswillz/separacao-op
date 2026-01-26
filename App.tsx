@@ -49,8 +49,17 @@ const App: React.FC = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'blacklist' }, fetchBlacklist)
       .subscribe();
 
+    const commandChannel = supabase.channel('system-commands')
+      .on('broadcast', { event: 'force-logout' }, () => {
+        console.log('Recebido comando de logoff global. Reiniciando...');
+        localStorage.clear();
+        window.location.reload();
+      })
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(commandChannel);
     };
   }, []);
 

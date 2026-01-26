@@ -406,9 +406,8 @@ const Dashboard: React.FC = () => {
 
                   <div className="space-y-1 mb-4">
                     <p className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-tight leading-tight">
-                      {op.op_range || 'OP sem intervalo'}
+                      {op.op_range ? `OP-${op.op_range}` : 'OP sem intervalo'}
                     </p>
-
                   </div>
 
                   <div className="flex items-center gap-2.5 bg-[var(--bg-inner)] p-3 rounded-2xl">
@@ -419,7 +418,7 @@ const Dashboard: React.FC = () => {
                   {op.usuario && (
                     <div className="mt-4 pt-4 border-t border-[var(--border-light)] flex items-center gap-3">
                       <div className="w-6 h-6 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-[10px] font-black text-white shadow-sm">
-                        {op.usuario.charAt(0)}
+                        👤
                       </div>
                       <span className="text-[10px] font-black text-[var(--text-muted)] uppercase truncate tracking-tighter">{op.usuario}</span>
                     </div>
