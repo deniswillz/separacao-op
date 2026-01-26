@@ -21,9 +21,13 @@ interface FinishedOP {
 const Historico: React.FC<{ user: User }> = ({ user }) => {
   const [history, setHistory] = useState<FinishedOP[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
   const [searchText, setSearchText] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState(firstDay.toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(lastDay.toISOString().split('T')[0]);
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [responsibleFilter, setResponsibleFilter] = useState('');
   const [selectedItem, setSelectedItem] = useState<FinishedOP | null>(null);
@@ -80,16 +84,18 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
           <div className="flex items-center gap-2">
             <input
               type="date"
-              className="bg-[var(--bg-inner)] border-none rounded-2xl py-3 px-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-emerald-500/20 transition-all text-[var(--text-primary)]"
+              className="bg-[var(--bg-inner)] border-none rounded-2xl py-3 px-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-emerald-500/20 transition-all text-[var(--text-primary)] cursor-pointer"
               value={startDate}
+              onClick={(e) => (e.target as any).showPicker?.()}
               onChange={(e) => setStartDate(e.target.value)}
               title="Data Inicial"
             />
             <span className="text-gray-300 font-bold">à</span>
             <input
               type="date"
-              className="bg-[var(--bg-inner)] border-none rounded-2xl py-3 px-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-emerald-500/20 transition-all text-[var(--text-primary)]"
+              className="bg-[var(--bg-inner)] border-none rounded-2xl py-3 px-4 text-[10px] font-black uppercase tracking-widest focus:ring-2 focus:ring-emerald-500/20 transition-all text-[var(--text-primary)] cursor-pointer"
               value={endDate}
+              onClick={(e) => (e.target as any).showPicker?.()}
               onChange={(e) => setEndDate(e.target.value)}
               title="Data Final"
             />
@@ -131,8 +137,11 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
           {(startDate || endDate || warehouseFilter || responsibleFilter || searchText) && (
             <button
               onClick={() => {
-                setStartDate('');
-                setEndDate('');
+                const today = new Date();
+                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                setStartDate(firstDay.toISOString().split('T')[0]);
+                setEndDate(lastDay.toISOString().split('T')[0]);
                 setWarehouseFilter('');
                 setResponsibleFilter('');
                 setSearchText('');
