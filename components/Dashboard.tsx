@@ -12,6 +12,8 @@ const Dashboard: React.FC = () => {
   const [divergencias, setDivergencias] = useState<{ op: string, produto: string, responsavel: string, motivo: string }[]>([]);
   const [kpiData, setKpiData] = useState({
     pendingOps: 0,
+    pendingSeparation: 0,
+    pendingConferencia: 0,
     finalizedMonth: 0,
     inTransit: 0,
     totalDivergencias: 0,
@@ -40,8 +42,9 @@ const Dashboard: React.FC = () => {
         return norm === 'pendente' || norm === 'aguardando' || norm === 'em uso' || norm === 'em conferencia' || norm === 'em separacao';
       };
 
-      const pending = (sepData?.filter(d => isPending(d.status)).length || 0) +
-        (confData?.filter(d => isPending(d.status)).length || 0);
+      const pendingSep = sepData?.filter(d => isPending(d.status)).length || 0;
+      const pendingConf = confData?.filter(d => isPending(d.status)).length || 0;
+      const pending = pendingSep + pendingConf;
 
       // Finalizadas no Mês (do histórico)
       const now = new Date();
@@ -118,6 +121,8 @@ const Dashboard: React.FC = () => {
       setDivergencias(currentDivergencias);
       setKpiData({
         pendingOps: pending,
+        pendingSeparation: pendingSep,
+        pendingConferencia: pendingConf,
         finalizedMonth: finalizedMonthCount,
         inTransit: inTransitCount,
         totalDivergencias: currentDivergencias.length,
@@ -378,6 +383,24 @@ const Dashboard: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {/* Card Resumo: Pendente Separação */}
+          <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-5 rounded-[2rem] shadow-lg flex flex-col justify-between items-center text-center group hover:scale-[1.02] transition-all border-b-4 border-blue-800">
+            <span className="text-2xl mb-2">📦</span>
+            <div className="space-y-0.5">
+              <p className="text-[24px] font-black text-white leading-none">{kpiData.pendingSeparation}</p>
+              <p className="text-[8px] font-black text-blue-100 uppercase tracking-widest opacity-80">Pendente Separação</p>
+            </div>
+          </div>
+
+          {/* Card Resumo: Pendente Conferência */}
+          <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-5 rounded-[2rem] shadow-lg flex flex-col justify-between items-center text-center group hover:scale-[1.02] transition-all border-b-4 border-orange-700">
+            <span className="text-2xl mb-2">🔍</span>
+            <div className="space-y-0.5">
+              <p className="text-[24px] font-black text-white leading-none">{kpiData.pendingConferencia}</p>
+              <p className="text-[8px] font-black text-orange-100 uppercase tracking-widest opacity-80">Pendente Conferência</p>
+            </div>
+          </div>
+
           {opStatusList
             .filter(op => (op as any).data?.startsWith(dateFilter))
             .map((op, idx) => {
