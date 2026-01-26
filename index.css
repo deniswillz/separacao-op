@@ -16,16 +16,16 @@
 }
 
 [data-theme='dark'] {
-  --bg-primary: #0F172A;
-  --bg-secondary: #1e3a8a;
-  /* Changed from #1e293b to a more vibrant blue */
+  --bg-primary: #0f172a;
+  --bg-secondary: #0f172a;
+  /* Back to deep dark */
   --bg-inner: #1e293b;
-  /* Changed from #334155 to a darker blue */
-  --text-primary: #F8FAFC;
-  --text-secondary: #CBD5E1;
-  --text-muted: #94a3b8;
-  --border-light: #1e40af;
-  /* More blue for borders */
+  /* Slate */
+  --text-primary: #60a5fa;
+  /* BLUE instead of white */
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --border-light: #1e293b;
   --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.3);
 }
 
