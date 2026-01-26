@@ -36,7 +36,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
     const { data, error } = await supabase
       .from('historico')
       .select('*')
-
+      .neq('armazem', 'TEA')
       .order('id', { ascending: false });
     if (error) console.error(error);
     else if (data) {
@@ -73,7 +73,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
     <div className="space-y-6 pb-20 animate-fadeIn">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[var(--bg-secondary)] p-6 rounded-[2rem] border border-[var(--border-light)] shadow-[var(--shadow-sm)]">
         <div className="space-y-1">
-          <h2 className="text-xl font-black text-[#111827] uppercase tracking-tight">Histórico de Auditoria</h2>
+          <h2 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">Histórico de Auditoria</h2>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Registros de conferências finalizadas</p>
         </div>
         <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 w-full md:w-auto overflow-x-auto pb-2 md:pb-0 custom-scrollbar">
