@@ -305,8 +305,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
       // 1. OK marked
       // 2. Lupa distribution finished (all compositions concluded)
       // 3. TR marked
-      const isLupaDone = i.composicao?.every((c: any) => c.concluido) &&
-        i.composicao?.reduce((sum: number, c: any) => sum + (c.qtd_separada || 0), 0) >= i.quantidade;
+      const isLupaDone = i.composicao?.every((c: any) => c.concluido);
 
       return i.ok && isLupaDone && i.tr;
     });
