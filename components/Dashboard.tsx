@@ -367,7 +367,7 @@ const Dashboard: React.FC = () => {
               </h3>
               <div className="space-y-4">
                 <div className="flex gap-2 mb-4">
-                  {kpiData.abcCurve.slice(0, 3).map((item, i) => (
+                  {kpiData.abcCurve.slice(0, 1).map((item, i) => (
                     <div key={i} className="flex flex-col items-center p-3 bg-[var(--bg-inner)] rounded-xl border border-[var(--border-light)] min-w-[85px] hover:scale-105 transition-transform shadow-sm">
                       <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-md mb-1 ${item.category === 'A' ? 'bg-emerald-500 text-white' : item.category === 'B' ? 'bg-blue-500 text-white' : 'bg-gray-400 text-white'}`}>
                         {item.category}
