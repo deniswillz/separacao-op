@@ -433,66 +433,63 @@ const Dashboard: React.FC = () => {
       {showBreakdown && selectedLot && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowBreakdown(false)}></div>
-          <div className="bg-[var(--bg-secondary)] w-full max-w-xl rounded-[2.5rem] shadow-2xl relative overflow-hidden animate-scaleIn border border-[var(--border-light)]">
-            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 p-8 text-white">
-              <div className="flex justify-between items-start">
+          <div className="bg-[#f8f9fa] w-full max-w-sm rounded-[2.5rem] shadow-2xl relative overflow-hidden animate-scaleIn border border-white">
+            <div className="p-8 pb-4">
+              <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h3 className="text-2xl font-black uppercase tracking-tighter">📋 Relação de OPs</h3>
-                  <p className="text-[10px] font-bold opacity-80 mt-1 uppercase tracking-widest leading-none">{selectedLot.op_range}</p>
+                  <h3 className="text-2xl font-black italic uppercase tracking-tighter text-[#1a1c1e] leading-none">RELAÇÃO DE OPs</h3>
+                  <p className="text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-widest">{selectedLot.op_range}</p>
                 </div>
                 <button
                   onClick={() => setShowBreakdown(false)}
-                  className="w-10 h-10 bg-white/10 hover:bg-white/20 rounded-2xl flex items-center justify-center text-xl transition-all"
+                  className="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-2xl flex items-center justify-center text-gray-400 transition-all shadow-sm"
                 >
                   ✕
                 </button>
               </div>
+
+              <div className="h-px bg-gray-100 w-full mb-8"></div>
+
+              <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                {/* Entry: Todas OPs (Resumo) */}
+                <div className="bg-white p-5 rounded-[1.5rem] border border-gray-100 shadow-sm flex justify-between items-center group hover:scale-[1.02] transition-all">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">📦</span>
+                    <span className="text-sm font-black text-emerald-600 uppercase tracking-tight">Todas OPs</span>
+                  </div>
+                  <span className="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border border-emerald-100">
+                    SELECIONADO
+                  </span>
+                </div>
+
+                {/* List of Individual OPs extracted from items */}
+                {Array.from(new Set((selectedLot.itens || []).map((i: any) => i.op))).map((opId: any, idx) => {
+                  const isDone = selectedLot.status === 'Finalizado' || selectedLot.status === 'Finalizada';
+                  return (
+                    <div key={idx} className="bg-white p-5 rounded-[1.5rem] border border-gray-100 shadow-sm flex justify-between items-center group hover:scale-[1.02] transition-all">
+                      <span className="text-sm font-black text-[#1a1c1e] uppercase tracking-tight">OP {String(opId).slice(-4)}</span>
+                      <span className={`${isDone ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-gray-50 text-gray-400 border-gray-100'} px-3 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-colors`}>
+                        {isDone ? 'CONCLUÍDO' : 'PENDENTE'}
+                      </span>
+                    </div>
+                  );
+                })}
+
+                {(selectedLot.itens || []).length === 0 && (
+                  <div className="py-10 text-center text-[10px] font-black text-gray-300 uppercase italic">
+                    Composição não encontrada
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="p-8">
-              <div className="bg-[var(--bg-inner)] rounded-[2rem] border border-[var(--border-light)] overflow-hidden shadow-inner">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-[var(--bg-secondary)] border-b border-[var(--border-light)]">
-                      <th className="px-6 py-4 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Produto</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest text-center">OP</th>
-                      <th className="px-6 py-4 text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest text-center">Qtd</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--border-light)] text-[var(--text-primary)]">
-                    {(selectedLot.itens || []).map((item: any, idx: number) => (
-                      <tr key={idx} className="hover:bg-[var(--bg-secondary)] transition-colors">
-                        <td className="px-6 py-4">
-                          <p className="text-[11px] font-black uppercase leading-tight">{item.codigo}</p>
-                          <p className="text-[8px] font-bold text-[var(--text-muted)] uppercase mt-0.5 truncate max-w-[200px]">{item.descricao}</p>
-                        </td>
-                        <td className="px-6 py-4 text-center text-[11px] font-black">{item.op}</td>
-                        <td className="px-6 py-4 text-center">
-                          <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-lg text-[11px] font-black">
-                            {item.quantidade}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                    {(selectedLot.itens || []).length === 0 && (
-                      <tr>
-                        <td colSpan={3} className="px-6 py-10 text-center text-[10px] font-black text-[var(--text-muted)] uppercase italic opacity-40">
-                          Sem composição detalhada
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="mt-8 flex justify-end">
-                <button
-                  onClick={() => setShowBreakdown(false)}
-                  className="px-8 py-4 bg-[var(--bg-inner)] border border-[var(--border-light)] rounded-2xl text-[10px] font-black text-[var(--text-primary)] uppercase hover:bg-emerald-500/10 hover:text-emerald-600 hover:border-emerald-500/20 transition-all shadow-sm"
-                >
-                  Fechar
-                </button>
-              </div>
+            <div className="p-8 pt-4">
+              <button
+                onClick={() => setShowBreakdown(false)}
+                className="w-full py-5 bg-[#1a1c1e] rounded-[1.5rem] text-[10px] font-black text-white uppercase tracking-[0.2em] shadow-xl hover:bg-black active:scale-95 transition-all"
+              >
+                FECHAR LISTA
+              </button>
             </div>
           </div>
         </div>
