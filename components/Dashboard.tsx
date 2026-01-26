@@ -10,8 +10,16 @@ const Dashboard: React.FC = () => {
 
   const [liveAlerts, setLiveAlerts] = useState<{ id: string, op: string, produto: string, motivo: string, timestamp: string }[]>([]);
   const [divergencias, setDivergencias] = useState<{ op: string, produto: string, responsavel: string, motivo: string }[]>([]);
-  const [kpiData, setKpiData] = useState({ pendingOps: 0, finalizedMonth: 0, inTransit: 0, totalDivergencias: 0 });
-  const [opStatusList, setOpStatusList] = useState<{ id: string, type: 'Separação' | 'Conferência', status: string, usuario: string | null }[]>([]);
+  const [kpiData, setKpiData] = useState({
+    pendingOps: 0,
+    finalizedMonth: 0,
+    inTransit: 0,
+    totalDivergencias: 0,
+    whData: [] as any[],
+    ranking: [] as any[],
+    stalledLots: [] as any[]
+  });
+  const [opStatusList, setOpStatusList] = useState<{ id: string, type: 'Separação' | 'Conferência', status: string, usuario: string | null, data?: string }[]>([]);
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -19,9 +27,9 @@ const Dashboard: React.FC = () => {
     const fetchDashboardData = async () => {
       setIsSyncing(true);
 
-      const { data: sepData } = await supabase.from('separacao').select('id, status, usuario_atual, data_criacao, updated_at, armazem');
-      const { data: confData } = await supabase.from('conferencia').select('id, status, responsavel_conferencia, data_conferencia, itens, armazem, updated_at');
-      const { data: histData } = await supabase.from('historico').select('id, armazem, data_finalizacao, itens, separador, conferente');
+      const { data: sepData } = await supabase.from('separacao').select('*');
+      const { data: confData } = await supabase.from('conferencia').select('*');
+      const { data: histData } = await supabase.from('historico').select('*');
 
       // Normalização de Status para contagem precisa
       const isPending = (s: string) => {
@@ -35,7 +43,7 @@ const Dashboard: React.FC = () => {
       // Finalizadas no Mês (do histórico)
       const now = new Date();
       const firstDayMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const finalizedMonthCount = histData?.filter(h => h.data_finalizacao >= firstDayMonth).length || 0;
+      const finalizedMonthCount = histData?.filter(h => (h.data_finalizacao || h.created_at) >= firstDayMonth).length || 0;
 
       // Itens em Trânsito (TEA no histórico sem status Concluido no último passo)
       const inTransitCount = histData?.filter(h => {
@@ -47,8 +55,10 @@ const Dashboard: React.FC = () => {
       // Ranking de Produtividade (Top 3)
       const userStats: Record<string, number> = {};
       histData?.forEach(h => {
-        if (h.separador && h.separador !== 'N/A') userStats[h.separador] = (userStats[h.separador] || 0) + 1;
-        if (h.conferente && h.conferente !== 'N/A') userStats[h.conferente] = (userStats[h.conferente] || 0) + 1;
+        const separador = h.separador || h.usuario_atual || 'N/A';
+        const conferente = h.conferente || h.responsavel_conferencia || 'N/A';
+        if (separador && separador !== 'N/A') userStats[separador] = (userStats[separador] || 0) + 1;
+        if (conferente && conferente !== 'N/A') userStats[conferente] = (userStats[conferente] || 0) + 1;
       });
 
       const ranking = Object.entries(userStats)
@@ -98,17 +108,15 @@ const Dashboard: React.FC = () => {
         pendingOps: pending,
         finalizedMonth: finalizedMonthCount,
         inTransit: inTransitCount,
-        totalDivergencias: currentDivergencias.length
+        totalDivergencias: currentDivergencias.length,
+        whData,
+        ranking,
+        stalledLots
       });
 
-      // Stats for Gauges/Charts
-      (this as any).whData = whData;
-      (this as any).ranking = ranking;
-      (this as any).stalledLots = stalledLots;
-
       const combined = [
-        ...(sepData || []).map(d => ({ id: d.id, type: 'Separação' as const, status: d.status, usuario: d.usuario_atual, data: d.data_criacao })),
-        ...(confData || []).map(d => ({ id: d.id, type: 'Conferência' as const, status: d.status, usuario: d.responsavel_conferencia, data: d.data_conferencia }))
+        ...(sepData || []).map(d => ({ id: d.id, type: 'Separação' as const, status: d.status, usuario: d.usuario_atual, data: d.data_criacao || d.created_at || d.updated_at })),
+        ...(confData || []).map(d => ({ id: d.id, type: 'Conferência' as const, status: d.status, usuario: d.responsavel_conferencia, data: d.data_conferencia || d.created_at || d.updated_at }))
       ];
 
       setOpStatusList(combined);
@@ -205,7 +213,7 @@ const Dashboard: React.FC = () => {
                 🏆 Top Performers (Mês)
               </h3>
               <div className="space-y-4 flex-1 flex flex-col justify-center">
-                {((this as any).ranking || []).length > 0 ? ((this as any).ranking || []).map((user: any, i: number) => (
+                {(kpiData.ranking || []).length > 0 ? (kpiData.ranking || []).map((user: any, i: number) => (
                   <div key={user.name} className="flex items-center gap-4 group">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-white shadow-lg ${i === 0 ? 'bg-yellow-500 scale-110' : i === 1 ? 'bg-slate-400' : 'bg-orange-600'}`}>
                       {i + 1}º
@@ -215,7 +223,7 @@ const Dashboard: React.FC = () => {
                       <div className="w-full h-1.5 bg-[var(--bg-inner)] rounded-full mt-1 overflow-hidden">
                         <div
                           className={`h-full transition-all duration-1000 ${i === 0 ? 'bg-yellow-500' : 'bg-emerald-500'}`}
-                          style={{ width: `${Math.min(100, (user.value / ((this as any).ranking[0].value)) * 100)}%` }}
+                          style={{ width: `${Math.min(100, (user.value / (kpiData.ranking[0].value)) * 100)}%` }}
                         ></div>
                       </div>
                     </div>
@@ -256,13 +264,13 @@ const Dashboard: React.FC = () => {
           <div className="bg-[var(--bg-secondary)] p-8 rounded-2xl shadow-[var(--shadow-sm)] border border-[var(--border-light)]">
             <h3 className="text-sm font-black text-[var(--text-primary)] mb-6 uppercase tracking-widest">📍 Volume Ativo por Armazém</h3>
             <div className="flex flex-wrap gap-4 justify-center">
-              {((this as any).whData || []).map((wh: any) => (
+              {(kpiData.whData || []).map((wh: any) => (
                 <div key={wh.name} className="flex flex-col items-center gap-2 p-4 bg-[var(--bg-inner)] rounded-2xl border border-[var(--border-light)] min-w-[100px]">
                   <p className="text-lg font-black text-[var(--text-primary)]">{wh.value}</p>
                   <p className="text-[9px] font-black text-blue-500 uppercase tracking-tighter">Setor {wh.name}</p>
                 </div>
               ))}
-              {((this as any).whData || []).length === 0 && <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase italic">Aguardando dados...</p>}
+              {(kpiData.whData || []).length === 0 && <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase italic">Aguardando dados...</p>}
             </div>
           </div>
         </div>
@@ -274,7 +282,7 @@ const Dashboard: React.FC = () => {
               ⚠️ Alerta de Gargalo
             </h3>
             <div className="space-y-4 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
-              {((this as any).stalledLots || []).length > 0 ? ((this as any).stalledLots || []).map((st: any) => (
+              {(kpiData.stalledLots || []).length > 0 ? (kpiData.stalledLots || []).map((st: any) => (
                 <div key={st.id} className="p-4 bg-orange-50 border border-orange-100 rounded-xl relative overflow-hidden group animate-pulse">
                   <div className="absolute top-0 left-0 w-1 h-full bg-orange-500"></div>
                   <div className="flex justify-between items-center">
