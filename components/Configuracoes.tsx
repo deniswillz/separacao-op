@@ -38,7 +38,7 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
       blacklist: false,
       separacao: true,
       conferencia: false,
-      transferencia: false, // TEA
+
       historico: false
     }
   };
@@ -338,7 +338,7 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
   // 🗑️ RESETAR SISTEMA
   const handleResetSystem = async () => {
     if (!confirm('PERIGO: Esta ação apagará TODOS os dados operacionais. Confirmar reset total?')) return;
-    if (!confirm('ÚLTIMO AVISO: Dashboard, Endereços, Empenhos, Separação, Conferência, TEA, BlackList e Histórico serão limpos. Prosseguir?')) return;
+    if (!confirm('ÚLTIMO AVISO: Dashboard, Endereços, Empenhos, Separação, Conferência, BlackList e Histórico serão limpos. Prosseguir?')) return;
 
     const tables = ['enderecos', 'separacao', 'conferencia', 'historico', 'blacklist'];
     try {
@@ -463,7 +463,7 @@ const Configuracoes: React.FC<{ user: User }> = ({ user }) => {
                     { key: 'blacklist', label: 'Black', icon: '❌' },
                     { key: 'separacao', label: 'Sep.', icon: '✅' },
                     { key: 'conferencia', label: 'Conf.', icon: '🔍' },
-                    { key: 'transferencia', label: 'TEA', icon: '🏢' },
+
                     { key: 'historico', label: 'Hist.', icon: '📚' },
                   ].map((perm) => (
                     <label

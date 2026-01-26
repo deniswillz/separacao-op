@@ -56,12 +56,7 @@ const Dashboard: React.FC = () => {
       const firstDayMonth = new Date(nowLocal.getFullYear(), nowLocal.getMonth(), 1).toISOString();
       const finalizedMonthCount = histData?.filter(h => (h.data_finalizacao || h.created_at) >= firstDayMonth).length || 0;
 
-      // Itens em Trânsito (TEA no histórico sem status Concluido no último passo)
-      const inTransitCount = histData?.filter(h => {
-        if (h.armazem !== 'TEA') return false;
-        const lastStep = (h.itens || [])[(h.itens || []).length - 1];
-        return lastStep?.status !== 'Concluido';
-      }).length || 0;
+      const inTransitCount = 0;
 
       // Ranking de Produtividade (Top 3)
       const userStats: Record<string, number> = {};
@@ -258,7 +253,6 @@ const Dashboard: React.FC = () => {
   const kpis = [
     { label: 'OPs Pendentes', value: kpiData.pendingOps.toString().padStart(2, '0'), color: 'bg-orange-500', icon: '⏳' },
     { label: 'Finalizadas (Mês)', value: kpiData.finalizedMonth.toString().padStart(2, '0'), color: 'bg-emerald-600', icon: '✅' },
-    { label: 'Itens em Trânsito', value: kpiData.inTransit.toString().padStart(2, '0'), color: 'bg-blue-600', icon: '🚚' },
     { label: 'Faltas Críticas', value: kpiData.totalDivergencias.toString().padStart(2, '0'), color: 'bg-red-600', icon: '🚨' },
   ];
 
@@ -284,7 +278,7 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
         {kpis.map((kpi, idx) => (
           <div key={idx} className={`bg-[var(--bg-secondary)] p-6 rounded-2xl shadow-[var(--shadow-sm)] border border-[var(--border-light)] flex items-center justify-between ${idx === 3 && kpiData.totalDivergencias > 0 ? 'ring-2 ring-red-500 animate-pulse' : ''}`}>
             <div>

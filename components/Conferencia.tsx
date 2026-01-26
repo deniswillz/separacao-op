@@ -266,36 +266,12 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
         await supabase.from('historico').insert([{ ...batchHistoryData, total_itens: totalSeparatedSum }]);
       }
 
-      // TEA Sync: Update status to 'Qualidade' for all OPs in the lot
-      if (selectedItem.ordens && selectedItem.ordens.length > 0) {
-        for (const opId of selectedItem.ordens) {
-          const { data: teaList } = await supabase.from('historico')
-            .select('*')
-            .eq('armazem', 'TEA')
-            .filter('documento', 'eq', opId);
 
-          const tea = teaList?.[0];
-          if (tea) {
-            const newFluxo = [...(tea.itens || []), {
-              status: 'Qualidade',
-              icon: '⚖️',
-              data: getLocalDateString()
-            }];
-            await supabase.from('historico').update({
-              itens: newFluxo
-            }).eq('id', tea.id);
-          }
-        }
-      }
 
-      // Cleanup individual OP records that were previously saved
       if (selectedItem.ordens && selectedItem.ordens.length > 0) {
-        // Wait, here it deletes individual history records of the OPs that comprise the lot.
-        // I must ensure it DOES NOT delete records where armazem = 'TEA'.
         await supabase.from('historico')
           .delete()
-          .in('documento', selectedItem.ordens)
-          .neq('armazem', 'TEA');
+          .in('documento', selectedItem.ordens);
       }
 
       await supabase.from('conferencia').delete().eq('id', selectedItem.id);
@@ -695,13 +671,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                             // Delete from conferencia
                             await supabase.from('conferencia').delete().eq('id', item.id);
 
-                            // Cascading delete: Remove TEA records related to these OPs
-                            if (item.ordens && item.ordens.length > 0) {
-                              await supabase.from('historico')
-                                .delete()
-                                .eq('armazem', 'TEA')
-                                .in('documento', item.ordens);
-                            }
+
                             fetchItems();
                           };
                           performDelete();

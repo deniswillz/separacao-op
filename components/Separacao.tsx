@@ -345,27 +345,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
 
       await supabase.from('separacao').delete().eq('id', selectedOP.id);
 
-      // TEA Sync: Update status to 'Conferência' for all OPs in the lot
-      if (selectedOP.ordens && selectedOP.ordens.length > 0) {
-        for (const opId of selectedOP.ordens) {
-          const { data: teaList } = await supabase.from('historico')
-            .select('*')
-            .eq('armazem', 'TEA')
-            .filter('documento', 'eq', opId);
 
-          const tea = teaList?.[0];
-          if (tea) {
-            const newFluxo = [...(tea.itens || []), {
-              status: 'Conferência',
-              icon: '🔍',
-              data: getLocalDateString()
-            }];
-            await supabase.from('historico').update({
-              itens: newFluxo
-            }).eq('documento', opId).eq('armazem', 'TEA');
-          }
-        }
-      }
 
       // Artificial delay to ensure user perceives the transition
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -674,13 +654,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                             // Delete from separacao
                             await supabase.from('separacao').delete().eq('id', op.id);
 
-                            // Cascading delete: Remove TEA records related to these OPs
-                            if (op.ordens && op.ordens.length > 0) {
-                              await supabase.from('historico')
-                                .delete()
-                                .eq('armazem', 'TEA')
-                                .in('documento', op.ordens);
-                            }
+
                             fetchOps();
                           };
                           performDelete();

@@ -36,7 +36,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
     const { data, error } = await supabase
       .from('historico')
       .select('*')
-      .neq('armazem', 'TEA')
+
       .order('id', { ascending: false });
     if (error) console.error(error);
     else if (data) {

@@ -113,7 +113,7 @@ const Empenhos: React.FC = () => {
       histData.forEach((row: any) => {
         duplicates.push({
           op: row.documento,
-          status: row.armazem === 'TEA' ? 'Em TEA (Pendente)' : 'Finalizada'
+          status: 'Finalizada'
         });
       });
     }
@@ -208,25 +208,6 @@ const Empenhos: React.FC = () => {
     try {
       await upsertBatched('separacao', [lotToInsert], 900);
 
-      // TEA Sync: Individual cards for TEA
-      const teaRecords = selectedOps.map(op => ({
-        documento: op.id,
-        nome: op.id,
-        armazem: 'TEA',
-        itens: [{
-          status: 'Separação',
-          icon: '📦',
-          data: getLocalDateString(),
-          produto: op.teaItem?.produto || 'DIVERSOS',
-          descricao: op.teaItem?.descricao || 'INÍCIO LOGÍSTICA',
-          quantidade: op.teaItem?.quantidade || 0,
-          observacao: op.itens[0]?.observacao || '',
-          destino: destinoTea
-        }]
-      }));
-
-      await upsertBatched('historico', teaRecords, 900);
-
       showAlert(`Sucesso! Gerado 1 lote consolidado para as OPs selecionadas.`, 'success');
       setOps(prev => prev.filter(op => !selectedIds.includes(op.id)));
       setSelectedIds([]);
@@ -316,17 +297,7 @@ const Empenhos: React.FC = () => {
               <option value="ELETRONICA">ELETRÔNICA</option>
             </select>
 
-            <h3 className="text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">Destino TEA</h3>
-            <select
-              value={destinoTea}
-              onChange={(e) => setDestinoTea(e.target.value)}
-              className="w-full bg-[var(--bg-inner)] border-none rounded-2xl py-4 px-6 text-xs font-black text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-emerald-500/10 transition-all"
-            >
-              <option value="Armazém 04">Armazém 04</option>
-              <option value="Armazém 08">Armazém 08</option>
-              <option value="Armazém 11">Armazém 11</option>
-              <option value="Armazém 21">Armazém 21</option>
-            </select>
+
           </div>
 
           <div className="bg-emerald-50 p-8 rounded-[2.5rem] border border-emerald-100 space-y-3">

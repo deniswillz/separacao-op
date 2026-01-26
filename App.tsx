@@ -3,7 +3,7 @@ import Layout from './components/Layout';
 import Dashboard from './components/Dashboard';
 import Separacao from './components/Separacao';
 import Conferencia from './components/Conferencia';
-import MatrizFilial from './components/MatrizFilial';
+
 import Empenhos from './components/Empenhos';
 import Enderecos from './components/Enderecos';
 import Blacklist from './components/Blacklist';
@@ -224,7 +224,7 @@ const App: React.FC = () => {
   const hasPermission = (id: string): boolean => {
     if (user?.role === 'admin') return true;
     if (user?.role === 'visitor') {
-      return ['dashboard', 'transferencia', 'historico'].includes(id);
+      return ['dashboard', 'historico'].includes(id);
     }
     if (!user?.permissions) return false;
     if (Array.isArray(user.permissions)) {
@@ -249,7 +249,7 @@ const App: React.FC = () => {
       case 'empenhos': return <Empenhos />;
       case 'separacao': return <Separacao blacklist={blacklist} user={user!} setActiveTab={setActiveTab} />;
       case 'conferencia': return <Conferencia blacklist={blacklist} user={user!} setActiveTab={setActiveTab} />;
-      case 'transferencia': return <MatrizFilial user={user!} />;
+
       case 'blacklist': return <Blacklist items={blacklist} setItems={setBlacklist} user={user!} />;
       case 'historico': return <Historico user={user!} />;
       case 'configuracoes': return user?.role === 'admin' ? <Configuracoes user={user!} /> : <Dashboard />;
