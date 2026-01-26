@@ -5,6 +5,7 @@ import { BlacklistItem } from '../App';
 import { supabase, supabaseUrl, supabaseAnonKey } from '../services/supabaseClient';
 import Loading from './Loading';
 import { useAlert } from './AlertContext';
+import { getLocalDateString } from '../services/dateUtils';
 
 
 
@@ -357,7 +358,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
             const newFluxo = [...(tea.itens || []), {
               status: 'Conferência',
               icon: '🔍',
-              data: new Date().toLocaleDateString('pt-BR')
+              data: getLocalDateString()
             }];
             await supabase.from('historico').update({
               itens: newFluxo
@@ -417,7 +418,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
           )}
         </div>
         <div className="text-[10px] font-bold text-gray-400 uppercase">
-          Data do Sistema: <span className="text-[#006B47]">{new Date().toLocaleDateString('pt-BR')}</span>
+          Data do Sistema: <span className="text-[#006B47]">{getLocalDateString()}</span>
         </div>
       </div>
 
@@ -741,7 +742,7 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
                 <div className="space-y-4 pt-4 relative z-10">
                   <div className="flex justify-between items-center text-[10px] font-black text-[var(--text-muted)] uppercase tracking-widest">
                     <span className={op.status === 'Pendente' ? 'text-amber-500' : 'text-[var(--text-muted)]'}>{op.status || 'PENDENTE'}</span>
-                    <span>{new Date(op.data).toLocaleDateString()}</span>
+                    <span>{getLocalDateString(op.data)}</span>
                   </div>
                   <button
                     onClick={() => handleStart(op)}

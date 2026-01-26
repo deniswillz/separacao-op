@@ -3,6 +3,7 @@ import { supabase, supabaseUrl, supabaseAnonKey, upsertBatched } from '../servic
 import { User } from '../types';
 import Loading from './Loading';
 import { useAlert } from './AlertContext';
+import { getLocalDateString } from '../services/dateUtils';
 
 
 const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: string) => void }> = ({ user, blacklist, setActiveTab }) => {
@@ -278,7 +279,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
             const newFluxo = [...(tea.itens || []), {
               status: 'Qualidade',
               icon: '⚖️',
-              data: new Date().toLocaleDateString('pt-BR')
+              data: getLocalDateString()
             }];
             await supabase.from('historico').update({
               itens: newFluxo

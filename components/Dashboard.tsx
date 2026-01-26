@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 import { supabase } from '../services/supabaseClient';
 import Loading from './Loading';
+import { getLocalDateISO, getLocalTimeString, getLocalDateString, getLocalDateTimeString, toLocaleDate } from '../services/dateUtils';
 
 
 const Dashboard: React.FC = () => {
@@ -25,7 +26,7 @@ const Dashboard: React.FC = () => {
     shortageItems: [] as any[]
   });
   const [opStatusList, setOpStatusList] = useState<{ id: string, type: 'Separação' | 'Conferência', status: string, usuario: string | null, data?: string, op_range?: string, itens?: any[] }[]>([]);
-  const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
+  const [dateFilter, setDateFilter] = useState(getLocalDateISO());
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showABCPopup, setShowABCPopup] = useState(false);
   const [selectedShortage, setSelectedShortage] = useState<any>(null);
@@ -51,8 +52,8 @@ const Dashboard: React.FC = () => {
       const pending = pendingSep + pendingConf;
 
       // Finalizadas no Mês (do histórico)
-      const now = new Date();
-      const firstDayMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const nowLocal = toLocaleDate(new Date());
+      const firstDayMonth = new Date(nowLocal.getFullYear(), nowLocal.getMonth(), 1).toISOString();
       const finalizedMonthCount = histData?.filter(h => (h.data_finalizacao || h.created_at) >= firstDayMonth).length || 0;
 
       // Itens em Trânsito (TEA no histórico sem status Concluido no último passo)
@@ -145,7 +146,7 @@ const Dashboard: React.FC = () => {
 
       const dailyMap: Record<string, number> = {};
       histData?.forEach(h => {
-        const date = (h.data_finalizacao || h.created_at || '').split('T')[0];
+        const date = getLocalDateISO(new Date(h.data_finalizacao || h.created_at || ''));
         if (date) dailyMap[date] = (dailyMap[date] || 0) + 1;
       });
       const dailyVolume = Object.entries(dailyMap)
@@ -169,7 +170,7 @@ const Dashboard: React.FC = () => {
       });
 
       const bottleneckThreshold = 6 * 60 * 60 * 1000;
-      const bottleneckTime = new Date(now.getTime() - bottleneckThreshold).toISOString();
+      const bottleneckTime = new Date(new Date().getTime() - bottleneckThreshold).toISOString();
 
       const getOpRange = (item: any) => {
         const firstItem = (item.itens || [])[0] || {};
@@ -230,7 +231,7 @@ const Dashboard: React.FC = () => {
         op,
         produto,
         motivo: motivo || 'Divergência não especificada',
-        timestamp: new Date().toLocaleTimeString('pt-BR')
+        timestamp: getLocalTimeString()
       };
       setLiveAlerts(prev => [newAlert, ...prev].slice(0, 5));
       if (audioRef.current) audioRef.current.play().catch(() => { });
@@ -428,7 +429,7 @@ const Dashboard: React.FC = () => {
                     <div>
                       <p className="text-[10px] font-black text-red-600 uppercase italic">Atraso {'>'} 6 horas</p>
                       <p className="text-xs font-bold text-[var(--text-primary)] mt-1">OP {st.op_range}</p>
-                      <p className="text-[9px] font-bold text-gray-400 mt-1 uppercase">Entrada: {new Date(st.data).toLocaleTimeString('pt-BR')}</p>
+                      <p className="text-[9px] font-bold text-gray-400 mt-1 uppercase">Entrada: {getLocalTimeString(st.data)}</p>
                     </div>
                     <span className="text-[9px] font-black bg-white px-2 py-1 rounded-lg shadow-sm border border-red-100">{st.type}</span>
                   </div>
@@ -489,7 +490,7 @@ const Dashboard: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
 
           {opStatusList
-            .filter(op => (op as any).data?.startsWith(dateFilter))
+            .filter(op => getLocalDateISO(new Date((op as any).data)) === dateFilter)
             .map((op: any, idx) => {
               const borderClass = (op.status === 'Finalizado' || op.status === 'Finalizada') ? 'border-emerald-500' :
                 op.isStalled ? 'border-red-500 ring-2 ring-red-500/50 animate-pulse' :
@@ -703,10 +704,10 @@ const Dashboard: React.FC = () => {
                       </td>
                       <td className="py-4 px-2 text-right">
                         <p className="text-[10px] font-bold text-gray-500">
-                          {new Date(opItem.data).toLocaleDateString('pt-BR')}
+                          {getLocalDateString(opItem.data)}
                         </p>
                         <p className="text-[8px] font-medium text-gray-400 italic">
-                          {new Date(opItem.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          {getLocalTimeString(opItem.data).slice(0, 5)}
                         </p>
                       </td>
                     </tr>

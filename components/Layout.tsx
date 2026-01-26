@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User } from '../types';
+import { getLocalDateString } from '../services/dateUtils';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -135,7 +136,7 @@ const Layout: React.FC<LayoutProps> = ({ children, user, onLogout, activeTab, se
             <div className="flex items-center gap-8">
               <div className="text-right hidden sm:block">
                 <p className="text-[9px] font-black text-[var(--text-muted)] uppercase tracking-widest">Data do Sistema</p>
-                <p className="text-xs font-black text-emerald-600">{new Date().toLocaleDateString('pt-BR')}</p>
+                <p className="text-xs font-black text-emerald-600">{getLocalDateString()}</p>
               </div>
             </div>
           </header>

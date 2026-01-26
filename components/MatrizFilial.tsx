@@ -5,6 +5,7 @@ import { supabase, upsertBatched } from '../services/supabaseClient';
 import Loading from './Loading';
 import * as XLSX from 'xlsx';
 import { useAlert } from './AlertContext';
+import { getLocalDateString, getLocalDateTimeString, getLocalDateISO } from '../services/dateUtils';
 
 interface TEAItem {
   id: string;
@@ -109,7 +110,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
           itens: [{
             status: 'Separação',
             icon: '📦',
-            data: new Date().toLocaleDateString('pt-BR'),
+            data: getLocalDateString(),
             produto: String(row[1] || '').trim(), // Column B
             descricao: String(row[2] || '').trim(), // Column C
             quantidade: Number(row[7]) || 0, // Column H
@@ -152,14 +153,14 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
     const newFluxo = [...item.itens, {
       status: nextStep,
       icon: current.icon,
-      data: new Date().toLocaleDateString('pt-BR')
+      data: getLocalDateString()
     }];
 
     const { error } = await supabase
       .from('historico')
       .update({
         itens: newFluxo,
-        data_finalizacao: nextStep === 'Concluido' ? new Date().toISOString() : null
+        data_finalizacao: nextStep === 'Concluido' ? getLocalDateISO() : null
       })
       .eq('id', item.id);
 
@@ -340,7 +341,7 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center gap-2 text-[9px] font-bold text-[var(--text-muted)] uppercase tracking-tighter">
                       <span className="text-blue-500">🔄</span>
-                      <span>Última atualização: {new Date(item.ultima_atualizacao!).toLocaleString('pt-BR')}</span>
+                      <span>Última atualização: {getLocalDateTimeString(item.ultima_atualizacao!)}</span>
                     </div>
                     <p className="text-[11px] font-black text-[#10B981] uppercase tracking-widest italic">{statusInfo.footer}</p>
                   </div>
@@ -428,8 +429,8 @@ const MatrizFilial: React.FC<{ user: User }> = ({ user }) => {
                             const fixedDateStr = (dateStr.includes(' ') && !dateStr.includes('Z') && !dateStr.includes('+'))
                               ? dateStr.replace(' ', 'T') + 'Z'
                               : dateStr;
-                            return new Date(fixedDateStr).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-                          })()} (BRT)
+                            return getLocalDateTimeString(fixedDateStr);
+                          })()}(BRT)
                         </td>
                       </tr>
                     ))}

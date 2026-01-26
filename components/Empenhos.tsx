@@ -3,6 +3,7 @@ import { UrgencyLevel } from '../types';
 import * as XLSX from 'xlsx';
 import { supabase, upsertBatched } from '../services/supabaseClient';
 import { useAlert } from './AlertContext';
+import { getLocalDateString } from '../services/dateUtils';
 
 
 interface PendingOP {
@@ -50,7 +51,7 @@ const Empenhos: React.FC = () => {
           if (!opsMap[opId]) {
             opsMap[opId] = {
               id: opId,
-              data: new Date().toLocaleDateString('pt-BR'),
+              data: getLocalDateString(),
               itens: [],
               prioridade: 'media'
             };
@@ -215,7 +216,7 @@ const Empenhos: React.FC = () => {
         itens: [{
           status: 'Separação',
           icon: '📦',
-          data: new Date().toLocaleDateString('pt-BR'),
+          data: getLocalDateString(),
           produto: op.teaItem?.produto || 'DIVERSOS',
           descricao: op.teaItem?.descricao || 'INÍCIO LOGÍSTICA',
           quantidade: op.teaItem?.quantidade || 0,
@@ -251,7 +252,7 @@ const Empenhos: React.FC = () => {
       <div className="flex justify-between items-center bg-[var(--bg-secondary)] p-4 rounded-xl border-l-4 border-[#006B47] shadow-[var(--shadow-sm)]">
         <h1 className="text-sm font-black text-[#006B47] uppercase tracking-widest">Empenhos</h1>
         <div className="text-[10px] font-bold text-[var(--text-muted)] uppercase">
-          Data do Sistema: <span className="text-[#006B47]">{new Date().toLocaleDateString('pt-BR')}</span>
+          Data do Sistema: <span className="text-[#006B47]">{getLocalDateString()}</span>
         </div>
       </div>
 

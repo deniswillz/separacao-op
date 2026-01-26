@@ -4,6 +4,7 @@ import { User } from '../types';
 import { supabase, upsertBatched } from '../services/supabaseClient';
 import Loading from './Loading';
 import { useAlert } from './AlertContext';
+import { getLocalDateString } from '../services/dateUtils';
 
 
 import * as XLSX from 'xlsx';
@@ -34,7 +35,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
       codigo: newCode.toUpperCase().trim(),
       nao_sep: true,
       talvez: false,
-      data_inclusao: new Date().toLocaleDateString('pt-BR')
+      data_inclusao: getLocalDateString()
     };
 
     const { data, error } = await supabase.from('blacklist').insert(newItem).select();
@@ -161,7 +162,7 @@ const Blacklist: React.FC<BlacklistProps & { user: User }> = ({ items, setItems,
                     codigo: String(row[0]).trim().toUpperCase(),
                     nao_sep: true,
                     talvez: false,
-                    data_inclusao: new Date().toLocaleDateString('pt-BR')
+                    data_inclusao: getLocalDateString()
                   }));
 
                   if (blacklistItems.length === 0) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { User } from '../types';
 import Loading from './Loading';
+import { getLocalDateString, getLocalDateTimeString } from '../services/dateUtils';
 
 interface FinishedOP {
   id: string;
@@ -216,13 +217,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                 <div className="space-y-1">
                   <p className="text-[8px] font-black text-[var(--text-muted)] uppercase tracking-widest leading-none">Data Fechamento</p>
                   <p className="text-[10px] font-black text-[var(--text-muted)] italic">
-                    {(() => {
-                      const dateStr = item.data_finalizacao;
-                      const fixedDateStr = (dateStr.includes(' ') && !dateStr.includes('Z') && !dateStr.includes('+'))
-                        ? dateStr.replace(' ', 'T') + 'Z'
-                        : dateStr;
-                      return new Date(fixedDateStr).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-                    })()}
+                    {getLocalDateString(item.data_finalizacao)}
                   </p>
                 </div>
                 <div className="flex gap-2">
@@ -321,13 +316,7 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
                       <span className="text-emerald-400">✅</span>
                     </div>
                     <p className="text-[10px] font-medium text-[var(--text-muted)] font-mono italic opacity-60">
-                      {(() => {
-                        const dateStr = selectedItem.data_finalizacao;
-                        const fixedDateStr = (dateStr.includes(' ') && !dateStr.includes('Z') && !dateStr.includes('+'))
-                          ? dateStr.replace(' ', 'T') + 'Z'
-                          : dateStr;
-                        return new Date(fixedDateStr).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-                      })()} (BRT)
+                      {getLocalDateTimeString(selectedItem.data_finalizacao)} (BRT)
                     </p>
                   </div>
                 </div>
