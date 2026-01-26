@@ -134,7 +134,9 @@ const Dashboard: React.FC = () => {
 
       const getOpRange = (item: any) => {
         const firstItem = (item.itens || [])[0] || {};
-        return (firstItem.metadata?.op_range || item.op_range) || item.nome || item.documento || String(item.id).slice(0, 8);
+        const raw = (firstItem.metadata?.op_range || item.op_range) || item.nome || item.documento || String(item.id).slice(0, 8);
+        // Remove existing "OP-", "OP ", "Lote-", "Lote " from start (case insensitive)
+        return raw.replace(/^(OP-|OP\s|Lote-|Lote\s)/i, '');
       };
 
       const combined = [
@@ -443,7 +445,7 @@ const Dashboard: React.FC = () => {
               <div className="flex justify-between items-start mb-6">
                 <div>
                   <h3 className="text-2xl font-black italic uppercase tracking-tighter text-[#1a1c1e] leading-none">RELAÇÃO DE OPs</h3>
-                  <p className="text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-widest">{selectedLot.op_range}</p>
+                  <p className="text-[10px] font-bold text-gray-400 mt-2 uppercase tracking-widest">{selectedLot.op_range ? `OP-${selectedLot.op_range}` : ''}</p>
                 </div>
                 <button
                   onClick={() => setShowBreakdown(false)}
