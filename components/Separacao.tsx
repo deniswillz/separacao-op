@@ -235,7 +235,8 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
           if (c.op === op) {
             return {
               ...c,
-              concluido: isFinalize
+              concluido: isFinalize,
+              qtd_separada: isFinalize ? (c.quantidade_original || c.quantidade || 0) : c.qtd_separada
             };
           }
           return c;
