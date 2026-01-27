@@ -233,10 +233,13 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
       if (item.codigo === itemCodigo) {
         const newComp = (item.composicao || []).map((c: any) => {
           if (c.op === op) {
+            // Robust quantity detection: exactly what's used in the display logic
+            const requested = Number(c.quantidade_original) || Number(c.quantidade) || 0;
+
             return {
               ...c,
               concluido: isFinalize,
-              qtd_separada: isFinalize ? (c.quantidade_original || c.quantidade || 0) : c.qtd_separada
+              qtd_separada: isFinalize ? requested : c.qtd_separada
             };
           }
           return c;
@@ -253,16 +256,16 @@ const Separacao: React.FC<{ blacklist: BlacklistItem[], user: User, setActiveTab
       return item;
     });
 
-    setIsFinalizing(true);
-    const { error } = await supabase.from('separacao').update({ itens: newItens }).eq('id', selectedOP.id);
-    setIsFinalizing(false);
+    // Optimistic Update: Update UI immediately
+    const updatedOP = { ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) };
+    setSelectedOP(updatedOP);
+    const updatedLupaItem = newItens.find(i => i.codigo === itemCodigo);
+    if (updatedLupaItem) setLupaItem(updatedLupaItem);
 
-    if (!error) {
-      const updatedOP = { ...selectedOP, rawItens: newItens, progresso: calculateProgress(newItens) };
-      setSelectedOP(updatedOP);
-      const updatedLupaItem = newItens.find(i => i.codigo === itemCodigo);
-      if (updatedLupaItem) setLupaItem(updatedLupaItem);
-    } else {
+    const { error } = await supabase.from('separacao').update({ itens: newItens }).eq('id', selectedOP.id);
+
+    if (error) {
+      console.error('Erro ao atualizar status:', error);
       showAlert('Erro ao atualizar status: ' + error.message, 'error');
     }
   };
