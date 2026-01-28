@@ -63,3 +63,15 @@ export const toLocaleDate = (date: string | Date): Date => {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     return new Date(dateObj.toLocaleString('en-US', { timeZone: TIMEZONE }));
 };
+/**
+ * Retorna o primeiro e último dia do mês atual formatados como YYYY-MM-DD.
+ */
+export const getLocalMonthRange = (): { start: string, end: string } => {
+    const now = toLocaleDate(new Date());
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return {
+        start: getLocalDateISO(firstDay),
+        end: getLocalDateISO(lastDay)
+    };
+};

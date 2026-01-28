@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 import { supabase } from '../services/supabaseClient';
 import Loading from './Loading';
-import { getLocalDateISO, getLocalTimeString, getLocalDateString, getLocalDateTimeString, toLocaleDate } from '../services/dateUtils';
+import { getLocalDateISO, getLocalTimeString, getLocalDateString, getLocalDateTimeString, toLocaleDate, getLocalMonthRange } from '../services/dateUtils';
 
 
 const Dashboard: React.FC = () => {
@@ -26,8 +26,9 @@ const Dashboard: React.FC = () => {
     shortageItems: [] as any[]
   });
   const [opStatusList, setOpStatusList] = useState<{ id: string, type: 'Separação' | 'Conferência', status: string, usuario: string | null, data?: string, op_range?: string, itens?: any[] }[]>([]);
-  const [startDate, setStartDate] = useState(getLocalDateISO());
-  const [endDate, setEndDate] = useState(getLocalDateISO());
+  const { start: initialStart, end: initialEnd } = getLocalMonthRange();
+  const [startDate, setStartDate] = useState(initialStart);
+  const [endDate, setEndDate] = useState(initialEnd);
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showABCPopup, setShowABCPopup] = useState(false);

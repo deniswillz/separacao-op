@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { User } from '../types';
 import Loading from './Loading';
-import { getLocalDateString, getLocalDateTimeString } from '../services/dateUtils';
+import { getLocalDateString, getLocalDateTimeString, getLocalMonthRange } from '../services/dateUtils';
 
 interface FinishedOP {
   id: string;
@@ -21,13 +21,10 @@ interface FinishedOP {
 const Historico: React.FC<{ user: User }> = ({ user }) => {
   const [history, setHistory] = useState<FinishedOP[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const today = new Date();
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
+  const { start: initialStart, end: initialEnd } = getLocalMonthRange();
   const [searchText, setSearchText] = useState('');
-  const [startDate, setStartDate] = useState(firstDay.toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(lastDay.toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(initialStart);
+  const [endDate, setEndDate] = useState(initialEnd);
   const [warehouseFilter, setWarehouseFilter] = useState('');
   const [responsibleFilter, setResponsibleFilter] = useState('');
   const [selectedItem, setSelectedItem] = useState<FinishedOP | null>(null);
@@ -137,11 +134,9 @@ const Historico: React.FC<{ user: User }> = ({ user }) => {
           {(startDate || endDate || warehouseFilter || responsibleFilter || searchText) && (
             <button
               onClick={() => {
-                const today = new Date();
-                const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-                const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-                setStartDate(firstDay.toISOString().split('T')[0]);
-                setEndDate(lastDay.toISOString().split('T')[0]);
+                const { start: resetStart, end: resetEnd } = getLocalMonthRange();
+                setStartDate(resetStart);
+                setEndDate(resetEnd);
                 setWarehouseFilter('');
                 setResponsibleFilter('');
                 setSearchText('');
