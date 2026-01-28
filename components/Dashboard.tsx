@@ -26,7 +26,9 @@ const Dashboard: React.FC = () => {
     shortageItems: [] as any[]
   });
   const [opStatusList, setOpStatusList] = useState<{ id: string, type: 'Separação' | 'Conferência', status: string, usuario: string | null, data?: string, op_range?: string, itens?: any[] }[]>([]);
-  const [dateFilter, setDateFilter] = useState(getLocalDateISO());
+  const [startDate, setStartDate] = useState(getLocalDateISO());
+  const [endDate, setEndDate] = useState(getLocalDateISO());
+  const [warehouseFilter, setWarehouseFilter] = useState('');
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showABCPopup, setShowABCPopup] = useState(false);
   const [selectedShortage, setSelectedShortage] = useState<any>(null);
@@ -473,12 +475,39 @@ const Dashboard: React.FC = () => {
             Status das OPs em Tempo Real
           </h3>
           <div className="flex items-center gap-4">
-            <input
-              type="date"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="bg-[var(--bg-secondary)] border border-[var(--border-light)] rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none focus:ring-2 focus:ring-emerald-500 text-[var(--text-primary)]"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                className="bg-[var(--bg-secondary)] border border-[var(--border-light)] rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none focus:ring-2 focus:ring-emerald-500 text-[var(--text-primary)] cursor-pointer"
+                value={startDate}
+                onClick={(e) => (e.target as any).showPicker?.()}
+                onChange={(e) => setStartDate(e.target.value)}
+                title="Data Inicial"
+              />
+              <span className="text-gray-400 font-bold text-[10px]">à</span>
+              <input
+                type="date"
+                className="bg-[var(--bg-secondary)] border border-[var(--border-light)] rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none focus:ring-2 focus:ring-emerald-500 text-[var(--text-primary)] cursor-pointer"
+                value={endDate}
+                onClick={(e) => (e.target as any).showPicker?.()}
+                onChange={(e) => setEndDate(e.target.value)}
+                title="Data Final"
+              />
+            </div>
+
+            <select
+              className="bg-[var(--bg-secondary)] border border-[var(--border-light)] rounded-xl px-4 py-2 text-[10px] font-black uppercase outline-none focus:ring-2 focus:ring-emerald-500 text-[var(--text-primary)] min-w-[140px]"
+              value={warehouseFilter}
+              onChange={(e) => setWarehouseFilter(e.target.value)}
+            >
+              <option value="">TODOS SETORES</option>
+              {Array.from(new Set(opStatusList.map(op => {
+                // Try to find armazem in the root or in items
+                return (op as any).armazem || (op as any).itens?.[0]?.armazem;
+              }))).filter(Boolean).sort().map(wh => (
+                <option key={wh as string} value={wh as string}>{wh as string}</option>
+              ))}
+            </select>
             <span className="text-[10px] font-black text-emerald-600 bg-emerald-500/10 px-3 py-1 rounded-full uppercase tracking-tighter">Live Sync</span>
           </div>
         </div>
@@ -486,7 +515,15 @@ const Dashboard: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
 
           {opStatusList
-            .filter(op => getLocalDateISO(new Date((op as any).data)) === dateFilter)
+            .filter(op => {
+              const opDate = getLocalDateISO(new Date((op as any).data));
+              const opWh = (op as any).armazem || (op as any).itens?.[0]?.armazem;
+
+              const matchesDate = opDate >= startDate && opDate <= endDate;
+              const matchesWh = !warehouseFilter || opWh === warehouseFilter;
+
+              return matchesDate && matchesWh;
+            })
             .map((op: any, idx) => {
               const borderClass = (op.status === 'Finalizado' || op.status === 'Finalizada') ? 'border-emerald-500' :
                 op.isStalled ? 'border-red-500 ring-2 ring-red-500/50 animate-pulse' :
