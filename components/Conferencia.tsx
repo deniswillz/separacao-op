@@ -232,6 +232,15 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
       return;
     }
 
+    const hasShortage = selectedItem.itens.some((item: any) =>
+      (item.composicao || []).some((c: any) => !!c.falta_conf)
+    );
+
+    if (hasShortage) {
+      showAlert('PROCESSO IMPEDIDO: Lote possui itens com falta/divergência. Resolva as divergências antes de finalizar.', 'error');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const docTransf = selectedItem.itens[0]?.doc_transferencia || selectedItem.documento;
@@ -498,7 +507,15 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {selectedItem.itens
-                      .filter((item: any) => !selectedOpForDetail || item.composicao?.some((c: any) => c.op === selectedOpForDetail))
+                      .filter((item: any) => {
+                        const matchOp = !selectedOpForDetail || item.composicao?.some((c: any) => c.op === selectedOpForDetail);
+                        const search = searchText.toLowerCase();
+                        const matchSearch = !search ||
+                          item.codigo?.toLowerCase().includes(search) ||
+                          item.descricao?.toLowerCase().includes(search) ||
+                          item.composicao?.some((c: any) => c.op?.toLowerCase().includes(search));
+                        return matchOp && matchSearch;
+                      })
                       .map((item: any, idx: number) => {
                         const comps = (item.composicao || []).filter((c: any) => {
                           const matchOp = !selectedOpForDetail || c.op === selectedOpForDetail;
@@ -526,7 +543,7 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
                               <td className="px-6 py-4">
                                 <div className="space-y-0.5">
                                   <p className="text-base font-black text-[#006B47] tracking-tight">{item.codigo}</p>
-                                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter truncate max-w-[200px]">{item.descricao}</p>
+                                  <p className="text-xs font-bold text-gray-400 uppercase tracking-tighter">{item.descricao}</p>
                                   <p className="text-xs font-black text-blue-500 font-mono italic">OP {comp.op}</p>
                                 </div>
                               </td>
@@ -641,7 +658,10 @@ const Conferencia: React.FC<{ user: User, blacklist: any[], setActiveTab: (tab: 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {items.filter(item => {
             const search = searchText.toLowerCase();
-            return item.nome?.toLowerCase().includes(search) || item.documento?.toLowerCase().includes(search) || item.armazem?.toLowerCase().includes(search);
+            const matchHeader = item.nome?.toLowerCase().includes(search) || item.documento?.toLowerCase().includes(search) || item.armazem?.toLowerCase().includes(search);
+            const matchOp = item.ordens?.some((op: string) => op.toLowerCase().includes(search));
+            const matchProduct = item.itens?.some((i: any) => i.codigo?.toLowerCase().includes(search) || i.descricao?.toLowerCase().includes(search));
+            return matchHeader || matchOp || matchProduct;
           }).map((item, index) => {
             const isEmUso = item.responsavel_conferencia && item.responsavel_conferencia !== user.nome;
             const borderClass = isEmUso || item.status === 'Em Conferência' ? 'border-blue-500' : 'border-[var(--border-light)]';
